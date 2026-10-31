@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.26.0
+
+- Rebuilt the main entrance walkway from grid-aligned square pavers matching regular walkways.
+- Added $50 triangular half walkways with four corner rotations; complementary halves complete a $100 square.
+- Route fans through the paved edges of half tiles, using interior points and shared-edge waypoints.
+- Keep entrance arrivals on its paving while routing around structures, and preserve half tiles through saves and undo.
+
+
 ## 0.25.0
 
 - Expanded the buildable area behind home plate by moving the diagonal stadium perimeter and main gate about 28 feet outward.

@@ -78,3 +78,10 @@ Concourse tiles persist baseFeet on the same 5 ft scale, occupy one cell, and ha
 Concourse graph nodes connect through boundary ports to same-height decks, ground paths at 0 ft, stair top/bottom endpoints, and end-stair side landings. Ground paths never connect to raised platforms. Only stairs provide row access. Rails open only at a valid unobstructed connection. Surfaces render below pedestrians with perimeter rails in the depth pass. Buildings still occupy ground tiles only; concourses do not host amenities.
 
 Build concourse demo creates a side stair at 17,8, five rear platforms at 17–21,7 (+5 ft), and seating at 19–21,8 (48 seats). The gap at 18,8 forces fans to cross the concourse before descending the central aisle. No front-row pavement is built.
+
+
+## Half-tile paving (v0.26)
+
+`halfPath` stores a triangular paver in one cell, with rotations 0/2/4/6. Each costs $50; adding the opposite triangle or using Walkway to complete a half costs the remaining $50 and changes it to `path`. Refunds use its actual type price. Entrance terrain is now drawn as the `entrancePaving` set of square cells; user path paving overrides a cell's terrain paving.
+
+Ground graph nodes for triangles sit at their centroid and connect only along the two fully paved edges. Shared-edge midpoint waypoints keep segments within each convex triangle. Stair, end landing, concourse and standalone bleacher connections also check the paved edge. The entrance approach samples pavement coverage as well as building footprints.

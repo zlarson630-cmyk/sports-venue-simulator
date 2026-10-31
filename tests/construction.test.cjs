@@ -48,6 +48,7 @@ function game(saved) {
   }
   const toolButtons = [
     "path",
+    "halfPath",
     "concourse",
     "bleacher",
     "stand",
@@ -98,7 +99,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -704,4 +705,41 @@ test("expanded home-plate apron supports accessible stands without changing the 
  assert.equal(JSON.stringify(g.api.fenceCorners),JSON.stringify([[14,14],[18,10],[48,10],[48,27],[31,44],[14,44]]));
  const route=g.api.approachRoute();assert.ok(route.some(p=>p.x===11.5&&p.y===7.5));
  g.api.startFanTest();g.api.advanceFans(40);assert.ok(g.api.fanState().fans.every(f=>f.seated));assert.equal(g.api.state().money,90125);
+});
+
+test("half walkways rotate, cost half price, complete complementary squares and survive undo/reload",()=>{
+ const g=game();g.select("halfPath");g.clickTile(10,30);assert.equal(g.api.state().money,99950);
+ assert.equal(g.api.state().tiles["10,30"].rot,0);g.key("r");g.key("r");g.clickTile(10,30);
+ assert.equal(g.api.state().tiles["10,30"].type,"path");assert.equal(g.api.state().money,99900);
+ g.element("undo").click();assert.equal(g.api.state().tiles["10,30"].type,"halfPath");
+ assert.equal(game(JSON.parse(g.storage.get("svs01"))).api.state().tiles["10,30"].type,"halfPath");
+ g.select("path");g.clickTile(10,30);assert.equal(g.api.state().money,99900);
+});
+test("half paths only connect through paved edges and keep every route point within the triangle",()=>{
+ const saved=modularPark();saved.tiles["16,9"]={type:"halfPath",rot:0};
+ assert.equal(game(saved).api.reachableSeats().length,0); // No east edge to continue toward seats.
+ const g=game();
+ for(const rot of [0,2,4,6]) {
+  const item={type:"halfPath",rot},p=g.api.pathPoint(0,0,item);
+  assert.ok(g.api.halfContains(item,p.x,p.y));
+  assert.equal([[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>g.api.pathOpens(item,dx,dy)).length,2);
+ }
+});
+test("the main entrance is tiled with regular square pavers and arrival routes stay on them",()=>{
+ const g=game(),route=g.api.approachRoute();assert.ok(route);
+ assert.ok(g.api.entrancePaving.length>15);assert.ok(g.api.entrancePaving.every(p=>p.every(Number.isInteger)));
+ for(let i=1;i<route.length;i++)for(let j=0;j<=8;j++) {
+  const a=route[i-1],b=route[i];assert.ok(g.api.entrancePavedAt(a.x+(b.x-a.x)*j/8,a.y+(b.y-a.y)*j/8));
+ }
+});
+
+test("fans traverse a half-tile corner without crossing its unpaved half",()=>{
+ const saved={version:2,fieldRevision:6,money:90000,edges:{"15,10:v":{type:"wall"}},tiles:{"14,10":{type:"path",rot:0},"14,9":{type:"path",rot:0},"15,9":{type:"halfPath",rot:6},"15,10":{type:"path",rot:0},"16,10":{type:"bleacher",rot:0}}};
+ const g=game(saved),route=g.api.reachableSeats()[0].route;
+ assert.ok(route.some(p=>Math.abs(p.x-15-1/3)<1e-8&&Math.abs(p.y-9-2/3)<1e-8));
+ for(let i=1;i<route.length;i++)for(let j=0;j<=16;j++) {
+  const a=route[i-1],b=route[i],x=a.x+(b.x-a.x)*j/16,y=a.y+(b.y-a.y)*j/16;
+  if(x>=15&&x<=16&&y>=9&&y<=10)assert.ok(g.api.halfContains(saved.tiles["15,9"],x-15,y-9));
+ }
+ g.api.startFanTest();g.api.advanceFans(40);assert.ok(g.api.fanState().fans.every(f=>f.seated));
 });
