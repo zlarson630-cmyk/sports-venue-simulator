@@ -6,15 +6,15 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Sports Venue Simulator — Sandbox 0.22</title>
-    <link rel="stylesheet" href="styles.css?v=0.22.0" />
+    <title>Sports Venue Simulator — Sandbox 0.23</title>
+    <link rel="stylesheet" href="styles.css?v=0.23.0" />
   </head>
   <body>
     <header>
       <div class="logo">🏟️</div>
       <div>
         <h1>SPORTS VENUE<br />SIMULATOR</h1>
-        <small>BUILD SANDBOX · v0.22</small>
+        <small>BUILD SANDBOX · v0.23</small>
       </div>
       <div class="topstats">
         <div class="stat">💵 <strong id="money">$100,000</strong></div>
@@ -35,6 +35,10 @@
           <span class="emoji">🏟️</span><span>Seating section</span><span class="price">$1,800</span></button
         ><button class="tool" data-tool="stairStand" title="8 seats · 6 ft stairs · 4 rows · 5 ft rise">
           <span class="emoji">🪜</span><span>Stair section</span><span class="price">$1,600</span></button
+        ><button class="tool" data-tool="endStairLeft" title="No seats · 5 ft stairs + 5 ft landing · entrance on local left">
+          <span class="emoji">↗</span><span>End stairs · L</span><span class="price">$1,200</span></button
+        ><button class="tool" data-tool="endStairRight" title="No seats · 5 ft stairs + 5 ft landing · entrance on local right">
+          <span class="emoji">↖</span><span>End stairs · R</span><span class="price">$1,200</span></button
         ><button class="tool" data-tool="wall">
           <span class="emoji">🧱</span><span>Wall</span
           ><span class="price">$200</span></button
@@ -54,6 +58,7 @@
         <p id="standHelp" class="standhelp" role="status" hidden></p>
         <div class="sidebarbottom">
           <div class="section">GAME DAY · 2 MINUTES</div>
+          <button class="smallbtn" id="demoSideEntry" style="width:100%;margin-bottom:6px">Build side-entry demo · up to $10,100</button>
           <button class="smallbtn" id="demoStands" style="width:100%;margin-bottom:6px">Build stand demo · up to $11,100</button>
           <button class="smallbtn" id="demoFans" style="width:100%">Build demo route · up to $2,000</button>
           <button class="smallbtn" id="openGates" style="width:100%;margin-top:6px">▶ Open gates · $5 admission</button>
@@ -120,6 +125,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=0.22.2" defer></script>
+    <script src="game.js?v=0.23.2" defer></script>
   </body>
 </html>

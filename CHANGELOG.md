@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.23.0
+
+- Added mirrored end stairs with five-foot stairs and a five-foot level side landing, no seats.
+- Fans enter from the marked outer side, turn at the stair foot, and climb into connected seating without front-row pavement.
+- Ground walkways cannot enter elevated landings; walls, incorrect mirrors and mismatched stair runs block access.
+- Added an optional 80-seat side-entry demo without a front sidewalk; existing parks remain unchanged.
+
+
 ## 0.22.0
 
 - Kept standalone three-row bleachers and added two modular grandstand pieces.

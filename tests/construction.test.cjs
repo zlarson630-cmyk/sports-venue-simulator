@@ -51,6 +51,8 @@ function game(saved) {
     "bleacher",
     "stand",
     "stairStand",
+    "endStairLeft",
+    "endStairRight",
     "wall",
     "gate",
     "concession",
@@ -95,7 +97,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -601,4 +603,51 @@ test("conflicting stand heights reject placement and stands cannot occupy the ar
  assert.ok(g.api.standPlacement(19,7,4).error);
  const blocked=game(modularPark({"14,10":{type:"stairStand",rot:4,baseFeet:0}}));
  assert.equal(blocked.api.approachRoute(),null);blocked.api.startFanTest();assert.equal(blocked.api.fanState().fanActive,false);
+});
+
+function sideEntryPark() {
+ const g=game();g.api.buildSideEntryDemo();return JSON.parse(g.storage.get("svs01"));
+}
+test("side-entry end stairs reach 80 seats without any front-row pavement",()=>{
+ const saved=sideEntryPark(),g=game(saved);
+ for(const x of [17,18,19])assert.equal(saved.tiles[`${x},9`],undefined);
+ assert.equal(g.element("seats").textContent,80);assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),80);
+ const section=g.api.reachableSeats().find(s=>s.key==="19,7");
+ assert.ok(section.slots.every(s=>s.route.some(p=>p.x===17.25&&p.y===8.5&&p.feet===0)));
+ g.api.startFanTest();const fans=g.api.fanState().fans;
+ for(const f of fans)for(let i=1;i<f.route.length;i++)assert.ok(Math.abs((f.route[i].feet||0)-(f.route[i-1].feet||0))<=0.625+1e-8);
+ g.api.advanceFans(40);assert.ok(fans.every(f=>f.seated));assert.ok(fans.some(f=>f.feet>5));
+ assert.equal(g.api.state().money,90025);
+});
+test("end stairs require their marked side entrance; walls, wrong mirror and raised landings cannot grant ground access",()=>{
+ for(const mutate of [s=>delete s.tiles["16,8"],s=>s.edges["17,8:v"]={type:"wall"},s=>s.tiles["17,8"].type="endStairLeft",s=>s.tiles["17,8"].baseFeet=5]) {
+  const saved=sideEntryPark();mutate(saved);assert.equal(game(saved).api.reachableSeats().length,0);
+ }
+ const saved=sideEntryPark();delete saved.tiles["17,7"];
+ assert.equal(game(saved).api.reachableSeats().reduce((n,s)=>n+s.capacity,0),40);
+});
+test("both end-stair mirrors accept side access at all four facings and retain elevations on reload",()=>{
+ for(const type of ["endStairLeft","endStairRight"])for(const rot of [0,2,4,6]) {
+  const tiles={"14,10":{type:"path",rot:0},"13,10":{type:"path",rot:0},"13,11":{type:"path",rot:0},"12,11":{type:"path",rot:0},"12,12":{type:"path",rot:0},"11,12":{type:"path",rot:0},"11,13":{type:"path",rot:0},"10,13":{type:"path",rot:0}};
+  for(let x=9;x<=12;x++)for(let y=14;y<40;y++)tiles[`${x},${y}`]={type:"path",rot:0};
+  const g=game(),{ax,ay,bx,by}=g.api.standAxes(rot),side=type==="endStairLeft"?-1:1,x=11,y=30;
+  tiles[`${x},${y}`]={type,rot,baseFeet:0};
+  tiles[`${x+bx},${y+by}`]={type,rot,baseFeet:5};
+  tiles[`${x-ax*side},${y-ay*side}`]={type:"stand",rot,baseFeet:0};
+  tiles[`${x+bx-ax*side},${y+by-ay*side}`]={type:"stand",rot,baseFeet:5};
+  const play=game({version:2,fieldRevision:6,money:90000,tiles,edges:{}});
+  assert.equal(play.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),40,`${type} rotation ${rot}`);
+  assert.equal(play.api.seatCapacity({type}),0);
+  for(let camera=0;camera<4;camera++){play.api.draw();play.key("q");}
+ }
+});
+test("side-entry demo is undoable and never overwrites an existing stand layout",()=>{
+ const g=game();g.api.buildSideEntryDemo();assert.equal(g.api.state().money,89900);
+ g.element("undo").click();assert.equal(Object.keys(g.api.state().tiles).length,0);
+ g.api.buildStandDemo();const before=JSON.stringify(g.api.state());g.api.buildSideEntryDemo();assert.equal(JSON.stringify(g.api.state()),before);
+ assert.match(g.element("fanStatus").textContent,/area is occupied/);
+ g.select("endStairLeft");g.clickTile(10,30);g.clickTile(10,31);
+ assert.equal(g.api.state().tiles["10,31"].baseFeet,5);
+ const reload=game(JSON.parse(g.storage.get("svs01")));
+ assert.equal(reload.api.state().tiles["10,31"].type,"endStairLeft");assert.equal(reload.api.state().tiles["10,31"].baseFeet,5);
 });

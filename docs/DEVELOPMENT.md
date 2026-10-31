@@ -60,3 +60,12 @@ A seating section has four 1.25-foot tiers with five 2-foot seat bays per row (2
 Access is a graph of ground paths, stair treads and row centers. Paths join only a ground-level stair section's front. Consecutive stairs connect only with matching facing and five-foot elevation difference. Lateral rows connect only at matching elevations/facing, and walls block the shared edge. Seating sections do not provide a route uphill. Reachable capacity sums reachable seat slots, not a fixed number per tile. Fan waypoints carry feet; interpolation changes elevation continuously while climbing. Row painter entries interleave with people at their world positions.
 
 Use Build stand demo for six pieces (96 seats) at 18–20,7–8 with entrance paths. It checks occupied cells and walls, charges only for additions and is undoable. This version does not implement concourses, overhangs, ramps, structural engineering or sightline validation.
+
+
+## Side-entry end stairs (v0.23)
+
+`endStairLeft` and `endStairRight` are cardinal, height-snapping stand pieces with no seating capacity. Local a = -1/+1 selects the outer side; the five-foot stairs occupy the inner half and a five-foot level landing occupies the outer half. The green arrow marks the outer entrance. The first rail leaves a turning opening at the stair foot.
+
+Ground access joins only from the outer adjacent walkway at baseFeet = 0. Landing waypoints remain at baseFeet; fans turn at the front boundary before climbing the eight 7.5-inch risers. Row connections open only toward the inner half. Consecutive end stairs connect at matching facing, stair center, and +5 ft base. A raised landing does not gain access merely because a ground path sits beside it. Fans may move sideways through rows to existing central stairs.
+
+Build side-entry demo creates four seating sections and two end stairs (80 seats, 0–10 ft) at x17–19/y7–8. Ground paths approach along the outside at x16; no path occupies the front strip at x17–19/y9. It refuses occupied or walled areas and is undoable. Existing demonstration layouts are not migrated or replaced.
