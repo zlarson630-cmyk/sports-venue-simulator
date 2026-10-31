@@ -406,7 +406,7 @@
     }
   });
   function drawStreets() {
-    const ring=(outside,inside,fill)=>polygon([...outside,...[...inside].reverse(),outside[0]].map(p=>project(...p)),fill,null);
+    const ring=(outside,inside,fill)=>polygon([...outside,outside[0],inside[0],...[...inside].slice(1).reverse(),inside[0],outside[0]].map(p=>project(...p)),fill,null);
     ring(streetBoundary,sidewalkBoundary,"#525d65");
     ring(sidewalkBoundary,stadiumBoundary,"#c5c6bc");
     // A side street meets the perimeter road directly behind the main entrance.
