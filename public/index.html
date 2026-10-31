@@ -6,15 +6,15 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Sports Venue Simulator — Sandbox 0.15</title>
-    <link rel="stylesheet" href="styles.css?v=0.15.0" />
+    <title>Sports Venue Simulator — Sandbox 0.16</title>
+    <link rel="stylesheet" href="styles.css?v=0.16.0" />
   </head>
   <body>
     <header>
       <div class="logo">🏟️</div>
       <div>
         <h1>SPORTS VENUE<br />SIMULATOR</h1>
-        <small>BUILD SANDBOX · v0.15</small>
+        <small>BUILD SANDBOX · v0.16</small>
       </div>
       <div class="topstats">
         <div class="stat">💵 <strong id="money">$100,000</strong></div>
@@ -48,6 +48,11 @@
           ><span class="price">70% refund</span>
         </button>
         <div class="sidebarbottom">
+          <div class="section">FIRST FAN TEST</div>
+          <button class="smallbtn" id="demoFans" style="width:100%">Build demo route · up to $2,000</button>
+          <button class="smallbtn" id="openGates" style="width:100%;margin-top:6px">▶ Open gates</button>
+          <button class="smallbtn" id="stopFans" style="width:100%;margin-top:6px">■ End test</button>
+          <p id="fanStatus" class="foot" role="status" aria-live="polite">Connect walkways from the entrance to bleachers, then open the gates.</p>
           <div class="section">CONTROLS</div>
           <div class="inline">
             <button class="smallbtn" id="rotate">↻ Item 45° (R)</button
@@ -109,6 +114,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=0.15.1" defer></script>
+    <script src="game.js?v=0.16.1" defer></script>
   </body>
 </html>

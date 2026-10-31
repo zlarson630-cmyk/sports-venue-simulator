@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.8 implements the construction sandbox. Fans, game-day simulation, and review reports are future milestones.
+**Design → Build → Unfold → Review.** Version 0.16 includes the construction sandbox and a first fan arrival test. Full game-day simulation and review reports are future milestones.
 
 ## Play and develop
 
@@ -77,3 +77,7 @@ Every push to `main` runs the checks, packages only `public/`, and publishes to 
 - **GitHub Pages:** the service that turns the game files into a playable website.
 
 No credentials belong in the repository. This game is a static website with no backend or API keys. The code and published game will be public.
+
+## First fan test
+
+Use **Build demo route** (up to $2,000) then **Open gates** to watch 24 fans arrive from the street and sit. The demo preserves existing objects and reports any conflicts. **End test** clears the fans so you can build again. You can also connect your own walkways from the marked entrance tile (14,10) to bleachers. Paths must touch edge-to-edge; walls block crossings. The test uses up to 25 fans and reports unreachable seats. Detailed aisle/stair movement, amenities, departures, money earned, and congestion are not implemented yet.

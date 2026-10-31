@@ -93,7 +93,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -415,4 +415,21 @@ test("dugouts measure 30 feet along the fence by 10 feet deep with roofs",()=>{
  const ds=game().api.dugouts;
  for(const d of ds) {assert.equal(d.length*10,30);assert.equal(d.width*10,10);assert.ok(d.roofHeightFeet>0);}
  assert.equal(ds[0].y+ds[0].width,10);assert.equal(ds[1].x+ds[1].width,14);
+});
+
+test("demo fans walk from street through gate to seats and unreachable sections are excluded",()=>{
+ const g=game();assert.equal(g.api.reachableSeats().length,0);
+ g.api.buildFanDemo();assert.equal(g.api.state().money,98000);
+ assert.equal(g.api.reachableSeats().length,1);
+ g.api.startFanTest();assert.equal(g.api.fanState().fans.length,24);
+ g.api.advanceFans(1);assert.ok(g.api.fanState().fans[0].x>6);
+ for(let i=0;i<300;i++)g.api.advanceFans(0.1);
+ assert.ok(g.api.fanState().fans.every(f=>f.seated));
+ const blocked=game({version:2,fieldRevision:6,money:99000,tiles:{"17,8":{type:"bleacher",rot:4}},edges:{}});
+ assert.equal(blocked.api.reachableSeats().length,0);
+});
+test("walls block fan routes without removing construction",()=>{
+ const g=game();g.api.buildFanDemo();g.select("wall");g.clickTile(16,9);
+ assert.equal(g.api.reachableSeats().length,1);
+ g.key("r");g.clickTile(16,9);assert.equal(g.api.reachableSeats().length,0);
 });

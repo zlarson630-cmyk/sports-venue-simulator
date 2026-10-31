@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.0
+
+- Added a first fan arrival test: up to 25 fans walk from the street through the main gate to reachable bleachers, then occupy individual seats.
+- Added connected-walkway route finding, wall barriers, unreachable-seat reporting, and an End test control.
+- Added an optional demo route and 24-seat section, priced at up to $2,000, without overwriting existing construction.
+- Concessions, restrooms, congestion, event finances, detailed stairs, and departures remain future work.
+
 ## 0.15.0
 
 - Corrected dugouts to 30 feet wide along the fence and 10 feet deep, as clarified. Roofs include a stair opening; dugouts stay outside the playing-field fence.

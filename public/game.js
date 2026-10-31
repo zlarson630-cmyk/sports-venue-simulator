@@ -488,6 +488,105 @@
     const p=project(13.5,9.5);ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";
     ctx.fillStyle="#fff0ba";ctx.fillText("MAIN GATE",p.x,p.y-h-5*zoom);
   }
+  const entranceTile = "14,10";
+  let fans=[], fanActive=false, fanElapsed=0, fanPlanned=0, fanUnreachable=0, fanFrame=0;
+  function fanStatus(message) { const e=document.getElementById("fanStatus");if(e.textContent!==message)e.textContent=message; }
+  function insideStadium(x,y) {return x>=9&&x<53&&y>=5&&y<49&&x+y>=23&&x+y<=81;}
+  function wallBlocks(a,b) {
+    const [x,y]=a.split(",").map(Number), [nx,ny]=b.split(",").map(Number);
+    const edge=nx>x?wallEdge(x,y,2):nx<x?wallEdge(x,y,6):ny>y?wallEdge(x,y,4):wallEdge(x,y,0);
+    return !!edges[edge] || !!edges[a+":a"] || !!edges[a+":d"] || !!edges[b+":a"] || !!edges[b+":d"];
+  }
+  function reachableSeats() {
+    const queue=[entranceTile], parents=new Map([[entranceTile,null]]), result=[];
+    for(let i=0;i<queue.length;i++) {
+      const k=queue[i],[x,y]=k.split(",").map(Number);
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const nx=x+dx,ny=y+dy,n=key(nx,ny);
+        if(!insideStadium(nx,ny)||wallBlocks(k,n)) continue;
+        if(tiles[n]?.type==="bleacher"&&!result.some(s=>s.key===n)) {
+          const route=[];let at=k;
+          while(at!==null) {const [a,b]=at.split(",").map(Number);route.unshift({x:a+0.5,y:b+0.5});at=parents.get(at);}
+          result.push({key:n,x:nx,y:ny,rot:tiles[n].rot,route});
+        }
+        if(tiles[n]?.type==="path"&&!parents.has(n)) {parents.set(n,k);queue.push(n);}
+      }
+    }
+    return result;
+  }
+  function endFanTest(message) {
+    fanActive=false;fans=[];fanFrame++;
+    fanStatus(message||"Test ended. Adjust your paths and seating, then try again.");draw();
+  }
+  function startFanTest() {
+    if(fanActive) {toast("Fans are already arriving");return;}
+    const sections=reachableSeats(),total=Object.values(tiles).filter(t=>t.type==="bleacher").length*24;
+    fanUnreachable=total-sections.length*24;
+    if(!sections.length) {fanStatus("No reachable seats. Build walkways from the marked entrance to bleachers, or use Build demo route.");return;}
+    fanPlanned=Math.min(25,sections.length*24);fanElapsed=0;fans=[];
+    for(let i=0;i<fanPlanned;i++) {
+      const section=sections[Math.floor(i/24)], seat=i%24,row=Math.floor(seat/8),col=seat%8;
+      const d=directions[section.rot],len=Math.hypot(...d),ux=d[0]/len,uy=d[1]/len;
+      const a=-0.34+col*0.097,b=-0.28+row*0.22;
+      const target={x:section.x+0.5+ux*a-uy*b,y:section.y+0.5+uy*a+ux*b};
+      const route=[{x:6+(i%3)*0.15,y:2+(i%3)*0.15},{x:13.5,y:9.5},...section.route,target];
+      fans.push({route,index:0,x:route[0].x,y:route[0].y,start:i*0.35,seated:false,row,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
+    }
+    fanActive=true;fanStatus("Gates open! Fans are walking from the street to their seats.");
+    let last=null;const run=++fanFrame;
+    const frame=now=>{
+      if(!fanActive||run!==fanFrame)return;
+      const dt=last===null?0:Math.min((now-last)/1000,0.1);last=now;
+      advanceFans(dt);draw();
+      if(fanActive&&fans.some(f=>!f.seated)) requestAnimationFrame(frame);
+    };
+    if(typeof requestAnimationFrame==="function")requestAnimationFrame(frame);
+  }
+  function advanceFans(dt) {
+    if(!fanActive)return;fanElapsed+=dt;
+    for(const fan of fans) {
+      if(fanElapsed<fan.start||fan.seated)continue;
+      let distance=dt*2.8;
+      while(distance>0&&!fan.seated) {
+        const next=fan.route[fan.index+1];
+        if(!next) {fan.seated=true;break;}
+        const dx=next.x-fan.x,dy=next.y-fan.y,length=Math.hypot(dx,dy);
+        if(length<=distance) {fan.x=next.x;fan.y=next.y;fan.index++;distance-=length;}
+        else {fan.x+=dx/length*distance;fan.y+=dy/length*distance;distance=0;}
+      }
+    }
+    const seated=fans.filter(f=>f.seated).length,arrived=fans.filter(f=>fanElapsed>=f.start).length;
+    fanStatus(seated===fanPlanned?`Arrival complete: ${seated}/${fanPlanned} fans seated. ${fanUnreachable} seats unreachable. End test to build again.`:
+      `Arriving: ${arrived}/${fanPlanned} · Seated: ${seated} · Unreachable seats: ${fanUnreachable}`);
+  }
+  function drawFan(fan) {
+    const p=project(fan.x,fan.y),z=zoom,h=fan.seated?4+fan.row*3:0;
+    p.y-=h*z;
+    ctx.beginPath();ctx.ellipse(p.x,p.y,2.7*z,1.3*z,0,0,Math.PI*2);ctx.fillStyle="#203e5240";ctx.fill();
+    line({x:p.x-1*z,y:p.y},{x:p.x-1*z,y:p.y-3*z},"#263c50",1.1);
+    line({x:p.x+1*z,y:p.y},{x:p.x+1*z,y:p.y-3*z},"#263c50",1.1);
+    line({x:p.x,y:p.y-3*z},{x:p.x,y:p.y-7*z},fan.color,3.5);
+    ctx.beginPath();ctx.arc(p.x,p.y-9*z,1.9*z,0,Math.PI*2);ctx.fillStyle="#ecc29a";ctx.fill();
+  }
+  function buildFanDemo() {
+    if(fanActive) {toast("End the fan test before building");return;}
+    const pathKeys=["14,10","14,9","15,9","16,9","17,9"],seatKey="17,8";
+    const additions=pathKeys.filter(k=>!tiles[k]);
+    if(pathKeys.some(k=>tiles[k]&&tiles[k].type!=="path")||(tiles[seatKey]&&tiles[seatKey].type!=="bleacher")||
+      [...pathKeys,seatKey].some(k=>edges[k+":a"]||edges[k+":d"])) {fanStatus("Demo area is occupied. Your layout was kept. Clear tiles near the entrance or connect your own route.");return;}
+    const pairs=[["14,10","14,9"],["14,9","15,9"],["15,9","16,9"],["16,9","17,9"],["17,9",seatKey]];
+    if(pairs.some(([a,b])=>wallBlocks(a,b))) {fanStatus("A wall blocks the demo route. Remove it or build your own connected route.");return;}
+    const cost=additions.length*prices.path+(tiles[seatKey]?0:prices.bleacher);
+    if(money<cost) {toast("Not enough money for demo route");return;}
+    history.push({tiles:{...tiles},edges:{...edges},money});
+    for(const k of additions)tiles[k]={type:"path",rot:0};
+    if(!tiles[seatKey])tiles[seatKey]={type:"bleacher",rot:4};
+    money-=cost;store();update();draw();
+    fanStatus(`Demo route ready ($${cost}). Click Open gates to watch 24 fans arrive.`);
+  }
+  document.getElementById("demoFans").onclick=buildFanDemo;
+  document.getElementById("openGates").onclick=startFanTest;
+  document.getElementById("stopFans").onclick=()=>endFanTest();
   function draw() {
     if (pointer) hover = inverse(pointer.x, pointer.y);
     const cw = canvas.clientWidth,
@@ -523,6 +622,7 @@
     }
     drawStreets();
     pitch();
+    diamond(14.5,10.5,"#d9d4bc","#f3dc7a");
     let all = Object.entries(tiles)
       .map(([k, v]) => {
         const [x, y] = k.split(",").map(Number);
@@ -533,6 +633,7 @@
         return {x:(p.a[0]+p.b[0])/2-0.5, y:(p.a[1]+p.b[1])/2-0.5, edge};
       }))
       .concat(dugouts.map(dugout=>({x:dugout.x+(dugout.swap?dugout.width:dugout.length)/2-0.5,y:dugout.y+(dugout.swap?dugout.length:dugout.width)/2-0.5,dugout})))
+      .concat(fans.filter(f=>fanElapsed>=f.start).map(fan=>({x:fan.x-0.5,y:fan.y-0.5,fan})))
       .concat(roadsideTrees.map(tree=>({x:tree.x-0.5,y:tree.y-0.5,tree})))
       .concat(outerFence.map(panel=>({x:(panel.a[0]+panel.b[0])/2-0.5,y:(panel.a[1]+panel.b[1])/2-0.5,panel})))
       .concat([{x:13,y:9,mainEntry:true}])
@@ -543,7 +644,8 @@
         return aa.x + aa.y - (bb.x + bb.y);
       });
     for (let e of all) {
-      if (e.tree) drawRoadsideTree(e.tree);
+      if(e.fan)drawFan(e.fan);
+      else if (e.tree) drawRoadsideTree(e.tree);
       else if (e.mainEntry) drawMainGate();
       else if (e.dugout) drawDugout(e.dugout);
       else if (e.edge) drawWall(e.edge);
@@ -603,6 +705,7 @@
     }
   }
   function action() {
+    if(fanActive) {toast("End the fan test before building");return;}
     if (!hover) return;
     const k = key(hover.x, hover.y);
     if (hover.x < 0 || hover.x >= W || hover.y < 0 || hover.y >= H) return;
@@ -677,6 +780,7 @@
     .forEach((b) => (b.onclick = () => select(b.dataset.tool)));
   document.getElementById("rotate").onclick = rotationStep;
   document.getElementById("undo").onclick = () => {
+    if(fanActive)endFanTest("Layout changed; fan test ended.");
     let h = history.pop();
     if (h) {
       tiles = h.tiles;
@@ -699,6 +803,7 @@
     if (store()) toast("Park saved in this browser");
   };
   document.getElementById("reset").onclick = () => {
+    if(fanActive)endFanTest("Layout changed; fan test ended.");
     if (confirm("Reset the ballpark and restore the starting budget?")) {
       tiles = {};
       edges = {};
@@ -860,6 +965,7 @@
       const park = validatePark(JSON.parse(await file.text()));
       if (confirm("Replace the current layout with this park?")) {
         history.push({ tiles: { ...tiles }, edges: { ...edges }, money });
+        if(fanActive)endFanTest("Park imported; fan test ended.");
         tiles = park.tiles;
         edges = park.edges;
         money = park.money;
