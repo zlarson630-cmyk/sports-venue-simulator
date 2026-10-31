@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.0
+
+- Routed arriving fans around buildings on the street-to-gate sidewalk instead of following an unchecked straight line.
+- Blocked concession/restroom cells with pedestrian clearance and rejected obstructed gate landings.
+- Reported blocked entrances when no clear approach exists.
+
 ## 0.19.0
 
 - Added nine stationary defensive players: pitcher, catcher, four infielders and three outfielders.

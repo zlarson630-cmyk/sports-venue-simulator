@@ -503,7 +503,45 @@
     const edge=nx>x?wallEdge(x,y,2):nx<x?wallEdge(x,y,6):ny>y?wallEdge(x,y,4):wallEdge(x,y,0);
     return !!edges[edge] || !!edges[a+":a"] || !!edges[a+":d"] || !!edges[b+":a"] || !!edges[b+":d"];
   }
+  function solidBuildingAt(x,y) {
+    // Reserve the whole occupied cell, including a small pedestrian clearance.
+    for(const [k,v] of Object.entries(tiles)) {
+      if(!["concession","restroom"].includes(v.type))continue;
+      const [bx,by]=k.split(",").map(Number);
+      if(x>bx-0.06&&x<bx+1.06&&y>by-0.06&&y<by+1.06)return true;
+    }
+    return false;
+  }
+  function approachRoute() {
+    const gate={x:13.5,y:9.5},start={x:6.5,y:2.5},entry={x:14.5,y:10.5};
+    const search=(from,to,beforeGate)=>{
+      const keyP=p=>`${p.x},${p.y}`,queue=[from],parents=new Map([[keyP(from),null]]);
+      if(solidBuildingAt(from.x,from.y)||solidBuildingAt(to.x,to.y))return null;
+      for(let i=0;i<queue.length;i++) {
+        const p=queue[i];
+        if(p.x===to.x&&p.y===to.y) {
+          const route=[];let at=keyP(p);
+          while(at!==null){const [x,y]=at.split(",").map(Number);route.unshift({x,y});at=parents.get(at);}
+          return route;
+        }
+        for(const [dx,dy] of [[0.1,0],[-0.1,0],[0,0.1],[0,-0.1]]) {
+          const q={x:Math.round((p.x+dx)*10)/10,y:Math.round((p.y+dy)*10)/10},k=keyP(q);
+          if(parents.has(k)||q.x<5.5||q.y<1.5||q.x>15||q.y>11||Math.abs(q.x-q.y-4)>1.4)continue;
+          if(beforeGate?q.x+q.y>23+1e-8:q.x+q.y<23-1e-8)continue;
+          let blocked=false;
+          for(let t=0;t<=8;t++)if(solidBuildingAt(p.x+dx*t/8,p.y+dy*t/8)){blocked=true;break;}
+          const a=key(Math.floor(p.x),Math.floor(p.y)),b=key(Math.floor(q.x),Math.floor(q.y));
+          if(blocked||(a!==b&&wallBlocks(a,b)))continue;
+          parents.set(k,keyP(p));queue.push(q);
+        }
+      }
+      return null;
+    };
+    const outside=search(start,gate,true),inside=search(gate,entry,false);
+    return outside&&inside?[...outside,...inside.slice(1)]:null;
+  }
   function reachableSeats() {
+    if(solidBuildingAt(14.5,10.5))return [];
     const queue=[entranceTile], parents=new Map([[entranceTile,null]]), result=[];
     for(let i=0;i<queue.length;i++) {
       const k=queue[i],[x,y]=k.split(",").map(Number);
@@ -526,6 +564,8 @@
   }
   function startFanTest() {
     if(fanActive) {toast("Fans are already arriving");return;}
+    const arrival=approachRoute();
+    if(!arrival) {fanStatus("Entrance blocked by a building or wall. Clear the sidewalk approach and gate landing before opening.");return;}
     const sections=reachableSeats(),total=Object.values(tiles).filter(t=>t.type==="bleacher").length*24;
     reachableCapacity=sections.length*24;
     disconnectedSections=new Set(Object.entries(tiles).filter(([k,v])=>v.type==="bleacher"&&!sections.some(s=>s.key===k)).map(([k])=>k));
@@ -539,7 +579,7 @@
       const d=directions[section.rot],len=Math.hypot(...d),ux=d[0]/len,uy=d[1]/len;
       const a=-0.34+col*0.097,b=-0.28+row*0.22;
       const target={x:section.x+0.5+ux*a-uy*b,y:section.y+0.5+uy*a+ux*b};
-      const route=[{x:6+(i%3)*0.15,y:2+(i%3)*0.15},{x:13.5,y:9.5},...section.route,target];
+      const route=[...arrival,...section.route.slice(1),target];
       fans.push({route,index:0,x:route[0].x,y:route[0].y,start:i*0.35,seated:false,row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
     }
     fanActive=true;fanStatus("Gates open! Fans are walking from the street to their seats.");

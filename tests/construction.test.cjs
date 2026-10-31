@@ -93,7 +93,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,defensivePlayers,draw,PAVEMENT,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -466,4 +466,27 @@ test("nine defenders cover standard baseball positions and pitcher stands on the
  const p=ps.find(p=>p.position==="P");assert.ok(Math.abs(Math.hypot(p.x-18,p.y-14)*10-60.5)<1e-9);
  const c=ps.find(p=>p.position==="C");assert.ok(c.x<18&&c.y<14);
  for(const pos of ["LF","CF","RF"]){const o=ps.find(p=>p.position===pos);assert.ok(Math.hypot(o.x-18,o.y-14)>20);assert.ok(o.x+o.y<75);}
+});
+
+test("arrival route avoids concession and bathroom footprints",()=>{
+ for(const type of ["concession","restroom"]) {
+  const g=game({version:2,fieldRevision:6,money:90000,tiles:{"11,7":{type,rot:0}},edges:{}});
+  const route=g.api.approachRoute();assert.ok(route);
+  for(let i=1;i<route.length;i++)for(let j=0;j<=8;j++) {
+   const a=route[i-1],b=route[i];assert.equal(g.api.solidBuildingAt(a.x+(b.x-a.x)*j/8,a.y+(b.y-a.y)*j/8),false);
+  }
+ }
+});
+test("building on entry landing blocks arrivals instead of allowing fans through",()=>{
+ const g=game({version:2,fieldRevision:6,money:90000,tiles:{"14,10":{type:"restroom",rot:0},"15,10":{type:"bleacher",rot:0}},edges:{}});
+ assert.equal(g.api.approachRoute(),null);assert.equal(g.api.reachableSeats().length,0);
+ g.api.startFanTest();assert.equal(g.api.fanState().fans.length,0);
+ assert.match(g.element("fanStatus").textContent,/Entrance blocked/);
+});
+
+test("concession stands and bathrooms cannot substitute for internal walkway tiles",()=>{
+ for(const type of ["concession","restroom"]) {
+  const g=game({version:2,fieldRevision:6,money:90000,tiles:{"14,9":{type:"path",rot:0},"15,9":{type,rot:0},"16,9":{type:"path",rot:0},"17,9":{type:"path",rot:0},"17,8":{type:"bleacher",rot:4}},edges:{}});
+  assert.equal(g.api.reachableSeats().length,0);
+ }
 });
