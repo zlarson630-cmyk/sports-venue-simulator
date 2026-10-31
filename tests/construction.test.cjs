@@ -374,12 +374,12 @@ test("both dugouts are 30 feet long, sunken, and render through camera rotation"
 
 test("dugouts sit outside the fence with aligned player entrances",()=>{
  const g=game(), ds=g.api.dugouts;
- assert.ok(ds[0].y+ds[0].width<10);
- assert.ok(ds[1].x+ds[1].width<14);
+ assert.ok(ds[0].y+ds[0].width<=10);
+ assert.ok(ds[1].x+ds[1].width<=14);
  const gaps=g.api.fieldFence.filter((p,i)=>{
   const n=g.api.fieldFence[(i+1)%g.api.fieldFence.length];return p.b[0]!==n.a[0]||p.b[1]!==n.a[1];
  });assert.equal(gaps.length,2);
- g.select("path");g.clickTile(22,8);g.clickTile(12,18);
+ g.select("path");g.clickTile(22,9);g.clickTile(13,18);
  assert.equal(Object.keys(g.api.state().tiles).length,0);
 });
 
@@ -411,8 +411,8 @@ test("roadside trees line all four curbs and leave the main entrance clear",()=>
  for(const side of [t=>t.x===8.7,t=>t.x===53.3,t=>t.y===4.7,t=>t.y===49.3]) assert.ok(ts.some(side));
 });
 
-test("dugouts gain one outward cell and roofs without moving field entrances",()=>{
+test("dugouts measure 30 feet along the fence by 10 feet deep with roofs",()=>{
  const ds=game().api.dugouts;
- for(const d of ds) {assert.equal(d.length*10,30);assert.equal(d.width*10,25);assert.ok(d.roofHeightFeet>0);}
- assert.equal(ds[0].y+ds[0].width,9.5);assert.equal(ds[1].x+ds[1].width,13.5);
+ for(const d of ds) {assert.equal(d.length*10,30);assert.equal(d.width*10,10);assert.ok(d.roofHeightFeet>0);}
+ assert.equal(ds[0].y+ds[0].width,10);assert.equal(ds[1].x+ds[1].width,14);
 });

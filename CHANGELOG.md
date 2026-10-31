@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.0
+
+- Corrected dugouts to 30 feet wide along the fence and 10 feet deep, as clarified. Roofs include a stair opening; dugouts stay outside the playing-field fence.
+
 ## 0.14.0
 
 - Widened dugouts outward by one 10-foot cell to 30 × 25 feet.
