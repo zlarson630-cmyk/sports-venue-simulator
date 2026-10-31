@@ -393,9 +393,17 @@
     ctx.fillText("DUGOUT · 30 ft",p.x,p.y);
   }
   const stadiumBoundary = [[9,14],[18,5],[53,5],[53,29],[33,49],[9,49]];
-  const sidewalkBoundary = [[7,14],[18,3],[55,3],[55,30],[34,51],[7,51]];
-  const streetBoundary = [[5,14],[18,1],[57,1],[57,31],[35,53],[5,53]];
-  const mainGate = {a:[13,10],b:[14,9],intersection:[12,8]};
+  const siteTemplates = {
+    smallStadium: {
+      id:"small-stadium",name:"Small Stadium",roadLayout:"hashtag",
+      roads:[{axis:"x",at:6},{axis:"x",at:56},{axis:"y",at:2},{axis:"y",at:52}],
+      roadStart:-8,roadEnd:68,roadWidth:2,sidewalkWidth:1,fadeLength:6,
+      arrivalIntersection:[6,2]
+    }
+  };
+  const siteTemplate = siteTemplates.smallStadium;
+  const streetBoundary = [[2,-2],[60,-2],[60,56],[2,56]];
+  const mainGate = {a:[13,10],b:[14,9],intersection:siteTemplate.arrivalIntersection};
   const outerFence=[];
   stadiumBoundary.forEach((a,edge)=>{
     const b=stadiumBoundary[(edge+1)%stadiumBoundary.length],n=Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
@@ -406,22 +414,39 @@
     }
   });
   function drawStreets() {
-    const ring=(outside,inside,fill)=>polygon([...outside,outside[0],inside[0],...[...inside].slice(1).reverse(),inside[0],outside[0]].map(p=>project(...p)),fill,null);
-    ring(streetBoundary,sidewalkBoundary,"#525d65");
-    ring(sidewalkBoundary,stadiumBoundary,"#c5c6bc");
-    // A side street meets the perimeter road directly behind the main entrance.
-    polygon([[13.5,6.5],[5.5,-1.5],[2.5,1.5],[10.5,9.5]].map(p=>project(...p)),"#c5c6bc",null);
-    polygon([[13,7],[5,-1],[3,1],[11,9]].map(p=>project(...p)),"#525d65",null);
-    const center=streetBoundary.map((p,i)=>[(p[0]+sidewalkBoundary[i][0])/2,(p[1]+sidewalkBoundary[i][1])/2]);
-    ctx.setLineDash([7*zoom,8*zoom]);
-    for(let i=0;i<center.length;i++) line(project(...center[i]),project(...center[(i+1)%center.length]),"#d8c778",1);
-    line(project(4,0),project(11,7),"#d8c778",1);
-    ctx.setLineDash([]);
-    // Paved forecourt spans the sidewalk and leads through the gate.
-    polygon([[12,10],[13,11],[15,9],[14,8]].map(p=>project(...p)),"#dedbc9","#9d9e95",0.8);
+    const t=siteTemplate;
+    const strip=(road,start,end,half,color)=>{
+      const points=road.axis==="x" ? [[road.at-half,start],[road.at+half,start],[road.at+half,end],[road.at-half,end]]
+        : [[start,road.at-half],[end,road.at-half],[end,road.at+half],[start,road.at+half]];
+      polygon(points.map(p=>project(...p)),color,null);
+    };
+    // Four independent roads, with sidewalks. Ends dissolve into the landscape.
+    for(const [extra,color] of [[t.sidewalkWidth,"#c5c6bc"],[0,"#525d65"]]) {
+      for(const road of t.roads) {
+        for(let at=t.roadStart;at<t.roadEnd;at+=0.5) {
+          const fraction=Math.max(0,Math.min(1,(at+0.25-t.roadStart)/t.fadeLength,(t.roadEnd-at-0.25)/t.fadeLength));
+          ctx.save();ctx.globalAlpha=fraction*fraction*(3-2*fraction);
+          strip(road,at,at+0.5,t.roadWidth/2+extra,color);
+          ctx.restore();
+        }
+      }
+    }
+    // Lane dashes stop at intersections and fade with the road ends.
+    for(const road of t.roads) for(let at=t.roadStart;at<t.roadEnd;at+=1.6) {
+      if(t.roads.some(other=>other.axis!==road.axis&&Math.abs(at-other.at)<1.8)) continue;
+      const opacity=Math.max(0,Math.min(1,(at-t.roadStart)/t.fadeLength,(t.roadEnd-at)/t.fadeLength));
+      ctx.save();ctx.globalAlpha=opacity;
+      const a=road.axis==="x"?[road.at,at]:[at,road.at];
+      const b=road.axis==="x"?[road.at,at+0.65]:[at+0.65,road.at];
+      line(project(...a),project(...b),"#d8c778",1);ctx.restore();
+    }
+    // Diagonal sidewalk links the corner intersection to the gate behind home.
+    polygon([[7.3,4.7],[8.7,3.3],[15,9],[13,11]].map(p=>project(...p)),"#dedbc9","#aaa99c",0.8);
     for(let i=0;i<5;i++) {
-      const t=i*0.22;
-      line(project(11.5+t,8.5-t),project(12.1+t,9.1-t),"#f1eddb",3);
+      const x=6.7+i*0.24;
+      line(project(x,2.9),project(x,3.9),"#f1eddb",2);
+      const y=2.7+i*0.24;
+      line(project(6.9,y),project(7.9,y),"#f1eddb",2);
     }
   }
   function drawMainGate() {

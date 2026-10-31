@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0
+
+- Replaced the road loop with four straight roads forming a hashtag, with four intersections and fading extensions.
+- Kept the outer fence and linked the main gate plaza to the intersection behind home plate.
+- Defined the Small Stadium road template separately from ballpark construction for future site layouts.
+
 ## 0.11.0
 
 - Added a surrounding street loop, sidewalks, and a street intersection behind home plate.

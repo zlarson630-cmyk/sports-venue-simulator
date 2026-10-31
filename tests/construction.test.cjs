@@ -93,7 +93,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -391,4 +391,14 @@ test("stadium perimeter has one main gate behind home plate",()=>{
  assert.equal(m.a[0]+m.a[1],23);assert.equal(m.b[0]+m.b[1],23);
  assert.equal((m.a[0]+m.b[0])/2-(m.a[1]+m.b[1])/2,4);
  assert.ok(m.intersection[0]+m.intersection[1]<23);
+});
+
+test("Small Stadium roads form four intersections with extensions and fading ends",()=>{
+ const t=game().api.siteTemplate;
+ assert.equal(t.roadLayout,"hashtag");assert.equal(t.roads.length,4);
+ const xs=t.roads.filter(r=>r.axis==="x"),ys=t.roads.filter(r=>r.axis==="y");
+ assert.equal(xs.length,2);assert.equal(ys.length,2);
+ for(const r of t.roads){assert.ok(r.at>t.roadStart+t.fadeLength);assert.ok(r.at<t.roadEnd-t.fadeLength);}
+ assert.equal(xs.length*ys.length,4);assert.ok(t.fadeLength>0);
+ const g=game().api.mainGate;assert.equal(g.intersection[0]-g.intersection[1],4);
 });
