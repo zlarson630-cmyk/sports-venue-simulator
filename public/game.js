@@ -536,7 +536,7 @@
     let last=null;const run=++fanFrame;
     const frame=now=>{
       if(!fanActive||run!==fanFrame)return;
-      const dt=last===null?0:Math.min((now-last)/1000,0.1);last=now;
+      const dt=last===null?0:Math.min((now-last)/1000,1);last=now;
       advanceFans(dt);draw();
       if(fanActive&&fans.some(f=>!f.seated)) requestAnimationFrame(frame);
     };
