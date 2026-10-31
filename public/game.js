@@ -7,6 +7,7 @@
     TH = 19,
     prices = {
       path: 100,
+      concourse: 900,
       bleacher: 1500,
       stand: 1800,
       stairStand: 1600,
@@ -164,6 +165,7 @@
   const isEndStair = item => item?.type === "endStairLeft" || item?.type === "endStairRight";
   const endSide = item => item.type === "endStairLeft" ? -1 : 1;
   const isStand = item => item?.type === "stand" || item?.type === "stairStand" || isEndStair(item);
+  const isPlatform = item => isStand(item)||item?.type==="concourse";
   const hasStairs = item => item?.type === "stairStand" || isEndStair(item);
   const rowOpens = (item,side) => !isEndStair(item) || side === -endSide(item);
   const stairCenter = item => isEndStair(item) ? -endSide(item)*0.25 : 0;
@@ -183,15 +185,65 @@
     return isStand(next)&&next.rot===item.rot&&next.baseFeet===(item.baseFeet||0)+db*STAND_RISE&&!wallBlocks(key(x,y),key(nx,ny));
   }
   function standPlacement(x,y,rotation) {
+    if(tool==="concourse")return concoursePlacement(x,y);
     const {ax,ay,bx,by}=standAxes(rotation),heights=[];
     for(const [da,db] of [[-1,0],[1,0],[0,-1],[0,1]]) {
       const next=tiles[key(x+ax*da+bx*db,y+ay*da+by*db)];
       if(isStand(next)&&next.rot===rotation)heights.push(next.baseFeet-db*STAND_RISE);
+      if(next?.type==="concourse"&&db!==0)heights.push(next.baseFeet-(db===1?5:0));
     }
     if(heights.some(h=>h!==heights[0]))return {error:"These neighbors have conflicting heights. Leave a gap or undo the mismatched section."};
     const baseFeet=heights[0]??0;
     if(baseFeet<0||baseFeet>300)return {error:"Start at ground level and build uphill behind the front row."};
     return {baseFeet};
+  }
+  function concourseConnection(x,y,item,dx,dy) {
+    const next=tiles[key(x+dx,y+dy)];
+    if(!next||wallBlocks(key(x,y),key(x+dx,y+dy)))return null;
+    if(next.type==="concourse"&&next.baseFeet===item.baseFeet)return {kind:"deck"};
+    if(next.type==="path"&&item.baseFeet===0)return {kind:"ground"};
+    if(hasStairs(next)) {
+      const {ax,ay,bx,by}=standAxes(next.rot),a=-dx*ax-dy*ay,b=-dx*bx-dy*by;
+      if(b===1&&item.baseFeet===next.baseFeet+5)return {kind:"top"};
+      if(b===-1&&item.baseFeet===next.baseFeet)return {kind:"bottom"};
+      if(isEndStair(next)&&a===endSide(next)&&item.baseFeet===next.baseFeet)return {kind:"landing"};
+    }
+    return null;
+  }
+  function concoursePlacement(x,y) {
+    const heights=[];
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const next=tiles[key(x+dx,y+dy)];
+      if(next?.type==="concourse")heights.push(next.baseFeet);
+      if(hasStairs(next)) {
+        const {ax,ay,bx,by}=standAxes(next.rot),a=-dx*ax-dy*ay,b=-dx*bx-dy*by;
+        if(b===1)heights.push(next.baseFeet+5);
+        if(b===-1||(isEndStair(next)&&a===endSide(next)))heights.push(next.baseFeet);
+      }
+    }
+    if(heights.some(h=>h!==heights[0]))return {error:"Concourse neighbors have different heights. Connect them with stairs."};
+    if((heights[0]??0)>300)return {error:"Concourse height exceeds the supported range."};
+    return {baseFeet:heights[0]??0};
+  }
+  function drawConcourse(x,y,item,rails=false) {
+    const h=item.baseFeet*FT,p=(a,b,z=h)=>{const q=project(x+a,y+b);q.y-=z*zoom;return q;};
+    const corners=[[0,0],[1,0],[1,1],[0,1]];
+    if(!rails) {
+      for(let i=0;i<4;i++) {
+        const a=corners[i],b=corners[(i+1)%4];
+        polygon([p(...a,h-0.8),p(...b,h-0.8),p(...b),p(...a)],"#9baba9","#7d9293",0.5);
+        if(h>0)line(p(...a,0),p(...a,h),"#839798",2);
+      }
+      polygon(corners.map(c=>p(...c)),PAVEMENT,"#a9b7b1",0.6);
+    } else if(h>0) {
+      for(const [i,dx,dy] of [[0,0,-1],[1,1,0],[2,0,1],[3,-1,0]]) {
+        if(concourseConnection(x,y,item,dx,dy))continue;
+        const a=corners[i],b=corners[(i+1)%4];
+        line(p(...a),p(...a,h+3*FT),"#607c88",1);
+        line(p(...b),p(...b,h+3*FT),"#607c88",1);
+        line(p(...a,h+3*FT),p(...b,h+3*FT),"#a9c3c5",1.2);
+      }
+    }
   }
   // Each row is a separate painter entry, so fans and neighboring sections share depth order.
   function drawStandRow(x,y,item,row) {
@@ -232,7 +284,7 @@
       return;
     }
     const left=matchingStand(x,y,item,-1,0),right=matchingStand(x,y,item,1,0);
-    const front=row>0||matchingStand(x,y,item,0,-1),back=row<3||matchingStand(x,y,item,0,1);
+    const front=row>0||matchingStand(x,y,item,0,-1),back=row<3||matchingStand(x,y,item,0,1)|| (hasStairs(item)&&(()=>{const {bx,by}=standAxes(item.rot),n=tiles[key(x+bx,y+by)];return n?.type==="concourse"&&n.baseFeet===base+5&&!wallBlocks(key(x,y),key(x+bx,y+by));})());
     const hidden=[...(front?[0]:[]),...(right?[1]:[]),...(back?[2]:[]),...(left?[3]:[])];
     // Full-width concrete tiers meet exactly at tile edges, without duplicate end rails.
     if(item.type==="stand")prism(-0.5,b,1,0.25,0,top,"#8e9898","#c9ceca",hidden);
@@ -305,7 +357,7 @@
       : blockedTile(key(x,y)) && blockedTile(key(x-1,y)));
   }
   function rotationStep() {
-    rot = tool === "wall" ? wallSlots[(wallSlots.indexOf(rot) + 1) % wallSlots.length] : (rot + (isStand({type:tool})?2:1)) % 8;
+    rot = tool === "wall" ? wallSlots[(wallSlots.indexOf(rot) + 1) % wallSlots.length] : (rot + (isPlatform({type:tool})?2:1)) % 8;
     update(); draw();
   }
   function drawObject(x, y, item) {
@@ -353,6 +405,7 @@
         0.8,
       );
     };
+    if(item.type==="concourse"){drawConcourse(x,y,item,true);return;}
     if(isStand(item)) {
       const rows=[0,1,2,3].sort((a,b)=>{const p=standPoint(x,y,item,0,-0.375+a/4),q=standPoint(x,y,item,0,-0.375+b/4);return project(p.x,p.y).y-project(q.x,q.y).y;});
       for(const row of rows)drawStandRow(x,y,item,row);return;
@@ -627,7 +680,7 @@
   function solidBuildingAt(x,y) {
     // Reserve the whole occupied cell, including a small pedestrian clearance.
     for(const [k,v] of Object.entries(tiles)) {
-      if(!["concession","restroom","bleacher"].includes(v.type)&&!isStand(v))continue;
+      if(!["concession","restroom","bleacher"].includes(v.type)&&!isPlatform(v))continue;
       const [bx,by]=k.split(",").map(Number);
       if(x>bx-0.06&&x<bx+1.06&&y>by-0.06&&y<by+1.06)return true;
     }
@@ -672,6 +725,7 @@
       const [x,y]=k.split(",").map(Number);
       if(!insideStadium(x,y))continue;
       if(item.type==="path")add(ground(k),{x:x+0.5,y:y+0.5,feet:0});
+      if(item.type==="concourse")add("c:"+k,{x:x+0.5,y:y+0.5,feet:item.baseFeet});
       if(!isStand(item))continue;
       for(let r=0;r<4;r++)add(rowId(k,r),standPoint(x,y,item,stairCenter(item),-0.3125+r/4,item.baseFeet+(r+1)*1.25));
       if(hasStairs(item)) {
@@ -693,6 +747,16 @@
       if(!insideStadium(x,y))continue;
       if(item.type==="path"||k===entranceTile)for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
         const next=key(x+dx,y+dy);if(!wallBlocks(k,next))join(ground(k),ground(next));
+      }
+      if(item.type==="concourse") {
+        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+          const connection=concourseConnection(x,y,item,dx,dy),next=key(x+dx,y+dy);
+          if(!connection)continue;
+          const port=`c:${k}:${dx}:${dy}`;
+          add(port,{x:x+0.5+dx*0.5,y:y+0.5+dy*0.5,feet:item.baseFeet});join("c:"+k,port);
+          const id=connection.kind==="deck"?"c:"+next:connection.kind==="ground"?ground(next):connection.kind==="top"?step(next,8):connection.kind==="bottom"?step(next,-1):landing(next,0);
+          join(port,id);
+        }
       }
       if(!isStand(item))continue;
       const {ax,ay,bx,by}=standAxes(item.rot);
@@ -889,6 +953,24 @@
     money-=cost;store();update();draw();
     fanStatus(`Side-entry demo ready ($${cost.toLocaleString()}). 80 seats, two end stairs, no front-row sidewalk. Open gates to watch fans enter from the side.`);
   }
+  function buildConcourseDemo() {
+    if(fanActive){toast("End the game before building");return;}
+    const planned={};
+    for(const k of ["14,10","14,9","15,9","16,9","16,8"])planned[k]={type:"path",rot:0};
+    planned["17,8"]={type:"endStairRight",rot:4,baseFeet:0};
+    for(let x=17;x<=21;x++)planned[key(x,7)]={type:"concourse",rot:0,baseFeet:5};
+    for(const x of [19,20,21])planned[key(x,8)]={type:x===20?"stairStand":"stand",rot:4,baseFeet:0};
+    if(Object.entries(planned).some(([k,v])=>tiles[k]&&(tiles[k].type!==v.type||(isPlatform(v)&&(tiles[k].baseFeet!==v.baseFeet||tiles[k].rot!==v.rot)))||edges[k+":a"]||edges[k+":d"])||Object.keys(planned).some(k=>{const [x,y]=k.split(",").map(Number);return [[1,0],[0,1]].some(([dx,dy])=>planned[key(x+dx,y+dy)]&&wallBlocks(k,key(x+dx,y+dy)));})) {
+      fanStatus("Concourse demo area is occupied. Your layout was kept. Build platforms behind your stair tops or clear the demo area near the entrance.");return;
+    }
+    const additions=Object.entries(planned).filter(([k])=>!tiles[k]),cost=additions.reduce((n,[,v])=>n+prices[v.type],0);
+    if(money<cost){toast("Not enough money for concourse demo");return;}
+    history.push({tiles:{...tiles},edges:{...edges},money});
+    for(const [k,v] of additions)tiles[k]=v;
+    money-=cost;store();update();draw();
+    fanStatus(`Concourse demo ready ($${cost.toLocaleString()}). 48 seats: side stairs → 5 ft rear concourse → seating aisle. No front-row sidewalk.`);
+  }
+  document.getElementById("demoConcourse").onclick=buildConcourseDemo;
   document.getElementById("demoSideEntry").onclick=buildSideEntryDemo;
   document.getElementById("demoStands").onclick=buildStandDemo;
   document.getElementById("demoFans").onclick=buildFanDemo;
@@ -934,6 +1016,7 @@
     for(const [k,v] of Object.entries(tiles)) if(v.type==="path") {
       const [x,y]=k.split(",").map(Number);drawObject(x,y,v);
     }
+    for(const [k,v] of Object.entries(tiles))if(v.type==="concourse"){const [x,y]=k.split(",").map(Number);drawConcourse(x,y,v);}
     let all = Object.entries(tiles)
       .filter(([,v])=>v.type!=="path")
       .flatMap(([k, v]) => {
@@ -969,14 +1052,14 @@
       else drawObject(e.x, e.y, e.v);
     }
     const help=document.getElementById("standHelp");
-    help.hidden=!isStand({type:tool});
+    help.hidden=!isPlatform({type:tool});
     if(!help.hidden) {
       const snap=hover?standPlacement(hover.x,hover.y,rot):{baseFeet:0};
-      help.textContent=snap.error||(isEndStair({type:tool})?`End stairs · no seats · 5 ft stairs + 5 ft level landing · +5 ft rise. Base: ${snap.baseFeet} ft. Green arrow marks the side walkway entrance. R rotates 90°; choose the other end piece to mirror.`:`${tool==="stand"?"20 seats · 5 per row":"8 seats · 6 ft central stairs"} · 4 rows · 10 × 10 ft · +5 ft rise. Base: ${snap.baseFeet} ft. Match facing; build behind to rise. Connect a path to the front of a stair section.`);
+      help.textContent=snap.error||(tool==="concourse"?`Level concourse · 10 × 10 ft · ${snap.baseFeet} ft high. Snaps to stair tops and adjoining platforms. Only matching walking heights connect.`:(isEndStair({type:tool})?`End stairs · no seats · 5 ft stairs + 5 ft level landing · +5 ft rise. Base: ${snap.baseFeet} ft. Green arrow marks the side walkway entrance. R rotates 90°; choose the other end piece to mirror.`:`${tool==="stand"?"20 seats · 5 per row":"8 seats · 6 ft central stairs"} · 4 rows · 10 × 10 ft · +5 ft rise. Base: ${snap.baseFeet} ft. Match facing; build behind to rise. Connect a path to the front of a stair section.`));
     }
     if (hover && hover.x >= 0 && hover.x < W && hover.y >= 0 && hover.y < H) {
       const edge = wallEdge(hover.x, hover.y);
-      const standSnap=isStand({type:tool})?standPlacement(hover.x,hover.y,rot):null;
+      const standSnap=isPlatform({type:tool})?standPlacement(hover.x,hover.y,rot):null;
       const occupied = tool === "wall" ? edges[edge] || !edgeAllowed(edge) || (/[ad]$/.test(edge) && tiles[key(hover.x,hover.y)])
         : standSnap?.error || blockedTile(key(hover.x, hover.y)) || tiles[key(hover.x, hover.y)] || edges[key(hover.x,hover.y)+":a"] || edges[key(hover.x,hover.y)+":d"];
       if (tool === "wall") {
@@ -1005,8 +1088,8 @@
       Object.values(tiles).reduce((sum,item)=>sum+seatCapacity(item),0);
     document.getElementById("placed").textContent = Object.keys(tiles).length + Object.keys(edges).length;
     document.getElementById("rotation").textContent = tool === "wall" ? ({0:"Top edge",2:"Right edge",4:"Bottom edge",6:"Left edge",1:"Diagonal /",5:"Diagonal \\"})[rot] : rot * 45 + "°";
-    document.getElementById("rotate").textContent = tool === "wall" ? "↻ Wall edge (R)" : isStand({type:tool})?"↻ Section 90° (R)":"↻ Item 45° (R)";
-    document.getElementById("mobileRotate").textContent = tool === "wall" ? "↻ Wall edge" : isStand({type:tool})?"↻ Section 90°":"↻ Item 45°";
+    document.getElementById("rotate").textContent = tool === "wall" ? "↻ Wall edge (R)" : isPlatform({type:tool})?"↻ Section 90° (R)":"↻ Item 45° (R)";
+    document.getElementById("mobileRotate").textContent = tool === "wall" ? "↻ Wall edge" : isPlatform({type:tool})?"↻ Section 90°":"↻ Item 45°";
   }
   function toast(s) {
     const t = document.getElementById("toast");
@@ -1062,7 +1145,7 @@
       if (blockedTile(k)) { toast("Keep the playing field clear!"); return; }
       if (tiles[k] || edges[k+":a"] || edges[k+":d"]) { toast("Tile is already occupied"); return; }
       if (money < prices[tool]) { toast("Not enough money"); return; }
-      const snap=isStand({type:tool})?standPlacement(hover.x,hover.y,rot):null;
+      const snap=isPlatform({type:tool})?standPlacement(hover.x,hover.y,rot):null;
       if(snap?.error) {toast(snap.error);return;}
       history.push({tiles:{...tiles}, edges:{...edges}, money});
       money -= prices[tool];
@@ -1095,6 +1178,7 @@
   new ResizeObserver(resize).observe(wrap);
   function select(t) {
     tool = t;
+    if(t==="concourse") {rot=0;toast("Concourse snaps to stair landing height. Matching elevations connect; exposed edges get rails.");}
     if(isStand({type:t})) {rot=rot-rot%2;toast(isEndStair({type:t})?"Green arrow = side walkway entrance. Match the stand facing; use the other end piece to mirror.":"Sections snap at 90°. Place stairs in the same direction; connect a path at their front.");}
     if (t === "wall") { if (!wallSlots.includes(rot)) rot = 0; toast("R cycles 4 tile edges and 2 corner-to-corner diagonals."); }
     update(); draw();
@@ -1266,8 +1350,8 @@
         if (cleanEdges[edge]) cash += prices.wall;
         else cleanEdges[edge] = {type:"wall"};
       } else {
-        if(isStand(v)&&(!Number.isInteger(v.baseFeet)||v.baseFeet<0||v.baseFeet>300||v.baseFeet%5!==0||v.rot%2!==0))throw Error("Invalid stand height or facing");
-        clean[k]={type:v.type,rot:v.rot,...(isStand(v)?{baseFeet:v.baseFeet}:{})};
+        if(isPlatform(v)&&(!Number.isInteger(v.baseFeet)||v.baseFeet<0||v.baseFeet>300||v.baseFeet%5!==0||v.rot%2!==0))throw Error("Invalid stand height or facing");
+        clean[k]={type:v.type,rot:v.rot,...(isPlatform(v)?{baseFeet:v.baseFeet}:{})};
       }
     }
     for (const k of Object.keys(clean))

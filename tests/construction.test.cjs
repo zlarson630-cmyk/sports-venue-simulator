@@ -48,6 +48,7 @@ function game(saved) {
   }
   const toolButtons = [
     "path",
+    "concourse",
     "bleacher",
     "stand",
     "stairStand",
@@ -97,7 +98,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -650,4 +651,47 @@ test("side-entry demo is undoable and never overwrites an existing stand layout"
  assert.equal(g.api.state().tiles["10,31"].baseFeet,5);
  const reload=game(JSON.parse(g.storage.get("svs01")));
  assert.equal(reload.api.state().tiles["10,31"].type,"endStairLeft");assert.equal(reload.api.state().tiles["10,31"].baseFeet,5);
+});
+
+function concoursePark() {
+ const saved=sideEntryPark();
+ for(const x of [17,18,19])saved.tiles[`${x},7`]={type:"concourse",rot:0,baseFeet:5};
+ saved.tiles["19,8"]={type:"stairStand",rot:4,baseFeet:0};
+ saved.edges["18,8:v"]={type:"wall"}; // Force entry through the rear concourse.
+ return saved;
+}
+test("fans reach rear seating aisles across a level concourse and descend to seats",()=>{
+ const g=game(concoursePark()),sections=g.api.reachableSeats();
+ assert.equal(sections.reduce((n,s)=>n+s.capacity,0),28);
+ for(const section of sections)assert.ok(section.slots.every(slot=>slot.route.some(p=>p.x===18.5&&p.y===7.5&&p.feet===5)));
+ g.api.startFanTest();for(const f of g.api.fanState().fans)for(let i=1;i<f.route.length;i++)assert.ok(Math.abs((f.route[i].feet||0)-(f.route[i-1].feet||0))<=0.625+1e-8);
+ g.api.advanceFans(45);assert.ok(g.api.fanState().fans.every(f=>f.seated));
+});
+test("concourse elevation gaps, missing platforms and blocked edges prevent access",()=>{
+ for(const mutate of [s=>s.tiles["18,7"].baseFeet=0,s=>delete s.tiles["18,7"],s=>s.edges["18,7:v"]={type:"wall"}]) {
+  const saved=concoursePark();mutate(saved);assert.equal(game(saved).api.reachableSeats().length,0);
+ }
+});
+test("concourse placement snaps to stair tops, saves heights and opens rails only for valid connections",()=>{
+ const g=game(sideEntryPark());g.select("concourse");g.clickTile(17,7); // Already occupied: preserve end stairs.
+ g.clickTile(17,6);assert.equal(g.api.state().tiles["17,6"].baseFeet,10);
+ g.clickTile(18,6);assert.equal(g.api.state().tiles["18,6"].baseFeet,10);
+ assert.equal(g.api.concourseConnection(17,6,g.api.state().tiles["17,6"],1,0).kind,"deck");
+ assert.equal(g.api.concourseConnection(17,6,g.api.state().tiles["17,6"],0,1).kind,"top");
+ assert.equal(g.api.concourseConnection(17,6,g.api.state().tiles["17,6"],-1,0),null);
+ const reload=game(JSON.parse(g.storage.get("svs01")));assert.equal(reload.api.state().tiles["18,6"].baseFeet,10);
+ g.element("undo").click();assert.equal(g.api.state().tiles["18,6"],undefined);
+});
+
+ test("concourse demo forces the rear route, costs only additions and preserves occupied layouts",()=>{
+ const g=game();g.api.buildConcourseDemo();assert.equal(g.api.state().money,88600);assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),48);
+ for(const section of g.api.reachableSeats())assert.ok(section.slots.every(slot=>slot.route.some(p=>p.x===18.5&&p.y===7.5&&p.feet===5)));
+ g.element("undo").click();assert.equal(Object.keys(g.api.state().tiles).length,0);
+ g.api.buildStandDemo();const before=JSON.stringify(g.api.state());g.api.buildConcourseDemo();assert.equal(JSON.stringify(g.api.state()),before);
+ });
+
+test("concourse rotations remain valid after switching from a diagonal tool",()=>{
+ const g=game();g.key("r");g.select("concourse");g.key("r");g.clickTile(10,30);
+ assert.equal(g.api.state().tiles["10,30"].rot%2,0);
+ assert.equal(game(JSON.parse(g.storage.get("svs01"))).api.state().tiles["10,30"].type,"concourse");
 });

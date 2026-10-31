@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.24.0
+
+- Added flat 10 × 10 ft concourse platforms that snap to stair landing heights and adjacent concourses.
+- Connect only matching elevations, allowing fans to enter seating aisles from the rear and descend to their row.
+- Added exposed-edge railings, supports and openings at valid connections; platforms remain separate from ground buildings.
+- Preserve concourse heights through save/import/undo, with an optional 48-seat rear-concourse demo.
+
+
 ## 0.23.0
 
 - Added mirrored end stairs with five-foot stairs and a five-foot level side landing, no seats.

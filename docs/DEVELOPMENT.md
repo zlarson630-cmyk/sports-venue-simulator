@@ -69,3 +69,12 @@ Use Build stand demo for six pieces (96 seats) at 18–20,7–8 with entrance pa
 Ground access joins only from the outer adjacent walkway at baseFeet = 0. Landing waypoints remain at baseFeet; fans turn at the front boundary before climbing the eight 7.5-inch risers. Row connections open only toward the inner half. Consecutive end stairs connect at matching facing, stair center, and +5 ft base. A raised landing does not gain access merely because a ground path sits beside it. Fans may move sideways through rows to existing central stairs.
 
 Build side-entry demo creates four seating sections and two end stairs (80 seats, 0–10 ft) at x17–19/y7–8. Ground paths approach along the outside at x16; no path occupies the front strip at x17–19/y9. It refuses occupied or walled areas and is undoable. Existing demonstration layouts are not migrated or replaced.
+
+
+## Concourse (v0.24)
+
+Concourse tiles persist baseFeet on the same 5 ft scale, occupy one cell, and have zero seating capacity. Placement takes elevation from adjacent platforms or valid stair endpoints. Conflicting heights are rejected. Stairs placed in front of a concourse snap to concourse height minus 5, while stairs behind start at concourse height.
+
+Concourse graph nodes connect through boundary ports to same-height decks, ground paths at 0 ft, stair top/bottom endpoints, and end-stair side landings. Ground paths never connect to raised platforms. Only stairs provide row access. Rails open only at a valid unobstructed connection. Surfaces render below pedestrians with perimeter rails in the depth pass. Buildings still occupy ground tiles only; concourses do not host amenities.
+
+Build concourse demo creates a side stair at 17,8, five rear platforms at 17–21,7 (+5 ft), and seating at 19–21,8 (48 seats). The gap at 18,8 forces fans to cross the concourse before descending the central aisle. No front-row pavement is built.
