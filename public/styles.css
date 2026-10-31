@@ -325,3 +325,5 @@ button:focus-visible {
   outline: 3px solid #ac6600;
   outline-offset: 2px;
 }
+
+.standhelp {font-size:12px;line-height:1.5;background:#fff3c9;border:1px solid #ddc473;border-radius:7px;padding:10px;margin:10px 0;color:#31465a;}

@@ -49,3 +49,14 @@ Avoid adding other sports or a surrounding village before the full design/build/
 Fans should enter a row from an aisle, move sideways to their assigned seat, and face the field. Low rows can sit beside the dugouts; rising rows behind them must eventually clear the roof. Row numbers alone should not guarantee a clear view: future sightline calculations should use seat elevation, seated eye height, roof/fence height, and distance to the playing surface.
 
 Outfield front-row platforms may start around 6 feet above field level to give seated fans a view over the 8-foot fence. Verify the actual downward view to the field, not just whether eye height exceeds the fence. These are planning notes; fan seating and sightline simulation are not yet implemented.
+
+
+## Modular grandstands (v0.22)
+
+Legacy `bleacher` tiles remain unchanged: three rows, 24 seats, existing eight-way rotations. New `stand` and `stairStand` tiles use cardinal rotations (0,2,4,6) to keep all edges aligned to 10-foot cells, and persist `baseFeet` in five-foot increments. Footprints stay 10 × 10 ft. The local a axis runs across a row; positive b points uphill, opposite the gold facing arrow.
+
+A seating section has four 1.25-foot tiers with five 2-foot seat bays per row (20 seats). Stair sections have two 2-foot seat bays around a 6-foot central aisle (8 seats). Eight stair treads rise 0.625 ft each, aligning every second tread to a seating tier. The back boundary is exactly baseFeet + 5. Placement derives height from matching-facing neighbors: lateral = same base, uphill = +5. Conflicting or negative elevations are rejected rather than moving existing construction. Removing a neighbor preserves the remaining sections and their elevations.
+
+Access is a graph of ground paths, stair treads and row centers. Paths join only a ground-level stair section's front. Consecutive stairs connect only with matching facing and five-foot elevation difference. Lateral rows connect only at matching elevations/facing, and walls block the shared edge. Seating sections do not provide a route uphill. Reachable capacity sums reachable seat slots, not a fixed number per tile. Fan waypoints carry feet; interpolation changes elevation continuously while climbing. Row painter entries interleave with people at their world positions.
+
+Use Build stand demo for six pieces (96 seats) at 18–20,7–8 with entrance paths. It checks occupied cells and walls, charges only for additions and is undoable. This version does not implement concourses, overhangs, ramps, structural engineering or sightline validation.

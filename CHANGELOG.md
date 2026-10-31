@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.22.0
+
+- Kept standalone three-row bleachers and added two modular grandstand pieces.
+- Seating sections have four rows of five seats; stair sections have a six-foot aisle with one seat on either side of each row. Each 10 × 10 ft section rises five feet.
+- Snap matching sections at the same height beside each other and five feet higher behind; align tiers and suppress shared end rails.
+- Route fans up connected stair treads and sideways through rows, including raised sections; reject access through mismatched heights, walls or missing stairs.
+- Preserve section elevations through save, import and undo, and add an optional 96-seat stand demo.
+
+
 ## 0.21.0
 
 - Added two-minute games with a live countdown and automatic return to construction.

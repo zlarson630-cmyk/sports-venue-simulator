@@ -49,6 +49,8 @@ function game(saved) {
   const toolButtons = [
     "path",
     "bleacher",
+    "stand",
+    "stairStand",
     "wall",
     "gate",
     "concession",
@@ -93,7 +95,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -523,4 +525,80 @@ test("another game collects new tickets and large frame deltas stop at two minut
  g.api.startFanTest();assert.equal(g.api.state().money,98120);
  g.api.advanceFans(120);assert.equal(g.api.state().money,98240);
  assert.match(g.element("fanStatus").textContent,/24 admissions · \$120 gate revenue/);
+});
+
+function modularPark(extra={}) {
+ return {version:2,fieldRevision:6,money:80000,edges:{},tiles:{
+  "14,10":{type:"path",rot:0},"14,9":{type:"path",rot:0},"15,9":{type:"path",rot:0},"16,9":{type:"path",rot:0},"17,9":{type:"path",rot:0},"18,9":{type:"path",rot:0},"19,9":{type:"path",rot:0},
+  "18,8":{type:"stand",rot:4,baseFeet:0},"19,8":{type:"stairStand",rot:4,baseFeet:0},"20,8":{type:"stand",rot:4,baseFeet:0},
+  "18,7":{type:"stand",rot:4,baseFeet:5},"19,7":{type:"stairStand",rot:4,baseFeet:5},"20,7":{type:"stand",rot:4,baseFeet:5},...extra}};
+}
+test("modular sections snap sideways and uphill at all four facings without changing standalone bleachers",()=>{
+ for(const rotation of [0,2,4,6]) {
+  const g=game();g.select("stand");for(let i=0;i<rotation/2;i++)g.key("r");
+  assert.equal(g.api.state().rot,rotation);g.clickTile(10,30);
+  const {ax,ay,bx,by}=g.api.standAxes(rotation);
+  g.clickTile(10+bx,30+by);g.clickTile(10+ax,30+ay);
+  const ts=g.api.state().tiles;
+  assert.equal(ts[`${10+bx},${30+by}`].baseFeet,5);assert.equal(ts[`${10+ax},${30+ay}`].baseFeet,0);
+  assert.equal(g.element("seats").textContent,60);
+  const p=g.api.standPoint(10,30,ts["10,30"],0,0.5,5),q=g.api.standPoint(10+bx,30+by,ts[`${10+bx},${30+by}`],0,-0.5,5);
+  assert.deepEqual(JSON.stringify(p),JSON.stringify(q));
+  g.element("undo").click();assert.equal(g.element("seats").textContent,40);
+  assert.equal(game(JSON.parse(g.storage.get("svs01"))).api.state().tiles[`${10+bx},${30+by}`].baseFeet,5);
+  g.select("bleacher");g.clickTile(9,35);assert.equal(g.api.state().tiles["9,35"].type,"bleacher");
+  assert.equal(g.element("seats").textContent,64);
+ }
+});
+test("connected stairs unlock ground and raised rows; fans climb treads then shuffle sideways",()=>{
+ const g=game(modularPark()),sections=g.api.reachableSeats();
+ assert.equal(sections.length,6);assert.equal(sections.reduce((n,s)=>n+s.capacity,0),96);
+ const upper=sections.find(s=>s.key==="20,7");assert.equal(upper.capacity,20);
+ assert.ok(upper.slots.every(s=>s.route.some(p=>p.feet===0.625)&&s.route.at(-1).feet>5));
+ g.api.startFanTest();assert.equal(g.api.fanState().fans.length,25);
+ const upperFan=g.api.fanState().fans.find(f=>f.sectionKey==="20,7");
+ assert.ok(upperFan.route.some(p=>p.feet===5));
+ for(let i=1;i<upperFan.route.length;i++)assert.ok(Math.abs((upperFan.route[i].feet||0)-(upperFan.route[i-1].feet||0))<=0.625+1e-8);
+ g.api.advanceFans(40);
+ assert.ok(g.api.fanState().fans.every(f=>f.seated));assert.ok(upperFan.feet>5);
+ assert.equal(g.api.state().money,80125);
+ for(let camera=0;camera<4;camera++){g.commands.length=0;g.api.draw();assert.ok(g.commands.some(c=>c[0]==="fill"));g.key("q");}
+});
+test("paths beside seats cannot replace stairs, and missing upper stairs leave upper seats inaccessible",()=>{
+ const saved=modularPark();delete saved.tiles["19,7"];
+ const g=game(saved),sections=g.api.reachableSeats();
+ assert.equal(sections.reduce((n,s)=>n+s.capacity,0),48);
+ assert.ok(!sections.some(s=>s.key==="18,7"||s.key==="20,7"));
+ delete saved.tiles["19,8"];
+ assert.equal(game(saved).api.reachableSeats().length,0);
+});
+test("walls, mismatched elevations and rotated stairs cannot create an elevated route",()=>{
+ const wall=modularPark();wall.edges["19,9:h"]={type:"wall"};
+ assert.equal(game(wall).api.reachableSeats().length,0);
+ for(const wrong of [{type:"stairStand",rot:0,baseFeet:5},{type:"stairStand",rot:4,baseFeet:10}]) {
+  const sections=game(modularPark({"19,7":wrong})).api.reachableSeats();
+  assert.ok(!sections.some(s=>s.key==="18,7"||s.key==="20,7"));
+ }
+});
+test("new stand saves validate heights and retain legacy capacity",()=>{
+ const g=game();for(const item of [{type:"stand",rot:1,baseFeet:0},{type:"stand",rot:0,baseFeet:-5},{type:"stairStand",rot:0,baseFeet:2},{type:"stand",rot:0}]) {
+  assert.throws(()=>g.api.validatePark({version:2,fieldRevision:6,money:100,tiles:{"10,30":item},edges:{}}));
+ }
+ const valid=g.api.validatePark(modularPark());assert.equal(valid.tiles["19,7"].baseFeet,5);
+ assert.equal(g.api.seatCapacity({type:"bleacher"}),24);assert.equal(g.api.seatCapacity({type:"stand"}),20);assert.equal(g.api.seatCapacity({type:"stairStand"}),8);
+});
+
+test("stand demo preserves layouts, costs only additions and is undoable",()=>{
+ const g=game();g.api.buildStandDemo();assert.equal(g.api.state().money,88900);
+ assert.equal(g.element("seats").textContent,96);assert.equal(g.api.reachableSeats().length,6);
+ g.api.buildStandDemo();assert.equal(g.api.state().money,88900);
+ g.element("undo").click();g.element("undo").click();assert.equal(Object.keys(g.api.state().tiles).length,0);
+ const blocked=game(modularPark({"19,8":{type:"restroom",rot:0}})),before=JSON.stringify(blocked.api.state());
+ blocked.api.buildStandDemo();assert.equal(JSON.stringify(blocked.api.state()),before);
+});
+test("conflicting stand heights reject placement and stands cannot occupy the arrival route",()=>{
+ const g=game(modularPark({"20,7":{type:"stand",rot:4,baseFeet:10}}));
+ assert.ok(g.api.standPlacement(19,7,4).error);
+ const blocked=game(modularPark({"14,10":{type:"stairStand",rot:4,baseFeet:0}}));
+ assert.equal(blocked.api.approachRoute(),null);blocked.api.startFanTest();assert.equal(blocked.api.fanState().fanActive,false);
 });
