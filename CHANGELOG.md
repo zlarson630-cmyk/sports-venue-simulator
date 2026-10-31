@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0
+
+- Added a surrounding street loop, sidewalks, and a street intersection behind home plate.
+- Added a 6-foot outer stadium fence and a main gate with a sidewalk forecourt and crosswalk. Fan arrivals remain a future simulation feature.
+
 ## 0.10.0
 
 - Moved both dugouts outside the playing-field fence. Added aligned 10-foot fence openings and landings from the sunken steps onto the field.

@@ -95,7 +95,7 @@
     return { x: Math.floor(x), y: Math.floor(y) };
   }
   function centerField() {
-    const pts=fenceCorners.map(p=>project(...p));
+    const pts=streetBoundary.map(p=>project(...p));
     const c={x:(Math.min(...pts.map(p=>p.x))+Math.max(...pts.map(p=>p.x)))/2,
       y:(Math.min(...pts.map(p=>p.y))+Math.max(...pts.map(p=>p.y)))/2};
     panX += wrap.clientWidth * 0.5 - c.x;
@@ -392,6 +392,48 @@
     ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#f6e8bd";
     ctx.fillText("DUGOUT · 30 ft",p.x,p.y);
   }
+  const stadiumBoundary = [[9,14],[18,5],[53,5],[53,29],[33,49],[9,49]];
+  const sidewalkBoundary = [[7,14],[18,3],[55,3],[55,30],[34,51],[7,51]];
+  const streetBoundary = [[5,14],[18,1],[57,1],[57,31],[35,53],[5,53]];
+  const mainGate = {a:[13,10],b:[14,9],intersection:[12,8]};
+  const outerFence=[];
+  stadiumBoundary.forEach((a,edge)=>{
+    const b=stadiumBoundary[(edge+1)%stadiumBoundary.length],n=Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
+    for(let i=0;i<n;i++) {
+      if(edge===0&&i===4) continue; // Main entry behind home plate.
+      const at=t=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+      outerFence.push({a:at(i/n),b:at((i+1)/n),feet:6});
+    }
+  });
+  function drawStreets() {
+    const ring=(outside,inside,fill)=>polygon([...outside,...[...inside].reverse(),outside[0]].map(p=>project(...p)),fill,null);
+    ring(streetBoundary,sidewalkBoundary,"#525d65");
+    ring(sidewalkBoundary,stadiumBoundary,"#c5c6bc");
+    // A side street meets the perimeter road directly behind the main entrance.
+    polygon([[13.5,6.5],[5.5,-1.5],[2.5,1.5],[10.5,9.5]].map(p=>project(...p)),"#c5c6bc",null);
+    polygon([[13,7],[5,-1],[3,1],[11,9]].map(p=>project(...p)),"#525d65",null);
+    const center=streetBoundary.map((p,i)=>[(p[0]+sidewalkBoundary[i][0])/2,(p[1]+sidewalkBoundary[i][1])/2]);
+    ctx.setLineDash([7*zoom,8*zoom]);
+    for(let i=0;i<center.length;i++) line(project(...center[i]),project(...center[(i+1)%center.length]),"#d8c778",1);
+    line(project(4,0),project(11,7),"#d8c778",1);
+    ctx.setLineDash([]);
+    // Paved forecourt spans the sidewalk and leads through the gate.
+    polygon([[12,10],[13,11],[15,9],[14,8]].map(p=>project(...p)),"#dedbc9","#9d9e95",0.8);
+    for(let i=0;i<5;i++) {
+      const t=i*0.22;
+      line(project(11.5+t,8.5-t),project(12.1+t,9.1-t),"#f1eddb",3);
+    }
+  }
+  function drawMainGate() {
+    const a=project(...mainGate.a),b=project(...mainGate.b),h=20*zoom;
+    for(const p of [a,b]) {
+      line(p,{x:p.x,y:p.y-h},"#c0a473",5);
+      line({x:p.x,y:p.y-h},{x:p.x,y:p.y-h-3*zoom},"#f2d16d",6);
+    }
+    line({x:a.x,y:a.y-h},{x:b.x,y:b.y-h},"#203e52",7);
+    const p=project(13.5,9.5);ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";
+    ctx.fillStyle="#fff0ba";ctx.fillText("MAIN GATE",p.x,p.y-h-5*zoom);
+  }
   function draw() {
     if (pointer) hover = inverse(pointer.x, pointer.y);
     const cw = canvas.clientWidth,
@@ -425,6 +467,7 @@
         );
       }
     }
+    drawStreets();
     pitch();
     let all = Object.entries(tiles)
       .map(([k, v]) => {
@@ -436,6 +479,8 @@
         return {x:(p.a[0]+p.b[0])/2-0.5, y:(p.a[1]+p.b[1])/2-0.5, edge};
       }))
       .concat(dugouts.map(dugout=>({x:dugout.x+(dugout.swap?dugout.width:dugout.length)/2-0.5,y:dugout.y+(dugout.swap?dugout.length:dugout.width)/2-0.5,dugout})))
+      .concat(outerFence.map(panel=>({x:(panel.a[0]+panel.b[0])/2-0.5,y:(panel.a[1]+panel.b[1])/2-0.5,panel})))
+      .concat([{x:13,y:9,mainEntry:true}])
       .concat(fieldFence.map(panel => ({x:(panel.a[0]+panel.b[0])/2-0.5, y:(panel.a[1]+panel.b[1])/2-0.5, panel})))
       .sort((a, b) => {
         let aa = rotated(a.x, a.y),
@@ -443,7 +488,8 @@
         return aa.x + aa.y - (bb.x + bb.y);
       });
     for (let e of all) {
-      if (e.dugout) drawDugout(e.dugout);
+      if (e.mainEntry) drawMainGate();
+      else if (e.dugout) drawDugout(e.dugout);
       else if (e.edge) drawWall(e.edge);
       else if (e.panel) drawFieldFence(e.panel);
       else drawObject(e.x, e.y, e.v);
@@ -550,7 +596,7 @@
     canvas.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (!cameraInit) {
-      const bounds=fenceCorners.map(([x,y])=>{const r=rotated(x,y);return point(r.x,r.y);});
+      const bounds=streetBoundary.map(([x,y])=>{const r=rotated(x,y);return point(r.x,r.y);});
       const width=Math.max(...bounds.map(p=>p.x))-Math.min(...bounds.map(p=>p.x));
       const height=Math.max(...bounds.map(p=>p.y))-Math.min(...bounds.map(p=>p.y));
       zoom=Math.min(1.14,(w-80)/width,(h-160)/height);

@@ -93,7 +93,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -381,4 +381,14 @@ test("dugouts sit outside the fence with aligned player entrances",()=>{
  });assert.equal(gaps.length,2);
  g.select("path");g.clickTile(22,8);g.clickTile(12,18);
  assert.equal(Object.keys(g.api.state().tiles).length,0);
+});
+
+test("stadium perimeter has one main gate behind home plate",()=>{
+ const g=game(),f=g.api.outerFence;
+ const gaps=f.filter((p,i)=>{const n=f[(i+1)%f.length];return p.b[0]!==n.a[0]||p.b[1]!==n.a[1];});
+ assert.equal(gaps.length,1);assert.ok(f.every(p=>p.feet===6));
+ const m=g.api.mainGate;
+ assert.equal(m.a[0]+m.a[1],23);assert.equal(m.b[0]+m.b[1],23);
+ assert.equal((m.a[0]+m.b[0])/2-(m.a[1]+m.b[1])/2,4);
+ assert.ok(m.intersection[0]+m.intersection[1]<23);
 });
