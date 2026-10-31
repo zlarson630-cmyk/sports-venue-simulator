@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0
+
+- Added roadside trees outside the stadium fence, with varied crowns, trunks, and shadows.
+- Preserved the main gate approach and intersection sightlines; trees depth-sort with the stadium in every camera view.
+
 ## 0.12.0
 
 - Replaced the road loop with four straight roads forming a hashtag, with four intersections and fading extensions.

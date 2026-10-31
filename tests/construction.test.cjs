@@ -93,7 +93,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -401,4 +401,12 @@ test("Small Stadium roads form four intersections with extensions and fading end
  for(const r of t.roads){assert.ok(r.at>t.roadStart+t.fadeLength);assert.ok(r.at<t.roadEnd-t.fadeLength);}
  assert.equal(xs.length*ys.length,4);assert.ok(t.fadeLength>0);
  const g=game().api.mainGate;assert.equal(g.intersection[0]-g.intersection[1],4);
+});
+
+test("roadside trees line all four curbs and leave the main entrance clear",()=>{
+ const ts=game().api.roadsideTrees;
+ assert.ok(ts.length>30);
+ assert.ok(ts.every(t=>t.x===8.7||t.x===53.3||t.y===4.7||t.y===49.3));
+ assert.ok(ts.every(t=>!(t.x+t.y<28&&Math.abs(t.x-t.y-4)<3.5)));
+ for(const side of [t=>t.x===8.7,t=>t.x===53.3,t=>t.y===4.7,t=>t.y===49.3]) assert.ok(ts.some(side));
 });

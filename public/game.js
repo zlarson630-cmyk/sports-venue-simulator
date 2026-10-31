@@ -449,6 +449,29 @@
       line(project(6.9,y),project(7.9,y),"#f1eddb",2);
     }
   }
+  // Template landscaping stays outside the stadium fence and clear of the entry walk.
+  const roadsideTrees = [];
+  const addTree=(x,y)=>{
+    if(x+y<28 && Math.abs(x-y-4)<3.5) return;
+    roadsideTrees.push({x,y,variant:roadsideTrees.length%3});
+  };
+  for(let x=12;x<=50;x+=3.5) {addTree(x,4.7);addTree(x,49.3);}
+  for(let y=8;y<=46;y+=3.5) {addTree(8.7,y);addTree(53.3,y);}
+  function drawRoadsideTree(tree) {
+    const p=project(tree.x,tree.y),z=zoom;
+    const size=[1,0.9,1.1][tree.variant],h=22*size*z;
+    ctx.beginPath();ctx.ellipse(p.x+3*z,p.y+2*z,10*size*z,4*size*z,0,0,Math.PI*2);
+    ctx.fillStyle="#284b3030";ctx.fill();
+    line(p,{x:p.x,y:p.y-h*0.7},"#74513a",3);
+    const crown=(dx,dy,rx,ry,color)=>{
+      ctx.beginPath();ctx.ellipse(p.x+dx*z,p.y+dy*z,rx*size*z,ry*size*z,0,0,Math.PI*2);
+      ctx.fillStyle=color;ctx.fill();
+    };
+    crown(0,-h/z,10,12,"#356a42");
+    crown(-4,-h/z-2,7.5,9,"#4e8850");
+    crown(3,-h/z+2,7,8,"#427c46");
+    crown(-3,-h/z-7,5.5,5,"#70a05b");
+  }
   function drawMainGate() {
     const a=project(...mainGate.a),b=project(...mainGate.b),h=20*zoom;
     for(const p of [a,b]) {
@@ -504,6 +527,7 @@
         return {x:(p.a[0]+p.b[0])/2-0.5, y:(p.a[1]+p.b[1])/2-0.5, edge};
       }))
       .concat(dugouts.map(dugout=>({x:dugout.x+(dugout.swap?dugout.width:dugout.length)/2-0.5,y:dugout.y+(dugout.swap?dugout.length:dugout.width)/2-0.5,dugout})))
+      .concat(roadsideTrees.map(tree=>({x:tree.x-0.5,y:tree.y-0.5,tree})))
       .concat(outerFence.map(panel=>({x:(panel.a[0]+panel.b[0])/2-0.5,y:(panel.a[1]+panel.b[1])/2-0.5,panel})))
       .concat([{x:13,y:9,mainEntry:true}])
       .concat(fieldFence.map(panel => ({x:(panel.a[0]+panel.b[0])/2-0.5, y:(panel.a[1]+panel.b[1])/2-0.5, panel})))
@@ -513,7 +537,8 @@
         return aa.x + aa.y - (bb.x + bb.y);
       });
     for (let e of all) {
-      if (e.mainEntry) drawMainGate();
+      if (e.tree) drawRoadsideTree(e.tree);
+      else if (e.mainEntry) drawMainGate();
       else if (e.dugout) drawDugout(e.dugout);
       else if (e.edge) drawWall(e.edge);
       else if (e.panel) drawFieldFence(e.panel);
