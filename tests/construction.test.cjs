@@ -93,7 +93,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,fieldFence,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -267,7 +267,7 @@ test("field fence is closed, grid aligned, and uses the two required heights", (
     const dx = Math.abs(p.b[0] - p.a[0]), dy = Math.abs(p.b[1] - p.a[1]);
     assert.ok(dx === 0 || dy === 0 || Math.abs(dx-dy)<1e-10, "Fence follows edges or corner-to-corner diagonals");
     for (const coord of [...p.a, ...p.b]) assert.ok(Math.abs(coord - Math.round(coord)) < 1e-10);
-    const foul = (p.a[1] === 14 && p.b[1] === 14) || (p.a[0] === 18 && p.b[0] === 18);
+    const foul = (p.a[0]+p.b[0])/2 < 18 || (p.a[1]+p.b[1])/2 < 14;
     assert.equal(p.feet, foul ? 3 : 8);
   });
 });
@@ -311,4 +311,28 @@ test("both wall diagonals join grid corners and persist through save, removal an
     }
     g.key("q");
   }
+});
+
+test("basepaths measure 90 feet and the outfield reaches 300 feet down the lines",()=>{
+  const g=game(), bases=g.api.basesWorld;
+  for(let i=0;i<4;i++) {
+    const a=bases[i],b=bases[(i+1)%4];
+    assert.equal(Math.hypot(b[0]-a[0],b[1]-a[1])*10,90);
+  }
+  const [hx,hy]=g.api.homeWorld;
+  const fair=g.api.fieldFence.filter(p=>(p.a[0]+p.b[0])/2>=hx && (p.a[1]+p.b[1])/2>=hy);
+  for(const p of fair) {
+    const [ax,ay]=p.a,[bx,by]=p.b, dx=bx-ax,dy=by-ay;
+    const t=Math.max(0,Math.min(1,((hx-ax)*dx+(hy-ay)*dy)/(dx*dx+dy*dy)));
+    assert.ok(Math.hypot(ax+t*dx-hx,ay+t*dy-hy)*10>=300-1e-9);
+  }
+  assert.ok(fair.some(p=>p.a[0]===hx+30&&p.a[1]===hy));
+  assert.ok(fair.some(p=>[p.a,p.b].some(v=>v[0]===hx&&v[1]===hy+30)));
+});
+test("larger-field migration refunds only overlaps and preserves remaining park",()=>{
+  const g=game({version:2,money:97000,tiles:{"36,32":{type:"bleacher",rot:0},"12,12":{type:"path",rot:0}},edges:{"30,30:h":{type:"wall"},"12,12:h":{type:"wall"}}});
+  assert.equal(g.api.state().money,98700);
+  assert.ok(g.api.state().tiles["12,12"]);assert.ok(g.api.state().edges["12,12:h"]);
+  assert.equal(g.api.state().tiles["36,32"],undefined);assert.equal(g.api.state().edges["30,30:h"],undefined);
+  const reload=game(JSON.parse(g.storage.get("svs01")));assert.equal(reload.api.state().money,98700);
 });

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+- Set all four base paths to exactly nine 10-foot cells.
+- Added rounded infield dirt, home-plate dirt and a properly positioned mound.
+- Expanded the playing field to 300-foot foul lines and roughly 304-foot center field, with distance labels and a camera that fits the expanded field.
+- Refund old construction that overlaps the expanded protected playing field when loading v0.6 saves.
+
 ## 0.6.0
 
 - Added both corner-to-corner wall diagonals alongside four tile edges.

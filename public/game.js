@@ -31,16 +31,12 @@
     tiles = {},
     edges = {},
     history = [];
+  const homeWorld = [18,14], baseSpacing = 9;
+  const basesWorld = [homeWorld,[27,14],[27,23],[18,23]];
+  const fenceCorners = [[16,12],[48,12],[48,27],[31,44],[16,44]];
   const field = new Set();
-  function mark(x, y) {
-    if (x >= 0 && y >= 0 && x < W && y < H) field.add(x + "," + y);
-  } // Playable field core, visually oriented on the isometric lattice: foul-lines follow grid axes.
-  for (let x = 18; x <= 38; x++)
-    for (let y = 14; y <= 34; y++) {
-      let a = x - 18,
-        b = y - 14;
-      if (a + b <= 24 && x >= 18 && y >= 14) mark(x, y);
-    }
+  for(let x=16;x<48;x++) for(let y=12;y<44;y++)
+    if(x+y<=74) field.add(`${x},${y}`);
   const key = (x, y) => x + "," + y;
   function rotated(x, y) {
     const c = 30;
@@ -90,7 +86,9 @@
     return { x: Math.floor(x), y: Math.floor(y) };
   }
   function centerField() {
-    const c = project(24, 20);
+    const pts=fenceCorners.map(p=>project(...p));
+    const c={x:(Math.min(...pts.map(p=>p.x))+Math.max(...pts.map(p=>p.x)))/2,
+      y:(Math.min(...pts.map(p=>p.y))+Math.max(...pts.map(p=>p.y)))/2};
     panX += wrap.clientWidth * 0.5 - c.x;
     panY += wrap.clientHeight * 0.48 - c.y;
     draw();
@@ -294,57 +292,46 @@
     }
   }
   function pitch() {
-    // diamond shaped baseball surface located in the fixed no-build area
-    for (let x = 18; x <= 38; x++)
-      for (let y = 14; y <= 34; y++)
-        if (field.has(key(x, y)))
-          diamond(
-            x + 0.5,
-            y + 0.5,
-            (x + y) % 2 ? "#76ab67" : "#7fb571",
-            "#70a363",
-          );
-    const home = project(18.7, 14.7),
-      first = project(29.5, 14.7),
-      second = project(29.5, 25.5),
-      third = project(18.7, 25.5);
-    polygon([home, first, second, third], "#ca9463", "#e8bc8d", 2);
-    const inner = [
-      project(20.5, 16.5),
-      project(27.5, 16.5),
-      project(27.5, 23.5),
-      project(20.5, 23.5),
-    ];
-    polygon(inner, "#74b166", "#8dba72", 1);
-    [home, first, second, third].forEach((p) =>
-      polygon(
-        [
-          { x: p.x, y: p.y - 3 * zoom },
-          { x: p.x + 3 * zoom, y: p.y },
-          { x: p.x, y: p.y + 3 * zoom },
-          { x: p.x - 3 * zoom, y: p.y },
-        ],
-        "#fff7e3",
-        null,
-      ),
-    );
-    const mound = project(24, 20);
-    ctx.beginPath();
-    ctx.ellipse(mound.x, mound.y, 8 * zoom, 4 * zoom, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#d9ab7b";
-    ctx.fill();
-    line(home, project(40, 14.7), "#ffffff", 1.5);
-    line(home, project(18.7, 37), "#ffffff", 1.5);
+    for(const k of field) {
+      const [x,y]=k.split(",").map(Number);
+      diamond(x+0.5,y+0.5,(x+y)%2?"#76ab67":"#7fb571","#70a363");
+    }
+    const [hx,hy]=homeWorld, dirtRadius=15;
+    // Rounded grass/dirt cutout; buildings and fences still snap to the grid.
+    const dirt=[project(hx,hy)];
+    for(let i=0;i<=48;i++) {
+      const angle=i/48*Math.PI/2;
+      dirt.push(project(hx+Math.cos(angle)*dirtRadius,hy+Math.sin(angle)*dirtRadius));
+    }
+    polygon(dirt,"#ca9463","#deb183",1);
+    const circle=(cx,cy,r,fill)=>{
+      const pts=[];
+      for(let i=0;i<48;i++) {const a=i/48*Math.PI*2;pts.push(project(cx+Math.cos(a)*r,cy+Math.sin(a)*r));}
+      polygon(pts,fill,null);
+    };
+    circle(hx,hy,1.25,"#ca9463");
+    polygon([[hx+0.7,hy+0.7],[hx+8.3,hy+0.7],[hx+8.3,hy+8.3],[hx+0.7,hy+8.3]].map(p=>project(...p)),"#74b166","#8dba72",1);
+    const moundOffset=6.05/Math.SQRT2;
+    circle(hx+moundOffset,hy+moundOffset,0.9,"#d9ab7b");
+    for(const [x,y] of basesWorld) {
+      const half=0.12;
+      polygon([[x-half,y-half],[x+half,y-half],[x+half,y+half],[x-half,y+half]].map(p=>project(...p)),"#fff7e3",null);
+    }
+    line(project(hx,hy),project(hx+30,hy),"#ffffff",1.3);
+    line(project(hx,hy),project(hx,hy+30),"#ffffff",1.3);
+    for(const [x,y,label] of [[46.5,14.7,"300 ft"],[18.7,42.5,"300 ft"],[38.8,34.8,"304 ft"]]) {
+      const p=project(x,y);ctx.font=`bold ${10*zoom}px sans-serif`;ctx.textAlign="center";
+      ctx.fillStyle="#fff4c4";ctx.fillText(label,p.x,p.y-4*zoom);
+    }
   }
-  // The perimeter uses edge panels plus corner-to-corner diagonal panels.
-  const fenceCorners = [[18,14],[39,14],[39,18],[22,35],[18,35]];
+  // Grid-aligned outfield: 300 feet down the lines, about 304 at center.
   const fieldFence = [];
   fenceCorners.forEach((a,edge)=>{
     const b=fenceCorners[(edge+1)%fenceCorners.length];
     const count=Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
     for(let i=0;i<count;i++) {
       const at=t=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
-      fieldFence.push({a:at(i/count),b:at((i+1)/count),feet:edge===0||edge===4?3:8});
+      fieldFence.push({a:at(i/count),b:at((i+1)/count),feet:(edge===0||edge===4||(edge===1&&a[1]+(b[1]-a[1])*(i+0.5)/count<14)||(edge===3&&a[0]+(b[0]-a[0])*(i+0.5)/count<18))?3:8});
     }
   });
   function drawFieldFence(panel) {
@@ -460,7 +447,7 @@
     try {
       localStorage.setItem(
         "svs01",
-        JSON.stringify({ version: 2, tiles, edges, money }),
+        JSON.stringify({ version: 2, fieldRevision: 2, tiles, edges, money }),
       );
       return true;
     } catch (e) {
@@ -518,9 +505,10 @@
     canvas.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (!cameraInit) {
-      panX = w * 0.5 - (((24 - 20) * TW) / 2) * zoom;
-      panY = h * 0.47 - (((24 + 20) * TH) / 2) * zoom;
+      zoom=Math.min(1.14,(w-80)/1216,(h-160)/447);
+      zoom=Math.max(0.45,zoom);
       cameraInit = true;
+      centerField();
     }
     draw();
   }
@@ -664,9 +652,15 @@
       throw Error("Invalid park file");
     const clean = {}, cleanEdges = {};
     let cash = saved.money;
+    const migrateField = (saved.version === 1 || saved.version === 2) && !saved.fieldRevision;
     if (saved.edges !== undefined && (!saved.edges || typeof saved.edges !== "object" || Array.isArray(saved.edges))) throw Error("Invalid walls");
     for (const [edge,v] of Object.entries(saved.edges || {})) {
-      if (!/^\d+,\d+:[hvad]$/.test(edge) || !edgeAllowed(edge) || !v || v.type !== "wall") throw Error("Invalid wall edge");
+      if (!/^\d+,\d+:[hvad]$/.test(edge) || !v || v.type !== "wall") throw Error("Invalid wall edge");
+      if (!edgeAllowed(edge)) {
+        const panel=edgePanel(edge);
+        if(migrateField && [...panel.a,...panel.b].every(v=>v>=0&&v<=60)) {cash+=prices.wall;continue;}
+        throw Error("Invalid wall edge");
+      }
       cleanEdges[edge] = {type:"wall"};
     }
     for (const [k, v] of Object.entries(saved.tiles)) {
@@ -675,7 +669,7 @@
       if (
         x >= W ||
         y >= H ||
-        field.has(k) ||
+        (field.has(k) && !migrateField) ||
         !v ||
         !Object.hasOwn(prices, v.type) ||
         !Number.isInteger(v.rot) ||
@@ -683,6 +677,7 @@
         v.rot > 7
       )
         throw Error("Invalid construction");
+      if (field.has(k) && migrateField) { cash+=prices[v.type];continue; }
       if (v.type === "wall") {
         const edge = wallEdge(x, y, v.rot);
         if (cleanEdges[edge]) cash += prices.wall;
@@ -695,7 +690,7 @@
   }
   document.getElementById("export").onclick = () => {
     const blob = new Blob(
-        [JSON.stringify({ version: 2, tiles, edges, money }, null, 2)],
+        [JSON.stringify({ version: 2, fieldRevision: 2, tiles, edges, money }, null, 2)],
         { type: "application/json" },
       ),
       url = URL.createObjectURL(blob),
@@ -736,6 +731,7 @@
       tiles = saved.tiles;
       edges = saved.edges;
       money = saved.money;
+      store();
     }
   } catch (e) {
     toast("Saved park could not be loaded. Import a backup if available.");
