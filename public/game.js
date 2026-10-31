@@ -1,5 +1,6 @@
 (() => {
   "use strict";
+  const PAVEMENT = "#dedbc9", PAVEMENT_EDGE = "#aaa99c";
   const W = 60,
     H = 60,
     TW = 38,
@@ -239,7 +240,7 @@
     };
     switch (item.type) {
       case "path":
-        diamond(x + 0.5, y + 0.5, "#c8c6b9", "#e5e3d6");
+        diamond(x + 0.5, y + 0.5, PAVEMENT, PAVEMENT_EDGE);
         break;
       case "bleacher": {
         if(disconnectedSections.has(key(x,y))) {
@@ -452,7 +453,7 @@
       line(project(...a),project(...b),"#d8c778",1);ctx.restore();
     }
     // Diagonal sidewalk links the corner intersection to the gate behind home.
-    polygon([[7.3,4.7],[8.7,3.3],[15,9],[13,11]].map(p=>project(...p)),"#dedbc9","#aaa99c",0.8);
+    polygon([[7.3,4.7],[8.7,3.3],[15,9],[13,11]].map(p=>project(...p)),PAVEMENT,PAVEMENT_EDGE,0.8);
     for(let i=0;i<5;i++) {
       const x=6.7+i*0.24;
       line(project(x,2.9),project(x,3.9),"#f1eddb",2);
@@ -632,8 +633,13 @@
     }
     drawStreets();
     pitch();
-    diamond(14.5,10.5,"#d9d4bc","#f3dc7a");
+    diamond(14.5,10.5,PAVEMENT,PAVEMENT_EDGE);
+    // Pavement belongs to the ground pass, below every person and structure.
+    for(const [k,v] of Object.entries(tiles)) if(v.type==="path") {
+      const [x,y]=k.split(",").map(Number);drawObject(x,y,v);
+    }
     let all = Object.entries(tiles)
+      .filter(([,v])=>v.type!=="path")
       .map(([k, v]) => {
         const [x, y] = k.split(",").map(Number);
         return { x, y, v };

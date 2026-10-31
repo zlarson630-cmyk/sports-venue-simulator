@@ -20,7 +20,7 @@ function game(saved) {
         (_, name) =>
         (...args) =>
           commands.push([name, ...args]),
-      set: () => true,
+      set: (_,name,value) => {commands.push(["style",name,value]);return true;},
     },
   );
   function element(id) {
@@ -93,7 +93,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,draw,PAVEMENT,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -446,4 +446,15 @@ test("fans spread across connected sections and the report separates fans from d
  const report=g.element("fanStatus").textContent;
  assert.match(report,/All 25 arriving fans are seated/);assert.match(report,/23 reachable seats remain empty/);
  assert.match(report,/1 disconnected section \(24 seats\)/);
+});
+
+test("walkway paving matches entrance paving and always renders before walking fans",()=>{
+ const g=game();g.api.buildFanDemo();g.api.startFanTest();g.api.advanceFans(2);
+ for(let camera=0;camera<4;camera++) {
+  g.commands.length=0;g.api.draw();
+  const paving=g.commands.map((c,i)=>c[0]==="style"&&c[1]==="fillStyle"&&c[2]===g.api.PAVEMENT?i:-1).filter(i=>i>=0);
+  const heads=g.commands.map((c,i)=>c[0]==="style"&&c[1]==="fillStyle"&&c[2]==="#ecc29a"?i:-1).filter(i=>i>=0);
+  assert.ok(paving.length>=7);assert.ok(heads.length>0);
+  assert.ok(Math.max(...paving)<Math.min(...heads));g.key("q");
+ }
 });

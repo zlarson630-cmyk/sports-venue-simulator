@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.0
+
+- Matched buildable walkways and the entrance landing to the main entry sidewalk material.
+- Rendered all walkway tiles in the ground pass so fans cannot be hidden by pavement at different camera angles.
+
 ## 0.17.0
 
 - Spread arriving fans across reachable sections and spaced seat positions before filling gaps.
