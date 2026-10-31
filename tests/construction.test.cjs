@@ -433,3 +433,17 @@ test("walls block fan routes without removing construction",()=>{
  assert.equal(g.api.reachableSeats().length,1);
  g.key("r");g.clickTile(16,9);assert.equal(g.api.reachableSeats().length,0);
 });
+
+test("fans spread across connected sections and the report separates fans from disconnected seats",()=>{
+ const tiles={"14,10":{type:"path",rot:0},"14,9":{type:"path",rot:0},"15,9":{type:"path",rot:0},"16,9":{type:"path",rot:0},"17,9":{type:"path",rot:0},"15,8":{type:"bleacher",rot:4},"17,8":{type:"bleacher",rot:4},"11,30":{type:"bleacher",rot:0}};
+ const g=game({version:2,fieldRevision:6,money:90000,tiles,edges:{}});
+ g.api.startFanTest();const fs=g.api.fanState().fans;
+ assert.equal(fs.filter(f=>f.sectionKey==="15,8").length,13);
+ assert.equal(fs.filter(f=>f.sectionKey==="17,8").length,12);
+ assert.equal(new Set(fs.map(f=>f.sectionKey+":"+f.seat)).size,25);
+ assert.deepEqual(fs.filter(f=>f.sectionKey==="15,8").slice(0,4).map(f=>f.seat).join(","),"0,23,7,16");
+ for(let i=0;i<600;i++)g.api.advanceFans(0.1);
+ const report=g.element("fanStatus").textContent;
+ assert.match(report,/All 25 arriving fans are seated/);assert.match(report,/23 reachable seats remain empty/);
+ assert.match(report,/1 disconnected section \(24 seats\)/);
+});

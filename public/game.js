@@ -242,6 +242,11 @@
         diamond(x + 0.5, y + 0.5, "#c8c6b9", "#e5e3d6");
         break;
       case "bleacher": {
+        if(disconnectedSections.has(key(x,y))) {
+          diamond(x+0.5,y+0.5,"#e45c6480","#ffbd9b");
+          ctx.font=`bold ${8*z}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#a51e2a";
+          ctx.fillText("NO PATH",p.x,p.y-20*z);
+        }
         // Rows rise away from the front (-local b). Preserve saved rotations.
         const rows = [0, 1, 2].sort((a, b) =>
           local(0, -0.28 + a * 0.22).y - local(0, -0.28 + b * 0.22).y);
@@ -489,7 +494,7 @@
     ctx.fillStyle="#fff0ba";ctx.fillText("MAIN GATE",p.x,p.y-h-5*zoom);
   }
   const entranceTile = "14,10";
-  let fans=[], fanActive=false, fanElapsed=0, fanPlanned=0, fanUnreachable=0, fanFrame=0;
+  let fans=[], fanActive=false, fanElapsed=0, fanPlanned=0, fanUnreachable=0, fanFrame=0, reachableCapacity=0, disconnectedSections=new Set();
   function fanStatus(message) { const e=document.getElementById("fanStatus");if(e.textContent!==message)e.textContent=message; }
   function insideStadium(x,y) {return x>=9&&x<53&&y>=5&&y<49&&x+y>=23&&x+y<=81;}
   function wallBlocks(a,b) {
@@ -515,22 +520,26 @@
     return result;
   }
   function endFanTest(message) {
-    fanActive=false;fans=[];fanFrame++;
+    fanActive=false;fans=[];disconnectedSections.clear();fanFrame++;
     fanStatus(message||"Test ended. Adjust your paths and seating, then try again.");draw();
   }
   function startFanTest() {
     if(fanActive) {toast("Fans are already arriving");return;}
     const sections=reachableSeats(),total=Object.values(tiles).filter(t=>t.type==="bleacher").length*24;
-    fanUnreachable=total-sections.length*24;
-    if(!sections.length) {fanStatus("No reachable seats. Build walkways from the marked entrance to bleachers, or use Build demo route.");return;}
+    reachableCapacity=sections.length*24;
+    disconnectedSections=new Set(Object.entries(tiles).filter(([k,v])=>v.type==="bleacher"&&!sections.some(s=>s.key===k)).map(([k])=>k));
+    fanUnreachable=total-reachableCapacity;
+    if(!sections.length) {draw();fanStatus("No reachable seats. Build walkways from the marked entrance to bleachers, or use Build demo route.");return;}
     fanPlanned=Math.min(25,sections.length*24);fanElapsed=0;fans=[];
     for(let i=0;i<fanPlanned;i++) {
-      const section=sections[Math.floor(i/24)], seat=i%24,row=Math.floor(seat/8),col=seat%8;
+      const section=sections[i%sections.length];
+      const seatOrder=[0,23,7,16,3,20,11,12,5,18,9,14,1,22,6,17,4,19,10,13,2,21,8,15];
+      const seat=seatOrder[Math.floor(i/sections.length)],row=Math.floor(seat/8),col=seat%8;
       const d=directions[section.rot],len=Math.hypot(...d),ux=d[0]/len,uy=d[1]/len;
       const a=-0.34+col*0.097,b=-0.28+row*0.22;
       const target={x:section.x+0.5+ux*a-uy*b,y:section.y+0.5+uy*a+ux*b};
       const route=[{x:6+(i%3)*0.15,y:2+(i%3)*0.15},{x:13.5,y:9.5},...section.route,target];
-      fans.push({route,index:0,x:route[0].x,y:route[0].y,start:i*0.35,seated:false,row,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
+      fans.push({route,index:0,x:route[0].x,y:route[0].y,start:i*0.35,seated:false,row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
     }
     fanActive=true;fanStatus("Gates open! Fans are walking from the street to their seats.");
     let last=null;const run=++fanFrame;
@@ -556,8 +565,9 @@
       }
     }
     const seated=fans.filter(f=>f.seated).length,arrived=fans.filter(f=>fanElapsed>=f.start).length;
-    fanStatus(seated===fanPlanned?`Arrival complete: ${seated}/${fanPlanned} fans seated. ${fanUnreachable} seats unreachable. End test to build again.`:
-      `Arriving: ${arrived}/${fanPlanned} · Seated: ${seated} · Unreachable seats: ${fanUnreachable}`);
+    const access=fanUnreachable ? `${disconnectedSections.size} disconnected section${disconnectedSections.size===1?"":"s"} (${fanUnreachable} seats), marked red. Connect walkways to use them.` : "All seating sections have a route from the gate.";
+    fanStatus(seated===fanPlanned?`All ${seated} arriving fans are seated. ${reachableCapacity-seated} reachable seats remain empty. ${access} End test to build again.`:
+      `Fans arriving: ${arrived}/${fanPlanned} · Fans seated: ${seated}. ${access}`);
   }
   function drawFan(fan) {
     const p=project(fan.x,fan.y),z=zoom,h=fan.seated?4+fan.row*3:0;
@@ -706,6 +716,7 @@
   }
   function action() {
     if(fanActive) {toast("End the fan test before building");return;}
+    disconnectedSections.clear();
     if (!hover) return;
     const k = key(hover.x, hover.y);
     if (hover.x < 0 || hover.x >= W || hover.y < 0 || hover.y >= H) return;

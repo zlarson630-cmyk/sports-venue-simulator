@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.0
+
+- Spread arriving fans across reachable sections and spaced seat positions before filling gaps.
+- Separated fan attendance, empty reachable seats, and disconnected section counts in the arrival report.
+- Marked disconnected bleachers red with NO PATH during the fan test.
+
 ## 0.16.0
 
 - Added a first fan arrival test: up to 25 fans walk from the street through the main gate to reachable bleachers, then occupy individual seats.
