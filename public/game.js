@@ -42,6 +42,10 @@
   const field = new Set();
   for(let x=14;x<48;x++) for(let y=10;y<44;y++)
     if(x+y>=27 && x+y<=74) field.add(`${x},${y}`);
+  const dugoutTiles = new Set();
+  for(let x=22;x<25;x++) for(let y=8;y<10;y++) dugoutTiles.add(`${x},${y}`);
+  for(let x=12;x<14;x++) for(let y=18;y<21;y++) dugoutTiles.add(`${x},${y}`);
+  const blockedTile = k => field.has(k) || dugoutTiles.has(k);
   const key = (x, y) => x + "," + y;
   function rotated(x, y) {
     const c = 30;
@@ -178,11 +182,11 @@
   function edgeAllowed(k) {
     const {a, b} = edgePanel(k), [x,y] = k.split(":")[0].split(",").map(Number);
     if ([...a,...b].some(v=>v<0) || a[0]>W || b[0]>W || a[1]>H || b[1]>H) return false;
-    if (/[ad]$/.test(k)) return !field.has(key(x,y));
+    if (/[ad]$/.test(k)) return !blockedTile(key(x,y));
     // Borders are allowed; walls inside the protected playing field are not.
     const horizontal = b[0] !== x;
-    return !(horizontal ? field.has(key(x,y)) && field.has(key(x,y-1))
-      : field.has(key(x,y)) && field.has(key(x-1,y)));
+    return !(horizontal ? blockedTile(key(x,y)) && blockedTile(key(x,y-1))
+      : blockedTile(key(x,y)) && blockedTile(key(x-1,y)));
   }
   function rotationStep() {
     rot = tool === "wall" ? wallSlots[(wallSlots.indexOf(rot) + 1) % wallSlots.length] : (rot + 1) % 8;
@@ -337,6 +341,10 @@
     const count=Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
     for(let i=0;i<count;i++) {
       const at=t=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+      const start=at(i/count), end=at((i+1)/count);
+      // One 10-foot opening on each foul fence aligns with the dugout steps.
+      if ((start[1]===10 && end[1]===10 && Math.min(start[0],end[0])===24) ||
+          (start[0]===14 && end[0]===14 && Math.min(start[1],end[1])===20)) continue;
       fieldFence.push({a:at(i/count),b:at((i+1)/count),feet:(a[0]+(b[0]-a[0])*(i+0.5)/count<18 || a[1]+(b[1]-a[1])*(i+0.5)/count<14)?3:8});
     }
   });
@@ -356,8 +364,8 @@
     line(up(a), up(b), panel.feet === 8 ? "#edc754" : "#b9ccd0", panel.feet === 8 ? 1.8 : 1);
   }
   const dugouts = [
-    {side:"First base",x:22,y:11,length:3,width:1.5,depthFeet:3,swap:false},
-    {side:"Third base",x:15,y:18,length:3,width:1.5,depthFeet:3,swap:true}
+    {side:"First base",x:22,y:8,length:3,width:1.5,depthFeet:3,swap:false},
+    {side:"Third base",x:12,y:18,length:3,width:1.5,depthFeet:3,swap:true}
   ];
   function drawDugout(d) {
     const at=(a,b,h=0)=>{
@@ -379,6 +387,7 @@
     // Three steps at the field-side opening climb from the recessed floor to grade.
     for(let step=0;step<3;step++)
       shape(2.35,0.65+step*0.35,2.95,1+step*0.35,-depth+(step+1)*depth/3,"#b7b5a4");
+    shape(2.35,1.7,2.95,2.15,0,"#b7b5a4");
     const p=at(1.5,0,7);
     ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#f6e8bd";
     ctx.fillText("DUGOUT · 30 ft",p.x,p.y);
@@ -442,7 +451,7 @@
     if (hover && hover.x >= 0 && hover.x < W && hover.y >= 0 && hover.y < H) {
       const edge = wallEdge(hover.x, hover.y);
       const occupied = tool === "wall" ? edges[edge] || !edgeAllowed(edge) || (/[ad]$/.test(edge) && tiles[key(hover.x,hover.y)])
-        : field.has(key(hover.x, hover.y)) || tiles[key(hover.x, hover.y)] || edges[key(hover.x,hover.y)+":a"] || edges[key(hover.x,hover.y)+":d"];
+        : blockedTile(key(hover.x, hover.y)) || tiles[key(hover.x, hover.y)] || edges[key(hover.x,hover.y)+":a"] || edges[key(hover.x,hover.y)+":d"];
       if (tool === "wall") {
         drawWall(edge, occupied ? "#d35b65aa" : "#f5d554bb");
         const panel = edgePanel(edge);
@@ -483,7 +492,7 @@
     try {
       localStorage.setItem(
         "svs01",
-        JSON.stringify({ version: 2, fieldRevision: 3, tiles, edges, money }),
+        JSON.stringify({ version: 2, fieldRevision: 4, tiles, edges, money }),
       );
       return true;
     } catch (e) {
@@ -521,7 +530,7 @@
       if (removeEdge) { delete edges[chosen]; money += Math.round(prices.wall*0.7); }
       else { money += Math.round(prices[tiles[k].type]*0.7); delete tiles[k]; }
     } else {
-      if (field.has(k)) { toast("Keep the playing field clear!"); return; }
+      if (blockedTile(k)) { toast("Keep the playing field clear!"); return; }
       if (tiles[k] || edges[k+":a"] || edges[k+":d"]) { toast("Tile is already occupied"); return; }
       if (money < prices[tool]) { toast("Not enough money"); return; }
       history.push({tiles:{...tiles}, edges:{...edges}, money});
@@ -691,7 +700,7 @@
       throw Error("Invalid park file");
     const clean = {}, cleanEdges = {};
     let cash = saved.money;
-    const migrateField = (saved.version === 1 || saved.version === 2) && (!saved.fieldRevision || saved.fieldRevision < 3);
+    const migrateField = (saved.version === 1 || saved.version === 2) && (!saved.fieldRevision || saved.fieldRevision < 4);
     if (saved.edges !== undefined && (!saved.edges || typeof saved.edges !== "object" || Array.isArray(saved.edges))) throw Error("Invalid walls");
     for (const [edge,v] of Object.entries(saved.edges || {})) {
       if (!/^\d+,\d+:[hvad]$/.test(edge) || !v || v.type !== "wall") throw Error("Invalid wall edge");
@@ -708,7 +717,7 @@
       if (
         x >= W ||
         y >= H ||
-        (field.has(k) && !migrateField) ||
+        (blockedTile(k) && !migrateField) ||
         !v ||
         !Object.hasOwn(prices, v.type) ||
         !Number.isInteger(v.rot) ||
@@ -716,7 +725,7 @@
         v.rot > 7
       )
         throw Error("Invalid construction");
-      if (field.has(k) && migrateField) { cash+=prices[v.type];continue; }
+      if (blockedTile(k) && migrateField) { cash+=prices[v.type];continue; }
       if (v.type === "wall") {
         const edge = wallEdge(x, y, v.rot);
         if (cleanEdges[edge]) cash += prices.wall;
@@ -729,7 +738,7 @@
   }
   document.getElementById("export").onclick = () => {
     const blob = new Blob(
-        [JSON.stringify({ version: 2, fieldRevision: 3, tiles, edges, money }, null, 2)],
+        [JSON.stringify({ version: 2, fieldRevision: 4, tiles, edges, money }, null, 2)],
         { type: "application/json" },
       ),
       url = URL.createObjectURL(blob),

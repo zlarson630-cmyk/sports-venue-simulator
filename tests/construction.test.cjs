@@ -258,12 +258,14 @@ test("wall tool placement, rotate buttons, refunds and funds checks", () => {
   assert.equal(poor.api.state().money, 100);
 });
 
-test("field fence is closed, grid aligned, and uses the two required heights", () => {
+test("field fence has two dugout openings and stays grid aligned, and uses the two required heights", () => {
   const panels = game().api.fieldFence;
   assert.ok(panels.some(p => p.feet === 3));
   assert.ok(panels.some(p => p.feet === 8));
   panels.forEach((p, i) => {
-    assert.deepEqual(Array.from(p.b), Array.from(panels[(i + 1) % panels.length].a));
+    const next=panels[(i+1)%panels.length];
+    const gap=Math.hypot(p.b[0]-next.a[0],p.b[1]-next.a[1]);
+    assert.ok(gap===0||gap===1);
     const dx = Math.abs(p.b[0] - p.a[0]), dy = Math.abs(p.b[1] - p.a[1]);
     assert.ok(dx === 0 || dy === 0 || Math.abs(dx-dy)<1e-10, "Fence follows edges or corner-to-corner diagonals");
     for (const coord of [...p.a, ...p.b]) assert.ok(Math.abs(coord - Math.round(coord)) < 1e-10);
@@ -368,4 +370,15 @@ test("both dugouts are 30 feet long, sunken, and render through camera rotation"
   for(const d of ds) {g.commands.length=0;g.api.drawDugout(d);assert.ok(g.commands.filter(c=>c[0]==="fill").length>=9);}
   g.key("q");
  }
+});
+
+test("dugouts sit outside the fence with aligned player entrances",()=>{
+ const g=game(), ds=g.api.dugouts;
+ assert.ok(ds[0].y+ds[0].width<10);
+ assert.ok(ds[1].x+ds[1].width<14);
+ const gaps=g.api.fieldFence.filter((p,i)=>{
+  const n=g.api.fieldFence[(i+1)%g.api.fieldFence.length];return p.b[0]!==n.a[0]||p.b[1]!==n.a[1];
+ });assert.equal(gaps.length,2);
+ g.select("path");g.clickTile(22,8);g.clickTile(12,18);
+ assert.equal(Object.keys(g.api.state().tiles).length,0);
 });

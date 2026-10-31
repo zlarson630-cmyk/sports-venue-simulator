@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.0
+
+- Moved both dugouts outside the playing-field fence. Added aligned 10-foot fence openings and landings from the sunken steps onto the field.
+- Reserved external dugout footprints and refunded any overlapping saved construction.
+
 ## 0.9.0
 
 - Added fixed 30-foot dugouts on the first- and third-base sides, with recessed floors, retaining walls, benches, rails, and field-side steps. Player animation remains a future feature.
