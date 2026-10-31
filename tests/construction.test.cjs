@@ -265,7 +265,7 @@ test("field fence is closed, grid aligned, and uses the two required heights", (
   panels.forEach((p, i) => {
     assert.deepEqual(Array.from(p.b), Array.from(panels[(i + 1) % panels.length].a));
     const dx = Math.abs(p.b[0] - p.a[0]), dy = Math.abs(p.b[1] - p.a[1]);
-    assert.ok(dx === 0 || dy === 0, "Fence must follow an edge, never a tile diagonal");
+    assert.ok(dx === 0 || dy === 0 || Math.abs(dx-dy)<1e-10, "Fence follows edges or corner-to-corner diagonals");
     for (const coord of [...p.a, ...p.b]) assert.ok(Math.abs(coord - Math.round(coord)) < 1e-10);
     const foul = (p.a[1] === 14 && p.b[1] === 14) || (p.a[0] === 18 && p.b[0] === 18);
     assert.equal(p.feet, foul ? 3 : 8);
@@ -285,10 +285,30 @@ test("edge walls coexist with paths, reject shared-edge duplicates and survive s
 });
 test("old tile walls migrate onto edges without losing the park",()=>{
   const g=game({money:98000,tiles:{"12,12":{type:"wall",rot:1},"11,11":{type:"bleacher",rot:3}}});
-  assert.ok(g.api.state().edges["12,12:h"]);
+  assert.ok(g.api.state().edges["12,12:a"]);
   assert.equal(g.api.state().tiles["12,12"],undefined);
   assert.equal(g.api.state().tiles["11,11"].rot,3);
   assert.equal(g.api.state().money,98000);
   for(const edge of ["60,0:h","0,60:v","20,20:h","bad"])
     assert.throws(()=>g.api.validatePark({money:100,tiles:{},edges:{[edge]:{type:"wall"}}}));
+});
+
+test("both wall diagonals join grid corners and persist through save, removal and undo",()=>{
+  const g=game(); g.select("wall");
+  for(let i=0;i<4;i++) g.key("r");
+  g.clickTile(12,12); assert.ok(g.api.state().edges["12,12:a"]);
+  g.select("path"); g.clickTile(12,12); assert.equal(g.api.state().tiles["12,12"],undefined);
+  g.select("wall"); g.key("r"); g.clickTile(14,12); assert.ok(g.api.state().edges["14,12:d"]);
+  const reload=game(JSON.parse(g.storage.get("svs01")));
+  assert.ok(reload.api.state().edges["12,12:a"]); assert.ok(reload.api.state().edges["14,12:d"]);
+  g.select("erase"); g.clickTile(14,12); assert.equal(g.api.state().edges["14,12:d"],undefined);
+  g.element("undo").click(); assert.ok(g.api.state().edges["14,12:d"]);
+  for(let camera=0;camera<4;camera++) {
+    for(const [rot,points] of [[1,[[10,11],[11,10]]],[5,[[10,10],[11,11]]]]) {
+      g.commands.length=0; g.api.drawObject(10,10,{type:"wall",rot});
+      const lines=g.commands.filter(c=>c[0]==="moveTo"||c[0]==="lineTo");
+      points.forEach(([x,y],i)=>{const p=g.api.project(x,y);assert.deepEqual(lines[i].slice(1),[p.x,p.y]);});
+    }
+    g.key("q");
+  }
 });

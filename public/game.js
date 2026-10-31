@@ -150,7 +150,10 @@
     [1, 1],
   ];
   // Canonical shared boundaries: neighboring tiles address the same wall.
+  const wallSlots = [0,2,4,6,1,5];
   function wallEdge(x, y, rotation = rot) {
+    if (rotation === 1) return `${x},${y}:a`;
+    if (rotation === 5) return `${x},${y}:d`;
     switch (Math.floor(rotation / 2) % 4) {
       case 1: return `${x + 1},${y}:v`;
       case 2: return `${x},${y + 1}:h`;
@@ -160,6 +163,8 @@
   }
   function edgePanel(k) {
     const [xy, axis] = k.split(":"), [x, y] = xy.split(",").map(Number);
+    if (axis === "a") return {a:[x,y+1],b:[x+1,y]};
+    if (axis === "d") return {a:[x,y],b:[x+1,y+1]};
     return {a:[x, y], b:axis === "h" ? [x + 1, y] : [x, y + 1]};
   }
   function drawWall(k, color = "#ac744d") {
@@ -168,15 +173,16 @@
     line({x:a.x,y:a.y-h}, {x:b.x,y:b.y-h}, "#e0a15c", 3);
   }
   function edgeAllowed(k) {
-    const {a:[x,y], b} = edgePanel(k);
-    if (x < 0 || y < 0 || b[0] > W || b[1] > H) return false;
+    const {a, b} = edgePanel(k), [x,y] = k.split(":")[0].split(",").map(Number);
+    if ([...a,...b].some(v=>v<0) || a[0]>W || b[0]>W || a[1]>H || b[1]>H) return false;
+    if (/[ad]$/.test(k)) return !field.has(key(x,y));
     // Borders are allowed; walls inside the protected playing field are not.
     const horizontal = b[0] !== x;
     return !(horizontal ? field.has(key(x,y)) && field.has(key(x,y-1))
       : field.has(key(x,y)) && field.has(key(x-1,y)));
   }
   function rotationStep() {
-    rot = tool === "wall" ? ((Math.floor(rot / 2) + 1) % 4) * 2 : (rot + 1) % 8;
+    rot = tool === "wall" ? wallSlots[(wallSlots.indexOf(rot) + 1) % wallSlots.length] : (rot + 1) % 8;
     update(); draw();
   }
   function drawObject(x, y, item) {
@@ -330,23 +336,17 @@
     line(home, project(40, 14.7), "#ffffff", 1.5);
     line(home, project(18.7, 37), "#ffffff", 1.5);
   }
-  // Trace exposed tile edges, including the stepped outfield boundary.
-  // Every panel lies between tiles; none cuts diagonally through a tile.
-  const boundary = [];
-  for (const k of field) {
-    const [x,y] = k.split(",").map(Number);
-    if (!field.has(key(x,y-1))) boundary.push({a:[x,y],b:[x+1,y],feet:y===14?3:8});
-    if (!field.has(key(x+1,y))) boundary.push({a:[x+1,y],b:[x+1,y+1],feet:8});
-    if (!field.has(key(x,y+1))) boundary.push({a:[x+1,y+1],b:[x,y+1],feet:8});
-    if (!field.has(key(x-1,y))) boundary.push({a:[x,y+1],b:[x,y],feet:x===18?3:8});
-  }
-  const boundaryFrom = new Map(boundary.map(p => [p.a.join(","), p]));
+  // The perimeter uses edge panels plus corner-to-corner diagonal panels.
+  const fenceCorners = [[18,14],[39,14],[39,18],[22,35],[18,35]];
   const fieldFence = [];
-  let nextPanel = boundary[0];
-  for (let i=0; i<boundary.length; i++) {
-    fieldFence.push(nextPanel);
-    nextPanel = boundaryFrom.get(nextPanel.b.join(","));
-  }
+  fenceCorners.forEach((a,edge)=>{
+    const b=fenceCorners[(edge+1)%fenceCorners.length];
+    const count=Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
+    for(let i=0;i<count;i++) {
+      const at=t=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+      fieldFence.push({a:at(i/count),b:at((i+1)/count),feet:edge===0||edge===4?3:8});
+    }
+  });
   function drawFieldFence(panel) {
     const height = panel.feet * TW / 20 * zoom;
     const a = project(...panel.a), b = project(...panel.b);
@@ -418,8 +418,8 @@
     }
     if (hover && hover.x >= 0 && hover.x < W && hover.y >= 0 && hover.y < H) {
       const edge = wallEdge(hover.x, hover.y);
-      const occupied = tool === "wall" ? edges[edge] || !edgeAllowed(edge)
-        : field.has(key(hover.x, hover.y)) || tiles[key(hover.x, hover.y)];
+      const occupied = tool === "wall" ? edges[edge] || !edgeAllowed(edge) || (/[ad]$/.test(edge) && tiles[key(hover.x,hover.y)])
+        : field.has(key(hover.x, hover.y)) || tiles[key(hover.x, hover.y)] || edges[key(hover.x,hover.y)+":a"] || edges[key(hover.x,hover.y)+":d"];
       if (tool === "wall") {
         drawWall(edge, occupied ? "#d35b65aa" : "#f5d554bb");
         const panel = edgePanel(edge);
@@ -445,7 +445,7 @@
     document.getElementById("seats").textContent =
       Object.values(tiles).filter((x) => x.type === "bleacher").length * 24;
     document.getElementById("placed").textContent = Object.keys(tiles).length + Object.keys(edges).length;
-    document.getElementById("rotation").textContent = tool === "wall" ? ["Top edge", "Right edge", "Bottom edge", "Left edge"][Math.floor(rot / 2)] : rot * 45 + "°";
+    document.getElementById("rotation").textContent = tool === "wall" ? ({0:"Top edge",2:"Right edge",4:"Bottom edge",6:"Left edge",1:"Diagonal /",5:"Diagonal \\"})[rot] : rot * 45 + "°";
     document.getElementById("rotate").textContent = tool === "wall" ? "↻ Wall edge (R)" : "↻ Item 45° (R)";
     document.getElementById("mobileRotate").textContent = tool === "wall" ? "↻ Wall edge" : "↻ Item 45°";
   }
@@ -476,13 +476,14 @@
     if (tool === "wall") {
       if (edges[edge]) { toast("This edge already has a wall"); return; }
       if (!edgeAllowed(edge)) { toast("Keep the playing field clear!"); return; }
+      if (/[ad]$/.test(edge) && tiles[k]) { toast("Diagonal crosses an occupied tile"); return; }
       if (money < prices.wall) { toast("Not enough money"); return; }
       history.push({tiles:{...tiles}, edges:{...edges}, money});
       edges[edge] = {type:"wall"};
       money -= prices.wall;
     } else if (tool === "erase") {
       // Pick the nearest visible boundary; a center click removes the tile object.
-      const candidates = [0,2,4,6].map(r => wallEdge(hover.x,hover.y,r)).filter(k => edges[k]);
+      const candidates = wallSlots.map(r => wallEdge(hover.x,hover.y,r)).filter(k => edges[k]);
       const distance = k => {
         const panel = edgePanel(k), a = project(...panel.a), b = project(...panel.b);
         const p = pointer || project(hover.x+0.5,hover.y+0.5);
@@ -498,7 +499,7 @@
       else { money += Math.round(prices[tiles[k].type]*0.7); delete tiles[k]; }
     } else {
       if (field.has(k)) { toast("Keep the playing field clear!"); return; }
-      if (tiles[k]) { toast("Tile is already occupied"); return; }
+      if (tiles[k] || edges[k+":a"] || edges[k+":d"]) { toast("Tile is already occupied"); return; }
       if (money < prices[tool]) { toast("Not enough money"); return; }
       history.push({tiles:{...tiles}, edges:{...edges}, money});
       money -= prices[tool];
@@ -526,7 +527,7 @@
   new ResizeObserver(resize).observe(wrap);
   function select(t) {
     tool = t;
-    if (t === "wall") { rot = Math.floor(rot / 2) * 2; toast("R cycles tile edges. Walls leave the tile free for paths and seats."); }
+    if (t === "wall") { if (!wallSlots.includes(rot)) rot = 0; toast("R cycles 4 tile edges and 2 corner-to-corner diagonals."); }
     update(); draw();
     if (t === "bleacher") toast("Gold arrow = fans face this way. R rotates before placement.");
     document
@@ -665,7 +666,7 @@
     let cash = saved.money;
     if (saved.edges !== undefined && (!saved.edges || typeof saved.edges !== "object" || Array.isArray(saved.edges))) throw Error("Invalid walls");
     for (const [edge,v] of Object.entries(saved.edges || {})) {
-      if (!/^\d+,\d+:[hv]$/.test(edge) || !edgeAllowed(edge) || !v || v.type !== "wall") throw Error("Invalid wall edge");
+      if (!/^\d+,\d+:[hvad]$/.test(edge) || !edgeAllowed(edge) || !v || v.type !== "wall") throw Error("Invalid wall edge");
       cleanEdges[edge] = {type:"wall"};
     }
     for (const [k, v] of Object.entries(saved.tiles)) {
@@ -688,6 +689,8 @@
         else cleanEdges[edge] = {type:"wall"};
       } else clean[k] = { type: v.type, rot: v.rot };
     }
+    for (const k of Object.keys(clean))
+      if (cleanEdges[k+":a"] || cleanEdges[k+":d"]) throw Error("Diagonal crosses an occupied tile");
     return { tiles: clean, edges: cleanEdges, money: Math.min(100000,cash) };
   }
   document.getElementById("export").onclick = () => {

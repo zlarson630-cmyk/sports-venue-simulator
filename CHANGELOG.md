@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+- Added both corner-to-corner wall diagonals alongside four tile edges.
+- Restored straight diagonal outfield fencing while keeping endpoints on grid corners.
+- Added diagonal save/load, removal, and checks to prevent placing buildings or paths through a diagonal wall.
+
 ## 0.5.0
 
 - Walls now occupy shared tile edges; R cycles four boundaries, and previews highlight the precise edge.
