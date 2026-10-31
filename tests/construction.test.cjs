@@ -92,7 +92,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,validatePark,state:()=>({tiles,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,fieldFence,validatePark,state:()=>({tiles,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -267,4 +267,18 @@ test("wall tool placement, rotate buttons, refunds and funds checks", () => {
   poor.clickTile(12, 12);
   assert.equal(Object.keys(poor.api.state().tiles).length, 0);
   assert.equal(poor.api.state().money, 100);
+});
+
+test("field fence is closed, grid aligned, and uses the two required heights", () => {
+  const panels = game().api.fieldFence;
+  assert.ok(panels.some(p => p.feet === 3));
+  assert.ok(panels.some(p => p.feet === 8));
+  panels.forEach((p, i) => {
+    assert.deepEqual(Array.from(p.b), Array.from(panels[(i + 1) % panels.length].a));
+    const dx = Math.abs(p.b[0] - p.a[0]), dy = Math.abs(p.b[1] - p.a[1]);
+    assert.ok(dx === 0 || dy === 0 || Math.abs(dx - dy) < 1e-10);
+    for (const coord of [...p.a, ...p.b]) assert.ok(Math.abs(coord - Math.round(coord)) < 1e-10);
+    const foul = (p.a[1] === 14 && p.b[1] === 14) || (p.a[0] === 18 && p.b[0] === 18);
+    assert.equal(p.feet, foul ? 3 : 8);
+  });
 });

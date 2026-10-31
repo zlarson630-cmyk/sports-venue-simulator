@@ -197,19 +197,26 @@
       case "path":
         diamond(x + 0.5, y + 0.5, "#c8c6b9", "#e5e3d6");
         break;
-      case "bleacher":
-        for (let i = 0; i < 3; i++)
-          box(
-            -0.31,
-            -0.31 + i * 0.21,
-            0.62,
-            0.18,
-            5 + i * 4,
-            "#647c91",
-            "#d4e0e9",
-          );
-        segment([-0.25, -0.34], [0.25, -0.34], 1, "#f9cc51", 2);
+      case "bleacher": {
+        // Rows rise away from the front (-local b). Preserve saved rotations.
+        const rows = [0, 1, 2].sort((a, b) =>
+          local(0, -0.28 + a * 0.22).y - local(0, -0.28 + b * 0.22).y);
+        for (const i of rows) {
+          const b = -0.32 + i * 0.22, h = 4 + i * 3;
+          box(-0.38, b, 0.76, 0.18, h - 1, "#526779", "#91a6b6");
+          // Thin silver bench planks and individual seat divisions.
+          box(-0.39, b, 0.78, 0.11, h, "#8da1af", "#edf4f7");
+          for (let seat = 1; seat < 8; seat++)
+            segment([-0.39 + seat * 0.0975, b], [-0.39 + seat * 0.0975, b + 0.11], h + 0.1, "#748b9b", 0.6);
+        }
+        // Rear rail sits behind the highest row; the gold arrow points forward.
+        for (const a of [-0.39, 0.39])
+          line(local(a, 0.34, 0), local(a, 0.34, 14), "#506575", 1.2);
+        segment([-0.39, 0.34], [0.39, 0.34], 14, "#bacbd6", 1.5);
+        line(local(0, -0.42, 1), local(0, -0.67, 1), "#ffda57", 2);
+        polygon([local(0, -0.83, 1), local(-0.14, -0.61, 1), local(0.14, -0.61, 1)], "#ffda57", "#886a19", 0.7);
         break;
+      }
       case "wall": {
         const a = project(x + 0.5 - d[0] * 0.5, y + 0.5 - d[1] * 0.5),
           b = project(x + 0.5 + d[0] * 0.5, y + 0.5 + d[1] * 0.5);
@@ -306,6 +313,31 @@
     line(home, project(40, 14.7), "#ffffff", 1.5);
     line(home, project(18.7, 37), "#ffffff", 1.5);
   }
+  const fenceCorners = [[18, 14], [39, 14], [39, 18], [22, 35], [18, 35]];
+  const fieldFence = [];
+  fenceCorners.forEach((a, edge) => {
+    const b = fenceCorners[(edge + 1) % fenceCorners.length];
+    const count = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+    for (let i = 0; i < count; i++) {
+      const at = t => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      fieldFence.push({ a: at(i / count), b: at((i + 1) / count), feet: edge === 0 || edge === 4 ? 3 : 8 });
+    }
+  });
+  function drawFieldFence(panel) {
+    const height = panel.feet * TW / 20 * zoom;
+    const a = project(...panel.a), b = project(...panel.b);
+    const up = (p, fraction = 1) => ({x:p.x, y:p.y - height * fraction});
+    polygon([a, b, up(b), up(a)], "#547e7d30", null);
+    // Open mesh keeps the playing surface visible through the low foul fence.
+    for (let i = 0; i < 4; i++) {
+      const mix = t => ({x:a.x + (b.x-a.x)*t, y:a.y + (b.y-a.y)*t});
+      line(mix(i/4), up(mix((i+1)/4)), "#66888890", 0.45);
+      line(up(mix(i/4)), mix((i+1)/4), "#66888890", 0.45);
+    }
+    line(a, up(a), "#405d65", 1.1);
+    line(b, up(b), "#405d65", 1.1);
+    line(up(a), up(b), panel.feet === 8 ? "#edc754" : "#b9ccd0", panel.feet === 8 ? 1.8 : 1);
+  }
   function draw() {
     if (pointer) hover = inverse(pointer.x, pointer.y);
     const cw = canvas.clientWidth,
@@ -345,12 +377,16 @@
         const [x, y] = k.split(",").map(Number);
         return { x, y, v };
       })
+      .concat(fieldFence.map(panel => ({x:(panel.a[0]+panel.b[0])/2-0.5, y:(panel.a[1]+panel.b[1])/2-0.5, panel})))
       .sort((a, b) => {
         let aa = rotated(a.x, a.y),
           bb = rotated(b.x, b.y);
         return aa.x + aa.y - (bb.x + bb.y);
       });
-    for (let e of all) drawObject(e.x, e.y, e.v);
+    for (let e of all) {
+      if (e.panel) drawFieldFence(e.panel);
+      else drawObject(e.x, e.y, e.v);
+    }
     if (hover && hover.x >= 0 && hover.x < W && hover.y >= 0 && hover.y < H) {
       const occupied =
         field.has(key(hover.x, hover.y)) || tiles[key(hover.x, hover.y)];
@@ -442,6 +478,7 @@
   new ResizeObserver(resize).observe(wrap);
   function select(t) {
     tool = t;
+    if (t === "bleacher") toast("Gold arrow = fans face this way. R rotates before placement.");
     document
       .querySelectorAll("[data-tool]")
       .forEach((b) => b.classList.toggle("sel", b.dataset.tool === t));
