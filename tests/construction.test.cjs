@@ -93,7 +93,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -358,4 +358,14 @@ test("v0.7 layouts refund newly expanded foul-territory overlaps only",()=>{
  assert.equal(g.api.state().money,99900); assert.ok(g.api.state().tiles["12,12"]);
  assert.equal(g.api.state().tiles["15,16"],undefined);
  const again=game(JSON.parse(g.storage.get("svs01")));assert.equal(again.api.state().money,99900);
+});
+
+test("both dugouts are 30 feet long, sunken, and render through camera rotation",()=>{
+ const g=game(), ds=g.api.dugouts;
+ assert.equal(ds.length,2);assert.notEqual(ds[0].swap,ds[1].swap);
+ for(const d of ds) {assert.equal(d.length*10,30);assert.ok(d.depthFeet>0);}
+ for(let camera=0;camera<4;camera++) {
+  for(const d of ds) {g.commands.length=0;g.api.drawDugout(d);assert.ok(g.commands.filter(c=>c[0]==="fill").length>=9);}
+  g.key("q");
+ }
 });

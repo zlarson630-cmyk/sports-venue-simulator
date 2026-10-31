@@ -355,6 +355,34 @@
     line(b, up(b), "#405d65", 1.1);
     line(up(a), up(b), panel.feet === 8 ? "#edc754" : "#b9ccd0", panel.feet === 8 ? 1.8 : 1);
   }
+  const dugouts = [
+    {side:"First base",x:22,y:11,length:3,width:1.5,depthFeet:3,swap:false},
+    {side:"Third base",x:15,y:18,length:3,width:1.5,depthFeet:3,swap:true}
+  ];
+  function drawDugout(d) {
+    const at=(a,b,h=0)=>{
+      const p=d.swap?project(d.x+b,d.y+a):project(d.x+a,d.y+b);
+      return {x:p.x,y:p.y-h*zoom};
+    };
+    const shape=(a,b,c,e,h,color)=>polygon([at(a,b,h),at(c,b,h),at(c,e,h),at(a,e,h)],color,"#59656a",0.7);
+    const depth=d.depthFeet*TW/20;
+    // The floor is below grade: retaining walls drop from the rim into the pit.
+    shape(-0.08,-0.08,d.length+0.08,d.width+0.08,0,"#bbc2bd");
+    shape(0,0,d.length,d.width,0,"#263d43");
+    shape(0.08,0.08,d.length-0.08,d.width-0.08,-depth,"#77766a");
+    for(const [a,b,c,e] of [[0,0,3,0],[0,0,0,1.5],[3,0,3,1.5]])
+      polygon([at(a,b),at(c,e),at(c,e,-depth),at(a,b,-depth)],"#465558","#87908c",0.6);
+    // Long wooden bench along the back, below the surrounding grass level.
+    shape(0.2,0.18,2.8,0.48,-depth+2,"#c79b60");
+    line(at(0.15,0,3),at(2.85,0,3),"#9eafb2",2);
+    for(const a of [0.15,1.5,2.85]) line(at(a,0),at(a,0,3),"#677c83",1);
+    // Three steps at the field-side opening climb from the recessed floor to grade.
+    for(let step=0;step<3;step++)
+      shape(2.35,0.65+step*0.35,2.95,1+step*0.35,-depth+(step+1)*depth/3,"#b7b5a4");
+    const p=at(1.5,0,7);
+    ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#f6e8bd";
+    ctx.fillText("DUGOUT · 30 ft",p.x,p.y);
+  }
   function draw() {
     if (pointer) hover = inverse(pointer.x, pointer.y);
     const cw = canvas.clientWidth,
@@ -398,6 +426,7 @@
         const p = edgePanel(edge);
         return {x:(p.a[0]+p.b[0])/2-0.5, y:(p.a[1]+p.b[1])/2-0.5, edge};
       }))
+      .concat(dugouts.map(dugout=>({x:dugout.x+(dugout.swap?dugout.width:dugout.length)/2-0.5,y:dugout.y+(dugout.swap?dugout.length:dugout.width)/2-0.5,dugout})))
       .concat(fieldFence.map(panel => ({x:(panel.a[0]+panel.b[0])/2-0.5, y:(panel.a[1]+panel.b[1])/2-0.5, panel})))
       .sort((a, b) => {
         let aa = rotated(a.x, a.y),
@@ -405,7 +434,8 @@
         return aa.x + aa.y - (bb.x + bb.y);
       });
     for (let e of all) {
-      if (e.edge) drawWall(e.edge);
+      if (e.dugout) drawDugout(e.dugout);
+      else if (e.edge) drawWall(e.edge);
       else if (e.panel) drawFieldFence(e.panel);
       else drawObject(e.x, e.y, e.v);
     }

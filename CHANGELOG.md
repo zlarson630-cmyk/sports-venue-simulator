@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.0
+
+- Added fixed 30-foot dugouts on the first- and third-base sides, with recessed floors, retaining walls, benches, rails, and field-side steps. Player animation remains a future feature.
+
 ## 0.8.0
 
 - Added a 15-foot dirt warning track inside the outfield fence, including the diagonal sections.
