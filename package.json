@@ -1,0 +1,14 @@
+{
+  "name": "sports-venue-simulator",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Grid-based isometric ballpark construction sandbox",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.cjs",
+    "check": "node --check public/game.js && npm test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,8 @@
+node_modules/
+.netlify/
+.env
+.env.*
+!.env.example
+test-results/
+*.zip
+.DS_Store

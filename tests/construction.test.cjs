@@ -1,0 +1,270 @@
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const vm = require("node:vm");
+const fs = require("node:fs");
+const source = fs.readFileSync(
+  new URL("../public/game.js", `file://${__filename}`),
+  "utf8",
+);
+
+// Exercise the actual game and its event handlers without a browser dependency.
+// Canvas commands are recorded so tests can check world geometry, not just counters.
+function game(saved) {
+  const commands = [],
+    elements = new Map(),
+    storage = new Map(saved ? [["svs01", JSON.stringify(saved)]] : []);
+  const ctx = new Proxy(
+    {},
+    {
+      get:
+        (_, name) =>
+        (...args) =>
+          commands.push([name, ...args]),
+      set: () => true,
+    },
+  );
+  function element(id) {
+    if (!elements.has(id))
+      elements.set(id, {
+        id,
+        clientWidth: 1100,
+        clientHeight: 800,
+        textContent: "",
+        listeners: {},
+        classList: { add() {}, remove() {}, toggle() {} },
+        getContext: () => ctx,
+        getBoundingClientRect: () => ({ left: 0, top: 0 }),
+        focus() {},
+        setPointerCapture() {},
+        addEventListener(name, fn) {
+          this.listeners[name] = fn;
+        },
+        click() {
+          this.onclick?.();
+        },
+        files: [],
+      });
+    return elements.get(id);
+  }
+  const toolButtons = [
+    "path",
+    "bleacher",
+    "wall",
+    "gate",
+    "concession",
+    "restroom",
+    "erase",
+  ].map((t) => {
+    const button = element("tool-" + t);
+    button.dataset = { tool: t };
+    return button;
+  });
+  const keys = {};
+  const context = {
+    console,
+    Math,
+    JSON,
+    Number,
+    Object,
+    Set,
+    Array,
+    Blob,
+    URL,
+    devicePixelRatio: 1,
+    document: {
+      getElementById: element,
+      querySelectorAll: () => toolButtons,
+      createElement: () => ({ click() {} }),
+    },
+    window: { addEventListener: (key, fn) => (keys[key] = fn) },
+    localStorage: {
+      getItem: (key) => storage.get(key),
+      setItem: (key, value) => storage.set(key, value),
+    },
+    confirm: () => true,
+    ResizeObserver: class {
+      observe() {}
+    },
+    setTimeout: () => 1,
+    clearTimeout() {},
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    source.replace(
+      /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
+      "globalThis.inspect={project,inverse,diamond,drawObject,validatePark,state:()=>({tiles,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+    ),
+    context,
+  );
+  const api = context.inspect;
+  return {
+    api,
+    commands,
+    storage,
+    element,
+    clickTile(x, y, button = 0) {
+      const p = api.project(x + 0.5, y + 0.5),
+        canvas = element("game");
+      const e = { clientX: p.x, clientY: p.y, button, pointerId: 1 };
+      canvas.listeners.pointerdown(e);
+      canvas.listeners.pointerup(e);
+    },
+    select(t) {
+      element("tool-" + t).click();
+    },
+    key(key) {
+      keys.keydown({ key, target: { tagName: "CANVAS" } });
+    },
+  };
+}
+test("projection round trips across four camera angles and map edges", () => {
+  const g = game();
+  for (let angle = 0; angle < 4; angle++) {
+    for (const [x, y] of [
+      [0, 0],
+      [59, 59],
+      [0, 59],
+      [59, 0],
+      [16, 12],
+      [35, 22],
+    ]) {
+      const p = g.api.project(x + 0.5, y + 0.5),
+        tile = g.api.inverse(p.x, p.y);
+      assert.equal(tile.x, x);
+      assert.equal(tile.y, y);
+    }
+    g.key("q");
+  }
+  assert.equal(g.api.state().cameraRot, 0);
+});
+test("all tile corners rotate with the camera and share edges", () => {
+  const g = game();
+  for (let camera = 0; camera < 4; camera++) {
+    g.commands.length = 0;
+    g.api.diamond(10.5, 10.5, "green", "black");
+    const pts = g.commands
+      .filter((c) => c[0] === "moveTo" || c[0] === "lineTo")
+      .map((c) => c.slice(1));
+    const expected = [
+      [10, 10],
+      [11, 10],
+      [11, 11],
+      [10, 11],
+    ].map(([x, y]) => {
+      const p = g.api.project(x, y);
+      return [p.x, p.y];
+    });
+    assert.deepEqual(pts, expected);
+    g.key("q");
+  }
+});
+test("click placement, occupied tiles, field protection, undo and reload", () => {
+  const g = game();
+  g.clickTile(12, 12);
+  assert.equal(g.api.state().tiles["12,12"].type, "path");
+  assert.equal(g.api.state().money, 99900);
+  g.clickTile(12, 12);
+  g.clickTile(20, 20);
+  assert.equal(Object.keys(g.api.state().tiles).length, 1);
+  const reload = game(JSON.parse(g.storage.get("svs01")));
+  assert.equal(reload.api.state().tiles["12,12"].type, "path");
+  g.element("undo").click();
+  assert.equal(g.api.state().money, 100000);
+  assert.equal(Object.keys(g.api.state().tiles).length, 0);
+});
+test("click placement selects the same world tile after camera rotation", () => {
+  const g = game();
+  for (let i = 0; i < 4; i++) {
+    g.key("q");
+    g.clickTile(12 + i, 12);
+    assert.ok(g.api.state().tiles[`${12 + i},12`]);
+  }
+  assert.equal(g.api.state().money, 99600);
+});
+test("walls join exactly in all eight directions", () => {
+  const g = game(),
+    dirs = [
+      [1, 0],
+      [1, -1],
+      [0, -1],
+      [-1, -1],
+      [-1, 0],
+      [-1, 1],
+      [0, 1],
+      [1, 1],
+    ];
+  for (let camera = 0; camera < 4; camera++) {
+    dirs.forEach(([dx, dy], rot) => {
+      g.commands.length = 0;
+      g.api.drawObject(10, 10, { type: "wall", rot });
+      const first = g.commands.filter(
+        (c) => c[0] === "moveTo" || c[0] === "lineTo",
+      );
+      g.commands.length = 0;
+      g.api.drawObject(10 + dx, 10 + dy, { type: "wall", rot });
+      const next = g.commands.filter(
+        (c) => c[0] === "moveTo" || c[0] === "lineTo",
+      );
+      assert.deepEqual(first[1].slice(1), next[0].slice(1));
+    });
+    g.key("q");
+  }
+});
+test("all directional items change geometry when rotated", () => {
+  const g = game();
+  for (const type of ["bleacher", "gate", "concession", "restroom", "wall"]) {
+    g.commands.length = 0;
+    g.api.drawObject(10, 10, { type, rot: 0 });
+    const initial = JSON.stringify(g.commands);
+    g.commands.length = 0;
+    g.api.drawObject(10, 10, { type, rot: 1 });
+    assert.notEqual(JSON.stringify(g.commands), initial, type);
+  }
+  for (let i = 0; i < 8; i++) g.key("r");
+  assert.equal(g.api.state().rot, 0);
+});
+test("park import rejects corrupt, out of bounds and playing field construction", () => {
+  const g = game();
+  for (const bad of [
+    { money: -1, tiles: {} },
+    { money: 100, tiles: { "60,0": { type: "wall", rot: 0 } } },
+    { money: 100, tiles: { "20,20": { type: "path", rot: 0 } } },
+    { money: 100, tiles: { "1,1": { type: "bad", rot: 0 } } },
+    { money: 100, tiles: { "1,1": { type: "path", rot: 9 } } },
+  ])
+    assert.throws(() => g.api.validatePark(bad));
+});
+test("dragging and right-clicking do not build", () => {
+  const g = game(),
+    canvas = g.element("game");
+  canvas.listeners.pointerdown({
+    clientX: 500,
+    clientY: 400,
+    button: 0,
+    pointerId: 1,
+  });
+  canvas.listeners.pointermove({ clientX: 530, clientY: 430 });
+  canvas.listeners.pointerup({ clientX: 530, clientY: 430, button: 0 });
+  g.clickTile(12, 12, 2);
+  assert.equal(Object.keys(g.api.state().tiles).length, 0);
+});
+
+test("wall tool placement, rotate buttons, refunds and funds checks", () => {
+  const g = game();
+  g.select("wall");
+  g.element("rotate").click();
+  g.clickTile(12, 12);
+  assert.equal(g.api.state().tiles["12,12"].type, "wall");
+  assert.equal(g.api.state().tiles["12,12"].rot, 1);
+  assert.equal(g.api.state().money, 99800);
+  g.select("erase");
+  g.clickTile(12, 12);
+  assert.equal(g.api.state().money, 99940);
+  g.element("undo").click();
+  assert.equal(g.api.state().tiles["12,12"].rot, 1);
+  const poor = game({ tiles: {}, money: 100 });
+  poor.select("wall");
+  poor.clickTile(12, 12);
+  assert.equal(Object.keys(poor.api.state().tiles).length, 0);
+  assert.equal(poor.api.state().money, 100);
+});

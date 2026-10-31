@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>Sports Venue Simulator — Sandbox 0.3</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo">🏟️</div>
+      <div>
+        <h1>SPORTS VENUE<br />SIMULATOR</h1>
+        <small>BUILD SANDBOX · v0.3</small>
+      </div>
+      <div class="topstats">
+        <div class="stat">💵 <strong id="money">$100,000</strong></div>
+        <div class="stat optional">🪑 <strong id="seats">0</strong> seats</div>
+        <div class="stat optional">🧱 <strong id="placed">0</strong> built</div>
+      </div>
+    </header>
+    <main id="app">
+      <aside>
+        <div class="section">CONSTRUCTION TOOLS</div>
+        <button class="tool sel" data-tool="path">
+          <span class="emoji">⬜</span><span>Walkway</span
+          ><span class="price">$100</span></button
+        ><button class="tool" data-tool="bleacher">
+          <span class="emoji">🪑</span><span>Bleachers</span
+          ><span class="price">$1,500</span></button
+        ><button class="tool" data-tool="wall">
+          <span class="emoji">🧱</span><span>Wall</span
+          ><span class="price">$200</span></button
+        ><button class="tool" data-tool="gate">
+          <span class="emoji">🚪</span><span>Gate</span
+          ><span class="price">$800</span></button
+        ><button class="tool" data-tool="concession">
+          <span class="emoji">🌭</span><span>Concessions</span
+          ><span class="price">$2,500</span></button
+        ><button class="tool" data-tool="restroom">
+          <span class="emoji">🚻</span><span>Restroom</span
+          ><span class="price">$2,000</span></button
+        ><button class="tool" data-tool="erase">
+          <span class="emoji">🗑️</span><span>Remove</span
+          ><span class="price">70% refund</span>
+        </button>
+        <div class="sidebarbottom">
+          <div class="section">CONTROLS</div>
+          <div class="inline">
+            <button class="smallbtn" id="rotate">↻ Item 45° (R)</button
+            ><button class="smallbtn" id="undo">↶ Undo</button>
+          </div>
+          <div class="inline" style="margin-top: 8px">
+            <button class="smallbtn" id="cameraRotate">⟳ Camera 90° (Q)</button
+            ><button class="smallbtn" id="centerField">⌖ Center</button>
+          </div>
+          <div class="inline" style="margin-top: 8px">
+            <button class="smallbtn" id="zoomIn">＋ Zoom</button
+            ><button class="smallbtn" id="zoomOut">－ Zoom</button>
+          </div>
+          <div class="inline" style="margin-top: 8px">
+            <button class="smallbtn" id="save">💾 Save</button
+            ><button class="smallbtn" id="reset">↺ Reset</button>
+          </div>
+          <div class="inline" style="margin-top: 8px">
+            <button class="smallbtn" id="export">Export park</button
+            ><button class="smallbtn" id="import">Import park</button
+            ><input
+              id="importFile"
+              type="file"
+              accept="application/json,.json"
+              hidden
+            />
+          </div>
+          <div class="foot">
+            Click to build · Drag empty ground or right-drag to pan · Scroll to
+            zoom · R rotates item · Q rotates camera · Z undoes · Saved
+            automatically in this browser. Export a backup before switching
+            devices.
+          </div>
+        </div>
+      </aside>
+      <section id="worldwrap">
+        <div id="mobiletools">
+          <button id="mobileRotate">↻ Item 45°</button
+          ><button id="mobileCamera">⟳ Camera 90°</button
+          ><button id="mobileUndo">↶ Undo</button
+          ><button id="mobileCenter">⌖ Field</button>
+        </div>
+        <canvas
+          id="game"
+          tabindex="0"
+          aria-label="Ballpark construction grid"
+        ></canvas>
+        <div id="hint">
+          🌱 <strong>First milestone: build a small ballpark</strong><br />Place
+          paths, bleachers and amenities around the diamond. Every square =
+          <strong>10 × 10 feet</strong>. Walls follow 45°/90° directions.
+        </div>
+        <div id="toast"></div>
+        <div id="location">
+          Tile <b id="coords">—</b> · Item <b id="rotation">0°</b> · Camera
+          <b id="cameraRotation">0°</b> ·
+          <span class="swatch" style="background: #d8e6b4"></span>10 ft/grid
+          square
+        </div>
+      </section>
+    </main>
+    <script src="game.js" defer></script>
+  </body>
+</html>
