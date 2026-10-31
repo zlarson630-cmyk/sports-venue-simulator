@@ -490,3 +490,37 @@ test("concession stands and bathrooms cannot substitute for internal walkway til
   assert.equal(g.api.reachableSeats().length,0);
  }
 });
+
+test("two-minute game charges only at gate crossing and ends automatically",()=>{
+ const g=game();g.api.buildFanDemo();const initial=g.api.state().money;
+ g.api.startFanTest();assert.equal(g.api.state().money,initial);
+ g.api.advanceFans(1);assert.equal(g.api.state().money,initial);
+ let paid=0;
+ for(let i=0;i<29;i++) {
+  g.api.advanceFans(1);
+  const fs=g.api.fanState().fans;
+  paid=fs.filter(f=>f.paid).length;
+  assert.equal(g.api.state().money,initial+paid*5);
+  assert.ok(fs.every(f=>f.paid===(f.index>=f.gateIndex)));
+ }
+ assert.equal(paid,24);assert.equal(g.api.state().money,98120);
+ g.api.advanceFans(89);assert.equal(g.api.fanState().fanActive,true);
+ assert.match(g.element("fanStatus").textContent,/0:01 remaining/);
+ assert.equal(g.api.state().money,98120);
+ g.api.advanceFans(1);assert.equal(g.api.fanState().fanActive,false);
+ assert.equal(g.api.fanState().fans.length,0);
+ assert.match(g.element("fanStatus").textContent,/Game complete! 2:00 played · 24 admissions · \$120 gate revenue/);
+ g.api.advanceFans(30);assert.equal(g.api.state().money,98120);
+ g.element("undo").click();assert.equal(g.api.state().money,100120);
+ const reload=game(JSON.parse(g.storage.get("svs01")));
+ assert.equal(reload.api.state().money,100120);
+});
+
+test("another game collects new tickets and large frame deltas stop at two minutes",()=>{
+ const g=game();g.api.buildFanDemo();g.api.startFanTest();
+ g.api.advanceFans(200);assert.equal(g.api.fanState().fanElapsed,120);
+ assert.equal(g.api.fanState().fanActive,false);assert.equal(g.api.state().money,98120);
+ g.api.startFanTest();assert.equal(g.api.state().money,98120);
+ g.api.advanceFans(120);assert.equal(g.api.state().money,98240);
+ assert.match(g.element("fanStatus").textContent,/24 admissions · \$120 gate revenue/);
+});

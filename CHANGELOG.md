@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.0
+
+- Added two-minute games with a live countdown and automatic return to construction.
+- Collect $5 once per fan crossing the main gate, with admissions and revenue shown live.
+- Persist earned revenue above the starting budget and retain it through construction undo.
+
 ## 0.20.0
 
 - Routed arriving fans around buildings on the street-to-gate sidewalk instead of following an unchecked straight line.

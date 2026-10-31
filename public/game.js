@@ -495,6 +495,8 @@
     ctx.fillStyle="#fff0ba";ctx.fillText("MAIN GATE",p.x,p.y-h-5*zoom);
   }
   const entranceTile = "14,10";
+  const GAME_SECONDS=120, TICKET_PRICE=5;
+  let gateAdmissions=0, gateRevenue=0;
   let fans=[], fanActive=false, fanElapsed=0, fanPlanned=0, fanUnreachable=0, fanFrame=0, reachableCapacity=0, disconnectedSections=new Set();
   function fanStatus(message) { const e=document.getElementById("fanStatus");if(e.textContent!==message)e.textContent=message; }
   function insideStadium(x,y) {return x>=9&&x<53&&y>=5&&y<49&&x+y>=23&&x+y<=81;}
@@ -560,7 +562,7 @@
   }
   function endFanTest(message) {
     fanActive=false;fans=[];disconnectedSections.clear();fanFrame++;
-    fanStatus(message||"Test ended. Adjust your paths and seating, then try again.");draw();
+    fanStatus(message||`Game ended early. ${gateAdmissions} admissions · $${gateRevenue} gate revenue. Adjust your park, then open gates again.`);draw();
   }
   function startFanTest() {
     if(fanActive) {toast("Fans are already arriving");return;}
@@ -571,7 +573,7 @@
     disconnectedSections=new Set(Object.entries(tiles).filter(([k,v])=>v.type==="bleacher"&&!sections.some(s=>s.key===k)).map(([k])=>k));
     fanUnreachable=total-reachableCapacity;
     if(!sections.length) {draw();fanStatus("No reachable seats. Build walkways from the marked entrance to bleachers, or use Build demo route.");return;}
-    fanPlanned=Math.min(25,sections.length*24);fanElapsed=0;fans=[];
+    fanPlanned=Math.min(25,sections.length*24);fanElapsed=0;gateAdmissions=0;gateRevenue=0;fans=[];
     for(let i=0;i<fanPlanned;i++) {
       const section=sections[i%sections.length];
       const seatOrder=[0,23,7,16,3,20,11,12,5,18,9,14,1,22,6,17,4,19,10,13,2,21,8,15];
@@ -580,35 +582,49 @@
       const a=-0.34+col*0.097,b=-0.28+row*0.22;
       const target={x:section.x+0.5+ux*a-uy*b,y:section.y+0.5+uy*a+ux*b};
       const route=[...arrival,...section.route.slice(1),target];
-      fans.push({route,index:0,x:route[0].x,y:route[0].y,start:i*0.35,seated:false,row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
+      fans.push({route,index:0,x:route[0].x,y:route[0].y,start:i*0.35,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===13.5&&p.y===9.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
     }
-    fanActive=true;fanStatus("Gates open! Fans are walking from the street to their seats.");
+    fanActive=true;fanStatus("Game on · 2:00 remaining · $5 admission. Fans are walking to their seats.");
     let last=null;const run=++fanFrame;
     const frame=now=>{
       if(!fanActive||run!==fanFrame)return;
-      const dt=last===null?0:Math.min((now-last)/1000,1);last=now;
+      const dt=last===null?0:Math.max(0,(now-last)/1000);last=now;
       advanceFans(dt);draw();
-      if(fanActive&&fans.some(f=>!f.seated)) requestAnimationFrame(frame);
+      if(fanActive) requestAnimationFrame(frame);
     };
     if(typeof requestAnimationFrame==="function")requestAnimationFrame(frame);
   }
   function advanceFans(dt) {
-    if(!fanActive)return;fanElapsed+=dt;
+    if(!fanActive||!Number.isFinite(dt)||dt<=0)return;
+    dt=Math.min(dt,GAME_SECONDS-fanElapsed);
+    const previousElapsed=fanElapsed;fanElapsed+=dt;
+    let collected=0;
     for(const fan of fans) {
       if(fanElapsed<fan.start||fan.seated)continue;
-      let distance=dt*2.8;
+      let distance=Math.max(0,fanElapsed-Math.max(previousElapsed,fan.start))*2.8;
       while(distance>0&&!fan.seated) {
         const next=fan.route[fan.index+1];
         if(!next) {fan.seated=true;break;}
         const dx=next.x-fan.x,dy=next.y-fan.y,length=Math.hypot(dx,dy);
-        if(length<=distance) {fan.x=next.x;fan.y=next.y;fan.index++;distance-=length;}
+        if(length<=distance) {fan.x=next.x;fan.y=next.y;fan.index++;distance-=length;
+          if(!fan.paid&&fan.index>=fan.gateIndex) {fan.paid=true;gateAdmissions++;gateRevenue+=TICKET_PRICE;collected+=TICKET_PRICE;}}
         else {fan.x+=dx/length*distance;fan.y+=dy/length*distance;distance=0;}
       }
     }
+    if(collected) {
+      money+=collected;
+      // Construction undo must preserve admission income earned afterward.
+      for(const snapshot of history)snapshot.money+=collected;
+      store();update();
+    }
+    if(fanElapsed>=GAME_SECONDS) {
+      endFanTest(`Game complete! 2:00 played · ${gateAdmissions} admissions · $${gateRevenue} gate revenue. Ready to build or open gates for another game.`);return;
+    }
+    const remaining=Math.ceil(GAME_SECONDS-fanElapsed),clock=`${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,"0")}`;
     const seated=fans.filter(f=>f.seated).length,arrived=fans.filter(f=>fanElapsed>=f.start).length;
     const access=fanUnreachable ? `${disconnectedSections.size} disconnected section${disconnectedSections.size===1?"":"s"} (${fanUnreachable} seats), marked red. Connect walkways to use them.` : "All seating sections have a route from the gate.";
-    fanStatus(seated===fanPlanned?`All ${seated} arriving fans are seated. ${reachableCapacity-seated} reachable seats remain empty. ${access} End test to build again.`:
-      `Fans arriving: ${arrived}/${fanPlanned} · Fans seated: ${seated}. ${access}`);
+    fanStatus(`Game on · ${clock} remaining · ${gateAdmissions} admissions · $${gateRevenue} gate revenue. `+(seated===fanPlanned?`All ${seated} arriving fans are seated. ${reachableCapacity-seated} reachable seats remain empty. ${access}`:
+      `Fans arriving: ${arrived}/${fanPlanned} · Fans seated: ${seated}. ${access}`));
   }
   const defensivePlayers = [
     {position:"P",x:18+6.05/Math.SQRT2,y:14+6.05/Math.SQRT2},
@@ -985,7 +1001,7 @@
       Array.isArray(saved.tiles) ||
       !Number.isFinite(saved.money) ||
       saved.money < 0 ||
-      saved.money > 100000
+      saved.money > Number.MAX_SAFE_INTEGER
     )
       throw Error("Invalid park file");
     const clean = {}, cleanEdges = {};
@@ -1024,7 +1040,7 @@
     }
     for (const k of Object.keys(clean))
       if (cleanEdges[k+":a"] || cleanEdges[k+":d"]) throw Error("Diagonal crosses an occupied tile");
-    return { tiles: clean, edges: cleanEdges, money: Math.min(100000,cash) };
+    return { tiles: clean, edges: cleanEdges, money: cash };
   }
   document.getElementById("export").onclick = () => {
     const blob = new Blob(
