@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.19.0
+
+- Added nine stationary defensive players: pitcher, catcher, four infielders and three outfielders.
+- Players wear matching uniforms with position labels and rotate with the field camera.
+
 ## 0.18.0
 
 - Matched buildable walkways and the entrance landing to the main entry sidewalk material.

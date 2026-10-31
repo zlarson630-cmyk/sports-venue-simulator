@@ -570,6 +570,30 @@
     fanStatus(seated===fanPlanned?`All ${seated} arriving fans are seated. ${reachableCapacity-seated} reachable seats remain empty. ${access} End test to build again.`:
       `Fans arriving: ${arrived}/${fanPlanned} · Fans seated: ${seated}. ${access}`);
   }
+  const defensivePlayers = [
+    {position:"P",x:18+6.05/Math.SQRT2,y:14+6.05/Math.SQRT2},
+    {position:"C",x:17.2,y:13.2},
+    {position:"1B",x:28,y:15.5},
+    {position:"2B",x:29,y:20.5},
+    {position:"SS",x:24,y:25},
+    {position:"3B",x:19.5,y:24},
+    {position:"LF",x:25,y:36},
+    {position:"CF",x:34.5,y:30.5},
+    {position:"RF",x:40,y:21}
+  ];
+  function drawDefender(player) {
+    const p=project(player.x,player.y),z=zoom;
+    ctx.beginPath();ctx.ellipse(p.x+1*z,p.y,3*z,1.3*z,0,0,Math.PI*2);ctx.fillStyle="#21372d40";ctx.fill();
+    line({x:p.x-1.2*z,y:p.y},{x:p.x-1*z,y:p.y-4*z},"#f1efe5",1.7);
+    line({x:p.x+1.2*z,y:p.y},{x:p.x+1*z,y:p.y-4*z},"#f1efe5",1.7);
+    line({x:p.x,y:p.y-4*z},{x:p.x,y:p.y-8*z},"#bd4245",4);
+    line({x:p.x-2*z,y:p.y-7*z},{x:p.x-3.5*z,y:p.y-4.5*z},"#ecc29a",1.5);
+    ctx.beginPath();ctx.arc(p.x-3.5*z,p.y-4.5*z,1.7*z,0,Math.PI*2);ctx.fillStyle="#9c703d";ctx.fill();
+    ctx.beginPath();ctx.arc(p.x,p.y-10*z,2*z,0,Math.PI*2);ctx.fillStyle="#ecc29a";ctx.fill();
+    line({x:p.x-2*z,y:p.y-11.5*z},{x:p.x+2.7*z,y:p.y-11.5*z},"#203e60",2);
+    ctx.font=`bold ${7*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#213c31";
+    ctx.fillText(player.position,p.x,p.y+7*z);
+  }
   function drawFan(fan) {
     const p=project(fan.x,fan.y),z=zoom,h=fan.seated?4+fan.row*3:0;
     p.y-=h*z;
@@ -648,6 +672,7 @@
         const p = edgePanel(edge);
         return {x:(p.a[0]+p.b[0])/2-0.5, y:(p.a[1]+p.b[1])/2-0.5, edge};
       }))
+      .concat(defensivePlayers.map(player=>({x:player.x-0.5,y:player.y-0.5,player})))
       .concat(dugouts.map(dugout=>({x:dugout.x+(dugout.swap?dugout.width:dugout.length)/2-0.5,y:dugout.y+(dugout.swap?dugout.length:dugout.width)/2-0.5,dugout})))
       .concat(fans.filter(f=>fanElapsed>=f.start).map(fan=>({x:fan.x-0.5,y:fan.y-0.5,fan})))
       .concat(roadsideTrees.map(tree=>({x:tree.x-0.5,y:tree.y-0.5,tree})))
@@ -660,7 +685,8 @@
         return aa.x + aa.y - (bb.x + bb.y);
       });
     for (let e of all) {
-      if(e.fan)drawFan(e.fan);
+      if(e.player)drawDefender(e.player);
+      else if(e.fan)drawFan(e.fan);
       else if (e.tree) drawRoadsideTree(e.tree);
       else if (e.mainEntry) drawMainGate();
       else if (e.dugout) drawDugout(e.dugout);

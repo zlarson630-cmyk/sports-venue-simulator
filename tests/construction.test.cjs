@@ -93,7 +93,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,draw,PAVEMENT,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,defensivePlayers,draw,PAVEMENT,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -457,4 +457,13 @@ test("walkway paving matches entrance paving and always renders before walking f
   assert.ok(paving.length>=7);assert.ok(heads.length>0);
   assert.ok(Math.max(...paving)<Math.min(...heads));g.key("q");
  }
+});
+
+test("nine defenders cover standard baseball positions and pitcher stands on the mound",()=>{
+ const g=game(),ps=g.api.defensivePlayers;
+ assert.equal(ps.length,9);assert.equal(new Set(ps.map(p=>p.position)).size,9);
+ assert.equal(ps.map(p=>p.position).sort().join(","),["P","C","1B","2B","SS","3B","LF","CF","RF"].sort().join(","));
+ const p=ps.find(p=>p.position==="P");assert.ok(Math.abs(Math.hypot(p.x-18,p.y-14)*10-60.5)<1e-9);
+ const c=ps.find(p=>p.position==="C");assert.ok(c.x<18&&c.y<14);
+ for(const pos of ["LF","CF","RF"]){const o=ps.find(p=>p.position===pos);assert.ok(Math.hypot(o.x-18,o.y-14)>20);assert.ok(o.x+o.y<75);}
 });
