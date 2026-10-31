@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.0
+
+- Widened dugouts outward by one 10-foot cell to 30 × 25 feet.
+- Added supported roofs while retaining sunken floors and exposed field-side stairs.
+
 ## 0.13.0
 
 - Added roadside trees outside the stadium fence, with varied crowns, trunks, and shadows.

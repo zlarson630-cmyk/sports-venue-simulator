@@ -43,8 +43,8 @@
   for(let x=14;x<48;x++) for(let y=10;y<44;y++)
     if(x+y>=27 && x+y<=74) field.add(`${x},${y}`);
   const dugoutTiles = new Set();
-  for(let x=22;x<25;x++) for(let y=8;y<10;y++) dugoutTiles.add(`${x},${y}`);
-  for(let x=12;x<14;x++) for(let y=18;y<21;y++) dugoutTiles.add(`${x},${y}`);
+  for(let x=22;x<25;x++) for(let y=7;y<10;y++) dugoutTiles.add(`${x},${y}`);
+  for(let x=11;x<14;x++) for(let y=18;y<21;y++) dugoutTiles.add(`${x},${y}`);
   const blockedTile = k => field.has(k) || dugoutTiles.has(k);
   const key = (x, y) => x + "," + y;
   function rotated(x, y) {
@@ -364,8 +364,8 @@
     line(up(a), up(b), panel.feet === 8 ? "#edc754" : "#b9ccd0", panel.feet === 8 ? 1.8 : 1);
   }
   const dugouts = [
-    {side:"First base",x:22,y:8,length:3,width:1.5,depthFeet:3,swap:false},
-    {side:"Third base",x:12,y:18,length:3,width:1.5,depthFeet:3,swap:true}
+    {side:"First base",x:22,y:7,length:3,width:2.5,depthFeet:3,roofHeightFeet:5.5,swap:false},
+    {side:"Third base",x:11,y:18,length:3,width:2.5,depthFeet:3,roofHeightFeet:5.5,swap:true}
   ];
   function drawDugout(d) {
     const at=(a,b,h=0)=>{
@@ -378,7 +378,7 @@
     shape(-0.08,-0.08,d.length+0.08,d.width+0.08,0,"#bbc2bd");
     shape(0,0,d.length,d.width,0,"#263d43");
     shape(0.08,0.08,d.length-0.08,d.width-0.08,-depth,"#77766a");
-    for(const [a,b,c,e] of [[0,0,3,0],[0,0,0,1.5],[3,0,3,1.5]])
+    for(const [a,b,c,e] of [[0,0,3,0],[0,0,0,d.width],[3,0,3,d.width]])
       polygon([at(a,b),at(c,e),at(c,e,-depth),at(a,b,-depth)],"#465558","#87908c",0.6);
     // Long wooden bench along the back, below the surrounding grass level.
     shape(0.2,0.18,2.8,0.48,-depth+2,"#c79b60");
@@ -386,9 +386,15 @@
     for(const a of [0.15,1.5,2.85]) line(at(a,0),at(a,0,3),"#677c83",1);
     // Three steps at the field-side opening climb from the recessed floor to grade.
     for(let step=0;step<3;step++)
-      shape(2.35,0.65+step*0.35,2.95,1+step*0.35,-depth+(step+1)*depth/3,"#b7b5a4");
-    shape(2.35,1.7,2.95,2.15,0,"#b7b5a4");
-    const p=at(1.5,0,7);
+      shape(2.35,d.width-0.85+step*0.35,2.95,d.width-0.5+step*0.35,-depth+(step+1)*depth/3,"#b7b5a4");
+    shape(2.35,d.width+0.2,2.95,d.width+0.65,0,"#b7b5a4");
+    const roofHeight=d.roofHeightFeet*TW/20;
+    for(const [a,b] of [[0.1,0.1],[2.9,0.1],[0.1,d.width-0.7],[2.9,d.width-0.7]])
+      line(at(a,b,-depth),at(a,b,roofHeight),"#5f7174",1.6);
+    // Roof stops short of the field-side stairs, leaving the player exit visible.
+    shape(-0.12,-0.12,3.12,d.width-0.6,roofHeight,"#31546a");
+    line(at(-0.12,d.width-0.6,roofHeight),at(3.12,d.width-0.6,roofHeight),"#c1b183",2.5);
+    const p=at(1.5,0,roofHeight+6);
     ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#f6e8bd";
     ctx.fillText("DUGOUT · 30 ft",p.x,p.y);
   }
@@ -588,7 +594,7 @@
     try {
       localStorage.setItem(
         "svs01",
-        JSON.stringify({ version: 2, fieldRevision: 4, tiles, edges, money }),
+        JSON.stringify({ version: 2, fieldRevision: 5, tiles, edges, money }),
       );
       return true;
     } catch (e) {
@@ -796,7 +802,7 @@
       throw Error("Invalid park file");
     const clean = {}, cleanEdges = {};
     let cash = saved.money;
-    const migrateField = (saved.version === 1 || saved.version === 2) && (!saved.fieldRevision || saved.fieldRevision < 4);
+    const migrateField = (saved.version === 1 || saved.version === 2) && (!saved.fieldRevision || saved.fieldRevision < 5);
     if (saved.edges !== undefined && (!saved.edges || typeof saved.edges !== "object" || Array.isArray(saved.edges))) throw Error("Invalid walls");
     for (const [edge,v] of Object.entries(saved.edges || {})) {
       if (!/^\d+,\d+:[hvad]$/.test(edge) || !v || v.type !== "wall") throw Error("Invalid wall edge");
@@ -834,7 +840,7 @@
   }
   document.getElementById("export").onclick = () => {
     const blob = new Blob(
-        [JSON.stringify({ version: 2, fieldRevision: 4, tiles, edges, money }, null, 2)],
+        [JSON.stringify({ version: 2, fieldRevision: 5, tiles, edges, money }, null, 2)],
         { type: "application/json" },
       ),
       url = URL.createObjectURL(blob),

@@ -43,3 +43,9 @@ These are geometry and interaction regression tests, not a substitute for a real
 4. Add Open Gates, ticket/concession revenue and a postgame review.
 
 Avoid adding other sports or a surrounding village before the full design/build/unfold/review loop works for a small ballpark.
+
+## Seating and sightline design direction
+
+Fans should enter a row from an aisle, move sideways to their assigned seat, and face the field. Low rows can sit beside the dugouts; rising rows behind them must eventually clear the roof. Row numbers alone should not guarantee a clear view: future sightline calculations should use seat elevation, seated eye height, roof/fence height, and distance to the playing surface.
+
+Outfield front-row platforms may start around 6 feet above field level to give seated fans a view over the 8-foot fence. Verify the actual downward view to the field, not just whether eye height exceeds the fence. These are planning notes; fan seating and sightline simulation are not yet implemented.

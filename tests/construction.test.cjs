@@ -410,3 +410,9 @@ test("roadside trees line all four curbs and leave the main entrance clear",()=>
  assert.ok(ts.every(t=>!(t.x+t.y<28&&Math.abs(t.x-t.y-4)<3.5)));
  for(const side of [t=>t.x===8.7,t=>t.x===53.3,t=>t.y===4.7,t=>t.y===49.3]) assert.ok(ts.some(side));
 });
+
+test("dugouts gain one outward cell and roofs without moving field entrances",()=>{
+ const ds=game().api.dugouts;
+ for(const d of ds) {assert.equal(d.length*10,30);assert.equal(d.width*10,25);assert.ok(d.roofHeightFeet>0);}
+ assert.equal(ds[0].y+ds[0].width,9.5);assert.equal(ds[1].x+ds[1].width,13.5);
+});
