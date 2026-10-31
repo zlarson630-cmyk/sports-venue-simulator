@@ -67,6 +67,7 @@ function game(saved) {
     Number,
     Object,
     Set,
+    Map,
     Array,
     Blob,
     URL,
@@ -92,7 +93,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,fieldFence,validatePark,state:()=>({tiles,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,fieldFence,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -181,38 +182,26 @@ test("click placement selects the same world tile after camera rotation", () => 
   }
   assert.equal(g.api.state().money, 99600);
 });
-test("walls join exactly in all eight directions", () => {
-  const g = game(),
-    dirs = [
-      [1, 0],
-      [1, -1],
-      [0, -1],
-      [-1, -1],
-      [-1, 0],
-      [-1, 1],
-      [0, 1],
-      [1, 1],
-    ];
-  for (let camera = 0; camera < 4; camera++) {
-    dirs.forEach(([dx, dy], rot) => {
-      g.commands.length = 0;
-      g.api.drawObject(10, 10, { type: "wall", rot });
-      const first = g.commands.filter(
-        (c) => c[0] === "moveTo" || c[0] === "lineTo",
-      );
-      g.commands.length = 0;
-      g.api.drawObject(10 + dx, 10 + dy, { type: "wall", rot });
-      const next = g.commands.filter(
-        (c) => c[0] === "moveTo" || c[0] === "lineTo",
-      );
-      assert.deepEqual(first[1].slice(1), next[0].slice(1));
+test("wall endpoints follow all four tile boundaries at every camera angle", () => {
+  const g=game();
+  const expected=[[[10,10],[11,10]],[[11,10],[11,11]],[[10,11],[11,11]],[[10,10],[10,11]]];
+  for(let camera=0;camera<4;camera++) {
+    [0,2,4,6].forEach((rot,i)=>{
+      g.commands.length=0;
+      g.api.drawObject(10,10,{type:"wall",rot});
+      const actual=g.commands.filter(c=>c[0]==="moveTo" || c[0]==="lineTo");
+      expected[i].forEach(([x,y],j)=>{
+        const p=g.api.project(x,y); assert.deepEqual(actual[j].slice(1),[p.x,p.y]);
+      });
     });
     g.key("q");
   }
+  assert.equal(g.api.wallEdge(10,10,2),g.api.wallEdge(11,10,6));
+  assert.equal(g.api.wallEdge(10,10,4),g.api.wallEdge(10,11,0));
 });
 test("all directional items change geometry when rotated", () => {
   const g = game();
-  for (const type of ["bleacher", "gate", "concession", "restroom", "wall"]) {
+  for (const type of ["bleacher", "gate", "concession", "restroom"]) {
     g.commands.length = 0;
     g.api.drawObject(10, 10, { type, rot: 0 });
     const initial = JSON.stringify(g.commands);
@@ -254,18 +243,18 @@ test("wall tool placement, rotate buttons, refunds and funds checks", () => {
   g.select("wall");
   g.element("rotate").click();
   g.clickTile(12, 12);
-  assert.equal(g.api.state().tiles["12,12"].type, "wall");
-  assert.equal(g.api.state().tiles["12,12"].rot, 1);
+  assert.equal(g.api.state().edges["13,12:v"].type, "wall");
+  assert.ok(g.api.state().edges["13,12:v"]);
   assert.equal(g.api.state().money, 99800);
   g.select("erase");
   g.clickTile(12, 12);
   assert.equal(g.api.state().money, 99940);
   g.element("undo").click();
-  assert.equal(g.api.state().tiles["12,12"].rot, 1);
+  assert.ok(g.api.state().edges["13,12:v"]);
   const poor = game({ tiles: {}, money: 100 });
   poor.select("wall");
   poor.clickTile(12, 12);
-  assert.equal(Object.keys(poor.api.state().tiles).length, 0);
+  assert.equal(Object.keys(poor.api.state().edges).length, 0);
   assert.equal(poor.api.state().money, 100);
 });
 
@@ -276,9 +265,30 @@ test("field fence is closed, grid aligned, and uses the two required heights", (
   panels.forEach((p, i) => {
     assert.deepEqual(Array.from(p.b), Array.from(panels[(i + 1) % panels.length].a));
     const dx = Math.abs(p.b[0] - p.a[0]), dy = Math.abs(p.b[1] - p.a[1]);
-    assert.ok(dx === 0 || dy === 0 || Math.abs(dx - dy) < 1e-10);
+    assert.ok(dx === 0 || dy === 0, "Fence must follow an edge, never a tile diagonal");
     for (const coord of [...p.a, ...p.b]) assert.ok(Math.abs(coord - Math.round(coord)) < 1e-10);
     const foul = (p.a[1] === 14 && p.b[1] === 14) || (p.a[0] === 18 && p.b[0] === 18);
     assert.equal(p.feet, foul ? 3 : 8);
   });
+});
+
+test("edge walls coexist with paths, reject shared-edge duplicates and survive save/undo",()=>{
+  const g=game(); g.select("wall"); g.clickTile(12,12);
+  g.select("path"); g.clickTile(12,12);
+  assert.ok(g.api.state().tiles["12,12"]); assert.ok(g.api.state().edges["12,12:h"]);
+  g.select("wall"); g.key("r"); g.key("r"); g.clickTile(12,11);
+  assert.equal(g.api.state().money,99700);
+  const reload=game(JSON.parse(g.storage.get("svs01")));
+  assert.ok(reload.api.state().edges["12,12:h"]); assert.ok(reload.api.state().tiles["12,12"]);
+  g.element("undo").click(); assert.equal(g.api.state().money,99800);
+  assert.ok(g.api.state().edges["12,12:h"]); assert.equal(Object.keys(g.api.state().tiles).length,0);
+});
+test("old tile walls migrate onto edges without losing the park",()=>{
+  const g=game({money:98000,tiles:{"12,12":{type:"wall",rot:1},"11,11":{type:"bleacher",rot:3}}});
+  assert.ok(g.api.state().edges["12,12:h"]);
+  assert.equal(g.api.state().tiles["12,12"],undefined);
+  assert.equal(g.api.state().tiles["11,11"].rot,3);
+  assert.equal(g.api.state().money,98000);
+  for(const edge of ["60,0:h","0,60:v","20,20:h","bad"])
+    assert.throws(()=>g.api.validatePark({money:100,tiles:{},edges:{[edge]:{type:"wall"}}}));
 });

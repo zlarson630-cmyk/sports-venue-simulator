@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.3 implements the construction sandbox. Fans, game-day simulation, and review reports are future milestones.
+**Design → Build → Unfold → Review.** Version 0.5 implements the construction sandbox. Fans, game-day simulation, and review reports are future milestones.
 
 ## Play and develop
 
@@ -21,14 +21,14 @@ Open http://localhost:4173. Run `npm run check` before committing changes.
 | Choose a tool, then click a tile | Build |
 | Drag the map | Pan |
 | Mouse wheel or Zoom buttons | Zoom |
-| R / Item button | Rotate the next item by 45° |
+| R / Item button | Rotate the next item by 45°; walls cycle tile edges |
 | Q / Camera button | Rotate the camera by 90° |
 | Z / Undo | Undo construction or removal |
 | Escape / Remove tool | Select removal |
 | Center | Return to the baseball field |
 | Export park / Import park | Back up or transfer a layout |
 
-Rotation affects the **next item placed**. Remove and rebuild an existing item to change its orientation. Walkways have no directional orientation. Each tile holds one object. Walls span one tile and connect when the next wall is placed in the same direction on the neighboring tile. Click each tile individually; dragging pans.
+Rotation affects the **next item placed**. Remove and rebuild an existing item to change its orientation. Walkways have no directional orientation. Each tile holds one object, plus walls on its boundaries. With Wall selected, R cycles the four edges; the preview shows the selected edge. Shared edges cannot be purchased twice. Paths and seats can occupy tiles beside walls. The fixed field fence follows tile boundaries, with 3-foot foul-side and 8-foot outfield panels. Click each tile individually; dragging pans.
 
 ## What is preserved
 

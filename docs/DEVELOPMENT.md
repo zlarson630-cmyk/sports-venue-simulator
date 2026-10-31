@@ -4,7 +4,7 @@
 
 The world uses integer tile coordinates. The camera projects world vertices through a quarter-turn transform and an isometric transform (38 × 19 pixels per unzoomed tile). Picking uses the inverse transform, then floors the world position. Drawing tiles from all four world corners keeps picking and rendering aligned at every camera angle.
 
-Each object has `type` and `rot` (0–7). The direction list advances through eight compass directions in world space. Walls span ±0.5 tile along the selected direction, so adjacent segments meet. Buildings use a local rotated coordinate system. Camera rotation never mutates world objects.
+Each object has `type` and `rot` (0–7). The direction list advances through eight compass directions in world space. Walls are stored separately in `edges`, keyed by canonical `x,y:h` or `x,y:v` boundaries. R cycles four edges of the selected tile. Walls do not occupy the tile object slot. Save format v2 preserves both `tiles` and `edges`, and migrates old tile-based walls to boundaries. Buildings use a local rotated coordinate system. Camera rotation never mutates world objects.
 
 Do not change these rules casually:
 

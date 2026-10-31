@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- Walls now occupy shared tile edges; R cycles four boundaries, and previews highlight the precise edge.
+- Paths and seats can share tiles with boundary walls. Added edge-aware removal, undo, save/export, duplicate detection, and migration of existing wall layouts.
+- Fixed field fence now traces exposed tile edges, including the stepped outfield.
+
 ## 0.4.0
 
 - Rebuilt bleachers with stepped silver seating rows, rear rails, and gold facing arrows. Saved orientations are preserved.

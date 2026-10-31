@@ -29,6 +29,7 @@
     dragged = false,
     money = 100000,
     tiles = {},
+    edges = {},
     history = [];
   const field = new Set();
   function mark(x, y) {
@@ -148,6 +149,36 @@
     [0, 1],
     [1, 1],
   ];
+  // Canonical shared boundaries: neighboring tiles address the same wall.
+  function wallEdge(x, y, rotation = rot) {
+    switch (Math.floor(rotation / 2) % 4) {
+      case 1: return `${x + 1},${y}:v`;
+      case 2: return `${x},${y + 1}:h`;
+      case 3: return `${x},${y}:v`;
+      default: return `${x},${y}:h`;
+    }
+  }
+  function edgePanel(k) {
+    const [xy, axis] = k.split(":"), [x, y] = xy.split(",").map(Number);
+    return {a:[x, y], b:axis === "h" ? [x + 1, y] : [x, y + 1]};
+  }
+  function drawWall(k, color = "#ac744d") {
+    const panel = edgePanel(k), a = project(...panel.a), b = project(...panel.b), h = 12 * zoom;
+    polygon([a, b, {x:b.x,y:b.y-h}, {x:a.x,y:a.y-h}], color, "#563b35", 1);
+    line({x:a.x,y:a.y-h}, {x:b.x,y:b.y-h}, "#e0a15c", 3);
+  }
+  function edgeAllowed(k) {
+    const {a:[x,y], b} = edgePanel(k);
+    if (x < 0 || y < 0 || b[0] > W || b[1] > H) return false;
+    // Borders are allowed; walls inside the protected playing field are not.
+    const horizontal = b[0] !== x;
+    return !(horizontal ? field.has(key(x,y)) && field.has(key(x,y-1))
+      : field.has(key(x,y)) && field.has(key(x-1,y)));
+  }
+  function rotationStep() {
+    rot = tool === "wall" ? ((Math.floor(rot / 2) + 1) % 4) * 2 : (rot + 1) % 8;
+    update(); draw();
+  }
   function drawObject(x, y, item) {
     const z = zoom,
       p = project(x + 0.5, y + 0.5),
@@ -217,23 +248,9 @@
         polygon([local(0, -0.83, 1), local(-0.14, -0.61, 1), local(0.14, -0.61, 1)], "#ffda57", "#886a19", 0.7);
         break;
       }
-      case "wall": {
-        const a = project(x + 0.5 - d[0] * 0.5, y + 0.5 - d[1] * 0.5),
-          b = project(x + 0.5 + d[0] * 0.5, y + 0.5 + d[1] * 0.5);
-        polygon(
-          [a, b, { x: b.x, y: b.y - 12 * z }, { x: a.x, y: a.y - 12 * z }],
-          "#ac744d",
-          "#563b35",
-          1,
-        );
-        line(
-          { x: a.x, y: a.y - 12 * z },
-          { x: b.x, y: b.y - 12 * z },
-          "#e0a15c",
-          3,
-        );
+      case "wall":
+        drawWall(wallEdge(x, y, item.rot));
         break;
-      }
       case "gate":
         box(-0.34, -0.12, 0.12, 0.24, 17, "#a8aaa5", "#dfddce");
         box(0.22, -0.12, 0.12, 0.24, 17, "#a8aaa5", "#dfddce");
@@ -313,16 +330,23 @@
     line(home, project(40, 14.7), "#ffffff", 1.5);
     line(home, project(18.7, 37), "#ffffff", 1.5);
   }
-  const fenceCorners = [[18, 14], [39, 14], [39, 18], [22, 35], [18, 35]];
+  // Trace exposed tile edges, including the stepped outfield boundary.
+  // Every panel lies between tiles; none cuts diagonally through a tile.
+  const boundary = [];
+  for (const k of field) {
+    const [x,y] = k.split(",").map(Number);
+    if (!field.has(key(x,y-1))) boundary.push({a:[x,y],b:[x+1,y],feet:y===14?3:8});
+    if (!field.has(key(x+1,y))) boundary.push({a:[x+1,y],b:[x+1,y+1],feet:8});
+    if (!field.has(key(x,y+1))) boundary.push({a:[x+1,y+1],b:[x,y+1],feet:8});
+    if (!field.has(key(x-1,y))) boundary.push({a:[x,y+1],b:[x,y],feet:x===18?3:8});
+  }
+  const boundaryFrom = new Map(boundary.map(p => [p.a.join(","), p]));
   const fieldFence = [];
-  fenceCorners.forEach((a, edge) => {
-    const b = fenceCorners[(edge + 1) % fenceCorners.length];
-    const count = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
-    for (let i = 0; i < count; i++) {
-      const at = t => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-      fieldFence.push({ a: at(i / count), b: at((i + 1) / count), feet: edge === 0 || edge === 4 ? 3 : 8 });
-    }
-  });
+  let nextPanel = boundary[0];
+  for (let i=0; i<boundary.length; i++) {
+    fieldFence.push(nextPanel);
+    nextPanel = boundaryFrom.get(nextPanel.b.join(","));
+  }
   function drawFieldFence(panel) {
     const height = panel.feet * TW / 20 * zoom;
     const a = project(...panel.a), b = project(...panel.b);
@@ -377,6 +401,10 @@
         const [x, y] = k.split(",").map(Number);
         return { x, y, v };
       })
+      .concat(Object.keys(edges).map(edge => {
+        const p = edgePanel(edge);
+        return {x:(p.a[0]+p.b[0])/2-0.5, y:(p.a[1]+p.b[1])/2-0.5, edge};
+      }))
       .concat(fieldFence.map(panel => ({x:(panel.a[0]+panel.b[0])/2-0.5, y:(panel.a[1]+panel.b[1])/2-0.5, panel})))
       .sort((a, b) => {
         let aa = rotated(a.x, a.y),
@@ -384,12 +412,20 @@
         return aa.x + aa.y - (bb.x + bb.y);
       });
     for (let e of all) {
-      if (e.panel) drawFieldFence(e.panel);
+      if (e.edge) drawWall(e.edge);
+      else if (e.panel) drawFieldFence(e.panel);
       else drawObject(e.x, e.y, e.v);
     }
     if (hover && hover.x >= 0 && hover.x < W && hover.y >= 0 && hover.y < H) {
-      const occupied =
-        field.has(key(hover.x, hover.y)) || tiles[key(hover.x, hover.y)];
+      const edge = wallEdge(hover.x, hover.y);
+      const occupied = tool === "wall" ? edges[edge] || !edgeAllowed(edge)
+        : field.has(key(hover.x, hover.y)) || tiles[key(hover.x, hover.y)];
+      if (tool === "wall") {
+        drawWall(edge, occupied ? "#d35b65aa" : "#f5d554bb");
+        const panel = edgePanel(edge);
+        line(project(...panel.a), project(...panel.b), occupied ? "#ba3030" : "#ffe66d", 3);
+        return;
+      }
       diamond(
         hover.x + 0.5,
         hover.y + 0.5,
@@ -408,8 +444,10 @@
     document.getElementById("money").textContent = "$" + money.toLocaleString();
     document.getElementById("seats").textContent =
       Object.values(tiles).filter((x) => x.type === "bleacher").length * 24;
-    document.getElementById("placed").textContent = Object.keys(tiles).length;
-    document.getElementById("rotation").textContent = rot * 45 + "°";
+    document.getElementById("placed").textContent = Object.keys(tiles).length + Object.keys(edges).length;
+    document.getElementById("rotation").textContent = tool === "wall" ? ["Top edge", "Right edge", "Bottom edge", "Left edge"][Math.floor(rot / 2)] : rot * 45 + "°";
+    document.getElementById("rotate").textContent = tool === "wall" ? "↻ Wall edge (R)" : "↻ Item 45° (R)";
+    document.getElementById("mobileRotate").textContent = tool === "wall" ? "↻ Wall edge" : "↻ Item 45°";
   }
   function toast(s) {
     const t = document.getElementById("toast");
@@ -422,7 +460,7 @@
     try {
       localStorage.setItem(
         "svs01",
-        JSON.stringify({ version: 1, tiles, money }),
+        JSON.stringify({ version: 2, tiles, edges, money }),
       );
       return true;
     } catch (e) {
@@ -434,27 +472,37 @@
     if (!hover) return;
     const k = key(hover.x, hover.y);
     if (hover.x < 0 || hover.x >= W || hover.y < 0 || hover.y >= H) return;
-    if (tool === "erase") {
-      if (!tiles[k]) return;
-      history.push({ tiles: { ...tiles }, money });
-      money += Math.round(prices[tiles[k].type] * 0.7);
-      delete tiles[k];
+    const edge = wallEdge(hover.x, hover.y);
+    if (tool === "wall") {
+      if (edges[edge]) { toast("This edge already has a wall"); return; }
+      if (!edgeAllowed(edge)) { toast("Keep the playing field clear!"); return; }
+      if (money < prices.wall) { toast("Not enough money"); return; }
+      history.push({tiles:{...tiles}, edges:{...edges}, money});
+      edges[edge] = {type:"wall"};
+      money -= prices.wall;
+    } else if (tool === "erase") {
+      // Pick the nearest visible boundary; a center click removes the tile object.
+      const candidates = [0,2,4,6].map(r => wallEdge(hover.x,hover.y,r)).filter(k => edges[k]);
+      const distance = k => {
+        const panel = edgePanel(k), a = project(...panel.a), b = project(...panel.b);
+        const p = pointer || project(hover.x+0.5,hover.y+0.5);
+        const dx=b.x-a.x, dy=b.y-a.y, t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy)));
+        return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);
+      };
+      candidates.sort((a,b)=>distance(a)-distance(b));
+      const chosen = candidates[0];
+      const removeEdge = chosen && (!tiles[k] || distance(chosen) < 7 * zoom);
+      if (!removeEdge && !tiles[k]) return;
+      history.push({tiles:{...tiles}, edges:{...edges}, money});
+      if (removeEdge) { delete edges[chosen]; money += Math.round(prices.wall*0.7); }
+      else { money += Math.round(prices[tiles[k].type]*0.7); delete tiles[k]; }
     } else {
-      if (field.has(k)) {
-        toast("Keep the playing field clear!");
-        return;
-      }
-      if (tiles[k]) {
-        toast("Tile is already occupied");
-        return;
-      }
-      if (money < prices[tool]) {
-        toast("Not enough money");
-        return;
-      }
-      history.push({ tiles: { ...tiles }, money });
+      if (field.has(k)) { toast("Keep the playing field clear!"); return; }
+      if (tiles[k]) { toast("Tile is already occupied"); return; }
+      if (money < prices[tool]) { toast("Not enough money"); return; }
+      history.push({tiles:{...tiles}, edges:{...edges}, money});
       money -= prices[tool];
-      tiles[k] = { type: tool, rot };
+      tiles[k] = {type:tool, rot};
     }
     if (history.length > 70) history.shift();
     update();
@@ -478,6 +526,8 @@
   new ResizeObserver(resize).observe(wrap);
   function select(t) {
     tool = t;
+    if (t === "wall") { rot = Math.floor(rot / 2) * 2; toast("R cycles tile edges. Walls leave the tile free for paths and seats."); }
+    update(); draw();
     if (t === "bleacher") toast("Gold arrow = fans face this way. R rotates before placement.");
     document
       .querySelectorAll("[data-tool]")
@@ -486,15 +536,12 @@
   document
     .querySelectorAll("[data-tool]")
     .forEach((b) => (b.onclick = () => select(b.dataset.tool)));
-  document.getElementById("rotate").onclick = () => {
-    rot = (rot + 1) % 8;
-    update();
-    draw();
-  };
+  document.getElementById("rotate").onclick = rotationStep;
   document.getElementById("undo").onclick = () => {
     let h = history.pop();
     if (h) {
       tiles = h.tiles;
+      edges = h.edges;
       money = h.money;
       update();
       store();
@@ -515,6 +562,7 @@
   document.getElementById("reset").onclick = () => {
     if (confirm("Reset the ballpark and restore the starting budget?")) {
       tiles = {};
+      edges = {};
       money = 100000;
       history = [];
       store();
@@ -553,6 +601,7 @@
     if (!down) return;
     if (!dragged && e.button !== 2) {
       const p = local(e);
+      pointer = p;
       hover = inverse(p.x, p.y);
       action();
     }
@@ -591,9 +640,7 @@
     )
       return;
     if (e.key.toLowerCase() === "r") {
-      rot = (rot + 1) % 8;
-      update();
-      draw();
+      rotationStep();
     }
     if (e.key.toLowerCase() === "q") {
       rotateCamera();
@@ -614,7 +661,13 @@
       saved.money > 100000
     )
       throw Error("Invalid park file");
-    const clean = {};
+    const clean = {}, cleanEdges = {};
+    let cash = saved.money;
+    if (saved.edges !== undefined && (!saved.edges || typeof saved.edges !== "object" || Array.isArray(saved.edges))) throw Error("Invalid walls");
+    for (const [edge,v] of Object.entries(saved.edges || {})) {
+      if (!/^\d+,\d+:[hv]$/.test(edge) || !edgeAllowed(edge) || !v || v.type !== "wall") throw Error("Invalid wall edge");
+      cleanEdges[edge] = {type:"wall"};
+    }
     for (const [k, v] of Object.entries(saved.tiles)) {
       if (!/^\d+,\d+$/.test(k)) throw Error("Invalid tile");
       const [x, y] = k.split(",").map(Number);
@@ -629,13 +682,17 @@
         v.rot > 7
       )
         throw Error("Invalid construction");
-      clean[k] = { type: v.type, rot: v.rot };
+      if (v.type === "wall") {
+        const edge = wallEdge(x, y, v.rot);
+        if (cleanEdges[edge]) cash += prices.wall;
+        else cleanEdges[edge] = {type:"wall"};
+      } else clean[k] = { type: v.type, rot: v.rot };
     }
-    return { tiles: clean, money: saved.money };
+    return { tiles: clean, edges: cleanEdges, money: Math.min(100000,cash) };
   }
   document.getElementById("export").onclick = () => {
     const blob = new Blob(
-        [JSON.stringify({ version: 1, tiles, money }, null, 2)],
+        [JSON.stringify({ version: 2, tiles, edges, money }, null, 2)],
         { type: "application/json" },
       ),
       url = URL.createObjectURL(blob),
@@ -654,8 +711,9 @@
       if (file.size > 1000000) throw Error("Park file is too large");
       const park = validatePark(JSON.parse(await file.text()));
       if (confirm("Replace the current layout with this park?")) {
-        history.push({ tiles: { ...tiles }, money });
+        history.push({ tiles: { ...tiles }, edges: { ...edges }, money });
         tiles = park.tiles;
+        edges = park.edges;
         money = park.money;
         store();
         update();
@@ -673,6 +731,7 @@
     if (raw) {
       const saved = validatePark(JSON.parse(raw));
       tiles = saved.tiles;
+      edges = saved.edges;
       money = saved.money;
     }
   } catch (e) {
