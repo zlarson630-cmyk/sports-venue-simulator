@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.25.0
+
+- Expanded the buildable area behind home plate by moving the diagonal stadium perimeter and main gate about 28 feet outward.
+- Kept the baseball field, backstop, roads, existing construction and saves unchanged.
+- Updated fan routing and admission collection to use the relocated gate.
+
+
 ## 0.24.0
 
 - Added flat 10 × 10 ft concourse platforms that snap to stair landing heights and adjacent concourses.

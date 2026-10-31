@@ -576,7 +576,7 @@
     ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#f6e8bd";
     ctx.fillText("DUGOUT · 30 ft",p.x,p.y);
   }
-  const stadiumBoundary = [[9,14],[18,5],[53,5],[53,29],[33,49],[9,49]];
+  const stadiumBoundary = [[9,10],[14,5],[53,5],[53,29],[33,49],[9,49]];
   const siteTemplates = {
     smallStadium: {
       id:"small-stadium",name:"Small Stadium",roadLayout:"hashtag",
@@ -587,12 +587,12 @@
   };
   const siteTemplate = siteTemplates.smallStadium;
   const streetBoundary = [[2,-2],[60,-2],[60,56],[2,56]];
-  const mainGate = {a:[13,10],b:[14,9],intersection:siteTemplate.arrivalIntersection};
+  const mainGate = {a:[11,8],b:[12,7],intersection:siteTemplate.arrivalIntersection};
   const outerFence=[];
   stadiumBoundary.forEach((a,edge)=>{
     const b=stadiumBoundary[(edge+1)%stadiumBoundary.length],n=Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
     for(let i=0;i<n;i++) {
-      if(edge===0&&i===4) continue; // Main entry behind home plate.
+      if(edge===0&&i===2) continue; // Main entry behind home plate.
       const at=t=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
       outerFence.push({a:at(i/n),b:at((i+1)/n),feet:6});
     }
@@ -663,7 +663,7 @@
       line({x:p.x,y:p.y-h},{x:p.x,y:p.y-h-3*zoom},"#f2d16d",6);
     }
     line({x:a.x,y:a.y-h},{x:b.x,y:b.y-h},"#203e52",7);
-    const p=project(13.5,9.5);ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";
+    const p=project(11.5,7.5);ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";
     ctx.fillStyle="#fff0ba";ctx.fillText("MAIN GATE",p.x,p.y-h-5*zoom);
   }
   const entranceTile = "14,10";
@@ -671,7 +671,7 @@
   let gateAdmissions=0, gateRevenue=0;
   let fans=[], fanActive=false, fanElapsed=0, fanPlanned=0, fanUnreachable=0, fanFrame=0, reachableCapacity=0, disconnectedSections=new Set();
   function fanStatus(message) { const e=document.getElementById("fanStatus");if(e.textContent!==message)e.textContent=message; }
-  function insideStadium(x,y) {return x>=9&&x<53&&y>=5&&y<49&&x+y>=23&&x+y<=81;}
+  function insideStadium(x,y) {return x>=9&&x<53&&y>=5&&y<49&&x+y>=19&&x+y<=81;}
   function wallBlocks(a,b) {
     const [x,y]=a.split(",").map(Number), [nx,ny]=b.split(",").map(Number);
     const edge=nx>x?wallEdge(x,y,2):nx<x?wallEdge(x,y,6):ny>y?wallEdge(x,y,4):wallEdge(x,y,0);
@@ -687,7 +687,7 @@
     return false;
   }
   function approachRoute() {
-    const gate={x:13.5,y:9.5},start={x:6.5,y:2.5},entry={x:14.5,y:10.5};
+    const gate={x:11.5,y:7.5},start={x:6.5,y:2.5},entry={x:14.5,y:10.5};
     const search=(from,to,beforeGate)=>{
       const keyP=p=>`${p.x},${p.y}`,queue=[from],parents=new Map([[keyP(from),null]]);
       if(solidBuildingAt(from.x,from.y)||solidBuildingAt(to.x,to.y))return null;
@@ -701,7 +701,7 @@
         for(const [dx,dy] of [[0.1,0],[-0.1,0],[0,0.1],[0,-0.1]]) {
           const q={x:Math.round((p.x+dx)*10)/10,y:Math.round((p.y+dy)*10)/10},k=keyP(q);
           if(parents.has(k)||q.x<5.5||q.y<1.5||q.x>15||q.y>11||Math.abs(q.x-q.y-4)>1.4)continue;
-          if(beforeGate?q.x+q.y>23+1e-8:q.x+q.y<23-1e-8)continue;
+          if(beforeGate?q.x+q.y>19+1e-8:q.x+q.y<19-1e-8)continue;
           let blocked=false;
           for(let t=0;t<=8;t++)if(solidBuildingAt(p.x+dx*t/8,p.y+dy*t/8)){blocked=true;break;}
           const a=key(Math.floor(p.x),Math.floor(p.y)),b=key(Math.floor(q.x),Math.floor(q.y));
@@ -830,7 +830,7 @@
         target={x:section.x+0.5+ux*a-uy*b,y:section.y+0.5+uy*a+ux*b,feet:0};
       } else target=standPoint(section.x,section.y,section,section.type==="stand"?-0.4+col*0.2:(col?0.4:-0.4),-0.3125+row/4,section.baseFeet+(row+1)*1.25);
       const route=[...arrival,...slot.route.slice(1),target];
-      fans.push({route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start:i*0.35,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===13.5&&p.y===9.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
+      fans.push({route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start:i*0.35,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===11.5&&p.y===7.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
     }
     fanActive=true;fanStatus("Game on · 2:00 remaining · $5 admission. Fans are walking to their seats.");
     let last=null;const run=++fanFrame;
@@ -1032,7 +1032,7 @@
       .concat(fans.filter(f=>fanElapsed>=f.start).map(fan=>({x:fan.x-0.5,y:fan.y-0.5,fan})))
       .concat(roadsideTrees.map(tree=>({x:tree.x-0.5,y:tree.y-0.5,tree})))
       .concat(outerFence.map(panel=>({x:(panel.a[0]+panel.b[0])/2-0.5,y:(panel.a[1]+panel.b[1])/2-0.5,panel})))
-      .concat([{x:13,y:9,mainEntry:true}])
+      .concat([{x:11,y:7,mainEntry:true}])
       .concat(fieldFence.map(panel => ({x:(panel.a[0]+panel.b[0])/2-0.5, y:(panel.a[1]+panel.b[1])/2-0.5, panel})))
       .sort((a, b) => {
         let aa = rotated(a.x, a.y),

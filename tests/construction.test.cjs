@@ -393,7 +393,7 @@ test("stadium perimeter has one main gate behind home plate",()=>{
  const gaps=f.filter((p,i)=>{const n=f[(i+1)%f.length];return p.b[0]!==n.a[0]||p.b[1]!==n.a[1];});
  assert.equal(gaps.length,1);assert.ok(f.every(p=>p.feet===6));
  const m=g.api.mainGate;
- assert.equal(m.a[0]+m.a[1],23);assert.equal(m.b[0]+m.b[1],23);
+ assert.equal(m.a[0]+m.a[1],19);assert.equal(m.b[0]+m.b[1],19);
  assert.equal((m.a[0]+m.b[0])/2-(m.a[1]+m.b[1])/2,4);
  assert.ok(m.intersection[0]+m.intersection[1]<23);
 });
@@ -475,7 +475,7 @@ test("nine defenders cover standard baseball positions and pitcher stands on the
 
 test("arrival route avoids concession and bathroom footprints",()=>{
  for(const type of ["concession","restroom"]) {
-  const g=game({version:2,fieldRevision:6,money:90000,tiles:{"11,7":{type,rot:0}},edges:{}});
+  const g=game({version:2,fieldRevision:6,money:90000,tiles:{"9,5":{type,rot:0}},edges:{}});
   const route=g.api.approachRoute();assert.ok(route);
   for(let i=1;i<route.length;i++)for(let j=0;j<=8;j++) {
    const a=route[i-1],b=route[i];assert.equal(g.api.solidBuildingAt(a.x+(b.x-a.x)*j/8,a.y+(b.y-a.y)*j/8),false);
@@ -694,4 +694,14 @@ test("concourse rotations remain valid after switching from a diagonal tool",()=
  const g=game();g.key("r");g.select("concourse");g.key("r");g.clickTile(10,30);
  assert.equal(g.api.state().tiles["10,30"].rot%2,0);
  assert.equal(game(JSON.parse(g.storage.get("svs01"))).api.state().tiles["10,30"].type,"concourse");
+});
+
+test("expanded home-plate apron supports accessible stands without changing the diamond",()=>{
+ const saved={version:2,fieldRevision:6,money:90000,edges:{},tiles:{}};
+ for(const y of [10,9,8,7])saved.tiles[`14,${y}`]={type:"path",rot:0};
+ saved.tiles["14,6"]={type:"stairStand",rot:4,baseFeet:0};saved.tiles["15,6"]={type:"stand",rot:4,baseFeet:0};
+ const g=game(saved);assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),28);
+ assert.equal(JSON.stringify(g.api.fenceCorners),JSON.stringify([[14,14],[18,10],[48,10],[48,27],[31,44],[14,44]]));
+ const route=g.api.approachRoute();assert.ok(route.some(p=>p.x===11.5&&p.y===7.5));
+ g.api.startFanTest();g.api.advanceFans(40);assert.ok(g.api.fanState().fans.every(f=>f.seated));assert.equal(g.api.state().money,90125);
 });
