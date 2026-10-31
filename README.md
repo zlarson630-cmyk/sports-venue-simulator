@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.7 implements the construction sandbox. Fans, game-day simulation, and review reports are future milestones.
+**Design → Build → Unfold → Review.** Version 0.8 implements the construction sandbox. Fans, game-day simulation, and review reports are future milestones.
 
 ## Play and develop
 
@@ -33,7 +33,7 @@ Rotation affects the **next item placed**. Remove and rebuild an existing item t
 ## What is preserved
 
 - 60 × 60 world, 10 × 10 feet per tile.
-- Fixed baseball playing surface, protected from construction: 90-foot basepaths, rounded infield dirt, 300-foot foul lines and about 304 feet to center. Earlier saves receive full refunds for construction overlapped by the expanded field.
+- Fixed baseball playing surface, protected from construction: 90-foot basepaths, rounded infield dirt, a 15-foot warning track, a diagonal backstop, 300-foot foul lines and about 304 feet to center. Earlier saves receive full refunds for construction overlapped by the expanded field.
 - Walkways, bleachers (24 seats), walls, gates, concessions, restrooms, removal.
 - $100,000 starting budget; 70% removal refunds; undo.
 - Existing `svs01` browser saves remain compatible.

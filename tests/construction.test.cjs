@@ -93,7 +93,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={project,inverse,diamond,drawObject,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={project,inverse,diamond,drawObject,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -177,8 +177,8 @@ test("click placement selects the same world tile after camera rotation", () => 
   const g = game();
   for (let i = 0; i < 4; i++) {
     g.key("q");
-    g.clickTile(12 + i, 12);
-    assert.ok(g.api.state().tiles[`${12 + i},12`]);
+    g.clickTile(12 + i, 5);
+    assert.ok(g.api.state().tiles[`${12 + i},5`]);
   }
   assert.equal(g.api.state().money, 99600);
 });
@@ -335,4 +335,27 @@ test("larger-field migration refunds only overlaps and preserves remaining park"
   assert.ok(g.api.state().tiles["12,12"]);assert.ok(g.api.state().edges["12,12:h"]);
   assert.equal(g.api.state().tiles["36,32"],undefined);assert.equal(g.api.state().edges["30,30:h"],undefined);
   const reload=game(JSON.parse(g.storage.get("svs01")));assert.equal(reload.api.state().money,98700);
+});
+
+test("warning track is 15 feet wide at straight and diagonal outfield fences",()=>{
+  const g=game(), t=g.api.warningTrack;
+  assert.equal(g.api.warningTrackWidth*10,15);
+  assert.equal((t[0][0]-t[7][0])*10,15);
+  assert.equal((t[3][1]-t[4][1])*10,15);
+  const outer=t[1][0]+t[1][1],inner=t[6][0]+t[6][1];
+  assert.ok(Math.abs((outer-inner)/Math.SQRT2*10-15)<1e-9);
+});
+test("backstop follows a 45-degree diagonal behind home plate",()=>{
+  const g=game(), [a,b]=g.api.fenceCorners, [hx,hy]=g.api.homeWorld;
+  assert.equal(Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1]));
+  assert.ok(a[0]+a[1]<hx+hy);
+  const low=g.api.fieldFence.filter(p=>p.a[0]+p.a[1]===28&&p.b[0]+p.b[1]===28);
+  assert.equal(low.length,4); assert.ok(low.every(p=>p.feet===3));
+});
+
+test("v0.7 layouts refund newly expanded foul-territory overlaps only",()=>{
+ const g=game({version:2,fieldRevision:2,money:98400,tiles:{"15,16":{type:"bleacher",rot:2},"12,12":{type:"path",rot:0}},edges:{}});
+ assert.equal(g.api.state().money,99900); assert.ok(g.api.state().tiles["12,12"]);
+ assert.equal(g.api.state().tiles["15,16"],undefined);
+ const again=game(JSON.parse(g.storage.get("svs01")));assert.equal(again.api.state().money,99900);
 });

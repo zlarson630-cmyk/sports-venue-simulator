@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+- Added a 15-foot dirt warning track inside the outfield fence, including the diagonal sections.
+- Expanded foul territory and added a 45-degree backstop behind home plate.
+- Preserved 90-foot basepaths and 300-foot foul lines; adjusted camera fit and overlap refunds for the new perimeter.
+
 ## 0.7.0
 
 - Set all four base paths to exactly nine 10-foot cells.

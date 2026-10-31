@@ -33,10 +33,15 @@
     history = [];
   const homeWorld = [18,14], baseSpacing = 9;
   const basesWorld = [homeWorld,[27,14],[27,23],[18,23]];
-  const fenceCorners = [[16,12],[48,12],[48,27],[31,44],[16,44]];
+  const fenceCorners = [[14,14],[18,10],[48,10],[48,27],[31,44],[14,44]];
+  const warningTrackWidth = 1.5; // 15 feet, measured perpendicular to the fence.
+  const diagonalInset = warningTrackWidth * Math.SQRT2;
+  const warningTrack = [[48,14],[48,27],[31,44],[18,44],
+    [18,44-warningTrackWidth],[31-diagonalInset+warningTrackWidth,44-warningTrackWidth],
+    [48-warningTrackWidth,27-diagonalInset+warningTrackWidth],[48-warningTrackWidth,14]];
   const field = new Set();
-  for(let x=16;x<48;x++) for(let y=12;y<44;y++)
-    if(x+y<=74) field.add(`${x},${y}`);
+  for(let x=14;x<48;x++) for(let y=10;y<44;y++)
+    if(x+y>=27 && x+y<=74) field.add(`${x},${y}`);
   const key = (x, y) => x + "," + y;
   function rotated(x, y) {
     const c = 30;
@@ -296,6 +301,7 @@
       const [x,y]=k.split(",").map(Number);
       diamond(x+0.5,y+0.5,(x+y)%2?"#76ab67":"#7fb571","#70a363");
     }
+    polygon(warningTrack.map(p=>project(...p)),"#b58760","#cba078",0.8);
     const [hx,hy]=homeWorld, dirtRadius=15;
     // Rounded grass/dirt cutout; buildings and fences still snap to the grid.
     const dirt=[project(hx,hy)];
@@ -331,7 +337,7 @@
     const count=Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
     for(let i=0;i<count;i++) {
       const at=t=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
-      fieldFence.push({a:at(i/count),b:at((i+1)/count),feet:(edge===0||edge===4||(edge===1&&a[1]+(b[1]-a[1])*(i+0.5)/count<14)||(edge===3&&a[0]+(b[0]-a[0])*(i+0.5)/count<18))?3:8});
+      fieldFence.push({a:at(i/count),b:at((i+1)/count),feet:(a[0]+(b[0]-a[0])*(i+0.5)/count<18 || a[1]+(b[1]-a[1])*(i+0.5)/count<14)?3:8});
     }
   });
   function drawFieldFence(panel) {
@@ -447,7 +453,7 @@
     try {
       localStorage.setItem(
         "svs01",
-        JSON.stringify({ version: 2, fieldRevision: 2, tiles, edges, money }),
+        JSON.stringify({ version: 2, fieldRevision: 3, tiles, edges, money }),
       );
       return true;
     } catch (e) {
@@ -505,7 +511,10 @@
     canvas.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (!cameraInit) {
-      zoom=Math.min(1.14,(w-80)/1216,(h-160)/447);
+      const bounds=fenceCorners.map(([x,y])=>{const r=rotated(x,y);return point(r.x,r.y);});
+      const width=Math.max(...bounds.map(p=>p.x))-Math.min(...bounds.map(p=>p.x));
+      const height=Math.max(...bounds.map(p=>p.y))-Math.min(...bounds.map(p=>p.y));
+      zoom=Math.min(1.14,(w-80)/width,(h-160)/height);
       zoom=Math.max(0.45,zoom);
       cameraInit = true;
       centerField();
@@ -652,7 +661,7 @@
       throw Error("Invalid park file");
     const clean = {}, cleanEdges = {};
     let cash = saved.money;
-    const migrateField = (saved.version === 1 || saved.version === 2) && !saved.fieldRevision;
+    const migrateField = (saved.version === 1 || saved.version === 2) && (!saved.fieldRevision || saved.fieldRevision < 3);
     if (saved.edges !== undefined && (!saved.edges || typeof saved.edges !== "object" || Array.isArray(saved.edges))) throw Error("Invalid walls");
     for (const [edge,v] of Object.entries(saved.edges || {})) {
       if (!/^\d+,\d+:[hvad]$/.test(edge) || !v || v.type !== "wall") throw Error("Invalid wall edge");
@@ -690,7 +699,7 @@
   }
   document.getElementById("export").onclick = () => {
     const blob = new Blob(
-        [JSON.stringify({ version: 2, fieldRevision: 2, tiles, edges, money }, null, 2)],
+        [JSON.stringify({ version: 2, fieldRevision: 3, tiles, edges, money }, null, 2)],
         { type: "application/json" },
       ),
       url = URL.createObjectURL(blob),
