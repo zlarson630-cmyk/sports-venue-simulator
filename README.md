@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.30 includes diagonal modular stands, clear stair feedback, visible concourses, 100 fans in seated parties, team identity and overrides, fence finishes, shops, four scoreboard models, and parking/neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
+**Design → Build → Unfold → Review.** Version 0.32 includes diagonal modular stands, clear stair feedback, visible concourses, 100 fans in seated parties, team identity and overrides, fence finishes, shops, four scoreboard models, and parking/neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
 
 ## Play and develop
 
@@ -89,3 +89,11 @@ See [the overnight gameplay checklist](docs/OVERNIGHT-TESTING.md) for all comple
 ## v0.30 construction tools
 
 The baseline sides of the stadium block have 30 ft more building depth. Standalone stairs have no seats and connect ground paths to elevated concourses. Use the dedicated Backstop seating / Backstop stair seats for a field-facing front bank against the angled fence; regular diagonals are preserved. Build backstop demo shows a connected example. These deeper front-bank pieces do not stack uphill; connect their stair tops to a rear concourse. Backstop layouts use paths from the main-gate landing at 11,7. W selects Walkway; G selects Remove. See docs/CHUNK-3.0-TESTING.md.
+
+## v0.32 layout and access polish
+
+The entrance sidewalk now reaches the relocated inner curb; parking crossing marks align across the approach. Neighborhood buildings have opaque roofs, visible wall windows and doors. Scoreboard displays follow the board plane, stay inside its frame and appear only on the front. The gold ground arrow marks the direction spectators see the display from.
+
+Ramp ($3,600): six cells / 60 ft long, 10 ft wide, +5 ft rise (1:12). R rotates 90°. Join its low end to a path or matching-height concourse and its high end to a concourse. Place the ramp first, then its landing to snap the height. Remove can select any occupied ramp cell. Corner landing ($700) is triangular, rotates 90°, and opens its two full sides at the adjoining deck height. Use stairs and landings to connect separate seating banks; this release does not create continuous wedge seating rows. End-stair entry labels and help distinguish the 5 ft side landing from the walkway that must lead back to the gate.
+
+See docs/CHUNK-3.2-TESTING.md for the player checklist.
