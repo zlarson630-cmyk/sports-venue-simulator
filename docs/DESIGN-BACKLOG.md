@@ -99,3 +99,47 @@ Open crowd issue found during additional layout testing: a path that doubles bac
 - **Publication:** the initial public-upload blocker was resolved by explicit user approval on November 1, 2026. Publish to zlarson630-cmyk/sports-venue-simulator after successful GitHub checks and verify deployment.
 
 Future: mascot fun boosts; accompanied child fans; seventh-inning stretch and a traveling wave. All remain design backlog items until needs/family-party systems are designed.
+
+## Player playtest notes — November 1, 2026 (design only)
+
+Player is continuing to test v0.29. Record these changes without implementing or publishing a gameplay patch yet.
+
+- **Home-plate building space:** the fixed main approach walkway sits too close to the backstop and leaves insufficient depth for bleachers. Explore rerouting the approach toward a rear concourse or increasing the gate-to-backstop space. Preserve existing parks; do not silently move or delete placed objects.
+- **Neighborhood building rendering:** screenshot shows windows from hidden walls painted across the roof, creating an open-roof appearance. Investigate face visibility and painter ordering; only visible wall faces should receive windows. Add recognizable doors. Verify all camera angles, including tall apartments and houses.
+- **Scoreboard facing and text:** the line-score content is a keeper. Its current screen-aligned text spills outside the narrow projected board. Render all text within the physical board plane, fitting its actual surface; the display must face spectators in the stands, independent of the viewer/camera. Add an obvious placement-facing indicator and a physical back side. Check every item rotation and camera angle.
+- **Street banners — positive acceptance:** player says flag banners look great. Preserve their appearance and team-color linkage.
+- **Backstop corner seating:** diagonal sections do not fit cleanly with cardinal sections behind home plate, particularly directly against the angled fence. Explore wedge/transition seating and corner fillers with a shared front alignment; simply rotating the larger diamond footprint does not solve the join. Investigate footprints and row/aisle transitions before choosing a design. Do not promise existing cardinal/diagonal sections already connect.
+- **Side-stair footprint clarity:** player observes two adjacent walkway pieces seem necessary. Record as observed behavior to reproduce, not a confirmed universal access requirement. Determine whether the second tile serves the landing/turning clearance or connects the first to the path network. Show the full required clear approach/landing area in the model and placement preview; highlight all required tiles rather than implying a single tile always suffices.
+- **Independent elevated access — high priority:** add dedicated stairs and/or ramps without seats, so fans can reach higher concourses without seating facing awkward directions. Explore straight runs and landings with explicit bottom/top heights, direction indicators and connections to paths/platforms. Ramp length should reflect its rise rather than making an implausibly steep one-tile slope. Support access to both cardinal and diagonal seating via concourses.
+
+Suggested next design batch: home-plate spacing + corner seating transitions + independent elevated access; accompany it with scoreboard/building rendering corrections. Await the remainder of the player's testing before consolidating implementation scope.
+
+### Keyboard shortcut request — November 1
+
+- W selects the regular Walkway tool.
+- G selects Remove/Trash (same tool as the current Remove button; selection alone deletes nothing).
+- Keep existing R rotation, Q camera rotation, Z undo and Escape removal behavior.
+- Display shortcut letters on their tool buttons/tooltips. Ignore shortcuts while typing in inputs, textareas or selects and when Ctrl/Command/Alt is held.
+- Design request recorded during ongoing playtesting; no shortcut implementation yet.
+
+### Stair rendering bug — November 1, 7:47 screenshot (corrected player clarification)
+
+The player clarified that NOT every stair is visible correctly: vertical front faces/risers cover horizontal treads that should remain visible. The earlier positive interpretation was incorrect and is withdrawn. Investigate stair solid geometry, face visibility and painter ordering; the oversized/full-depth vertical faces must not hide exposed step tops. Check central stairs, both end-stair mirrors, stacked sections and independent stairs at all camera rotations. This is a rendering issue separate from access/pathfinding. Screenshot reference: Screenshot 2026-11-01 at 7.47.25 AM.png.
+
+### Stadium block expansion — November 1
+
+Player clarified the requested three additional cells apply down BOTH the first- and third-base lines: add 30 ft of usable stadium-block depth outside each foul-line seating side, creating room for bleachers, independent stairs/ramps and rear concourses. This is extra space behind the baseline stands, not longer foul lines or a blanket expansion on every side. Preserve the playing field dimensions and existing placed park objects; design the outer boundary/street/approach adjustment accordingly. Record for the next construction batch; no geometry changes during the current feedback session.
+
+### Restroom behavior and seating preferences — workshopping November 1
+
+- Restroom needs may trigger a visit before first sitting down, as well as a trip from an occupied seat during the game.
+- Reserve each fan's assigned seat throughout the visit; afterward the fan sits with their original party. Do not reassign or sell the temporarily empty seat.
+- One or more members of the same party may visit concurrently, according to individual needs; others may proceed to or remain in their seats. Do not restrict a party to one restroom visitor at a time or require the whole party to accompany a visitor.
+- Concurrent visitors still respect facility capacity, queues, collision spacing and reachable routes. Different bathroom choices may be useful later; no forced party-wide synchronization.
+- Seating preference under discussion: keep parties together; favor an empty row in the lowest seating level and spread parties over these rows before higher levels. Leave a seat between unrelated parties when sharing is necessary and capacity permits. Own-row seating is a preference, not a guarantee.
+- These remain design notes during the feedback/workshopping session; no restroom simulation or seating algorithm change implemented yet.
+
+
+## v0.30 construction implementation
+
+Implemented the requested 30 ft baseline-side expansion, standalone stairs, dedicated deeper backstop seating/stair-seat pieces, and W/G shortcuts. Dedicated backstop front edges meet x+y=28 without modifying older diagonal geometry. Rear edges retain concourse endpoint compatibility; dedicated sections are one bank deep and cannot stack uphill. Paths for backstop layouts start at the inner main-gate landing 11,7; existing layouts continue using 14,10. Stair riser geometry reduced to actual step height to address tread occlusion; visual acceptance remains part of player testing. Bathroom simulation, ramps, general cardinal/diagonal wedge transitions, building roof/window repair and scoreboard orientation remain separate backlog items.

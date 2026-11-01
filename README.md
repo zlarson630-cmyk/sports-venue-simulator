@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.29 includes diagonal modular stands, clear stair feedback, visible concourses, 100 fans in seated parties, team identity and overrides, fence finishes, shops, four scoreboard models, and parking/neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
+**Design → Build → Unfold → Review.** Version 0.30 includes diagonal modular stands, clear stair feedback, visible concourses, 100 fans in seated parties, team identity and overrides, fence finishes, shops, four scoreboard models, and parking/neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
 
 ## Play and develop
 
@@ -85,3 +85,7 @@ Use **Build demo route** (up to $2,000) then **Open gates** to watch 24 fans arr
 See [the design backlog](docs/DESIGN-BACKLOG.md) and [Chunk 2.5 gameplay checks](docs/CHUNK-2.5-TESTING.md).
 
 See [the overnight gameplay checklist](docs/OVERNIGHT-TESTING.md) for all completed local batches and known limits. The mascot, accompanied children, stretch and wave remain future ideas.
+
+## v0.30 construction tools
+
+The baseline sides of the stadium block have 30 ft more building depth. Standalone stairs have no seats and connect ground paths to elevated concourses. Use the dedicated Backstop seating / Backstop stair seats for a field-facing front bank against the angled fence; regular diagonals are preserved. Build backstop demo shows a connected example. These deeper front-bank pieces do not stack uphill; connect their stair tops to a rear concourse. Backstop layouts use paths from the main-gate landing at 11,7. W selects Walkway; G selects Remove. See docs/CHUNK-3.0-TESTING.md.
