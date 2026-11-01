@@ -52,7 +52,7 @@ function game(saved, random=()=>0.5) {
     "concourse",
     "bleacher",
     "stand",
-    "stairStand",
+    "stairStand", "stairs", "backstopStand", "backstopStair",
     "endStairLeft",
     "endStairRight",
     "wall",
@@ -99,7 +99,7 @@ function game(saved, random=()=>0.5) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot,team}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={buildBackstopDemo,parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot,team}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -412,9 +412,9 @@ test("Small Stadium roads form four intersections with extensions and fading end
 test("roadside trees line all four curbs and leave the main entrance clear",()=>{
  const ts=game().api.roadsideTrees;
  assert.ok(ts.length>30);
- assert.ok(ts.every(t=>t.x===8.7||t.x===53.3||t.y===4.7||t.y===49.3));
+ assert.ok(ts.every(t=>t.x===5.7||t.x===53.3||t.y===1.7||t.y===49.3));
  assert.ok(ts.every(t=>!(t.x+t.y<28&&Math.abs(t.x-t.y-4)<3.5)));
- for(const side of [t=>t.x===8.7,t=>t.x===53.3,t=>t.y===4.7,t=>t.y===49.3]) assert.ok(ts.some(side));
+ for(const side of [t=>t.x===5.7,t=>t.x===53.3,t=>t.y===1.7,t=>t.y===49.3]) assert.ok(ts.some(side));
 });
 
 test("dugouts measure 30 feet along the fence by 10 feet deep with roofs",()=>{
@@ -1013,7 +1013,44 @@ test("parking lot is the functional spawn and neighborhood models stay outside s
 });
 
 test("new construction cannot overwrite neighborhood buildings or the parking lot",()=>{
- const g=game();g.select("path");g.clickTile(1,19);g.clickTile(3,0);
+ const g=game();assert.match(g.api.footprintError(-2,19,{type:"path",rot:0}),/Neighborhood/);g.select("path");g.clickTile(-2,19);
  assert.equal(Object.keys(g.api.state().tiles).length,0);assert.equal(g.api.state().money,500000);
- g.select("wall");g.key("r");g.clickTile(1,19);assert.equal(Object.keys(g.api.state().edges).length,0);
+ g.select("wall");g.key("r");g.clickTile(-2,19);assert.equal(Object.keys(g.api.state().edges).length,0);
+});
+
+test("expanded baseline grounds provide three extra cells without moving legacy parks",()=>{
+ const g=game(modularPark());assert.equal(g.api.stadiumBoundary[0][0],6);assert.equal(g.api.stadiumBoundary[1][1],2);
+ assert.equal(g.api.state().tiles["19,8"].baseFeet,0);assert.equal(g.api.state().money,80000);
+ g.select("stand");g.clickTile(7,25);assert.equal(g.api.state().tiles["7,25"].type,"stand");
+});
+test("backstop front edge meets the real angled fence and retains rear access",()=>{
+ const g=game();g.select("backstopStair");g.clickTile(13,12);
+ const stair=g.api.state().tiles["13,12"];assert.ok(stair);assert.equal(stair.rot,5);
+ for(const a of [-0.5,0,0.5]){const p=g.api.standPoint(13,12,stair,a,-0.5);assert.equal(p.x+p.y,28);}
+ g.select("backstopStand");g.clickTile(14,11);assert.ok(g.api.state().tiles["14,11"]);
+ const tiles=g.api.state().tiles;
+ for(const k of ["11,7","11,8","11,9","10,9","10,10","10,11","10,12","10,13"])tiles[k]={type:"path",rot:0};
+ tiles["10,14"]={type:"stairs",rot:0,baseFeet:0};
+ for(const k of ["10,15","11,15","11,14","11,13","11,12","11,11","12,11"])tiles[k]={type:"concourse",rot:0,baseFeet:5};
+ assert.equal(g.api.concourseConnection(12,11,tiles["12,11"],1,1)?.kind,"top");
+ const sections=g.api.reachableSeats();assert.ok(sections.some(s=>s.key==="13,12"));assert.ok(sections.some(s=>s.key==="14,11"));
+ const clean=g.api.validatePark({version:2,fieldRevision:6,money:100000,tiles,edges:{}});assert.equal(clean.tiles["10,14"].type,"stairs");
+ assert.equal(g.api.seatCapacity({type:"stairs"}),0);
+ g.api.startFanTest();assert.equal(g.api.fanState().fans.length,28);
+ for(let i=0;i<420&&g.api.fanState().fanActive;i++)g.api.advanceFans(1);
+ assert.equal(g.api.fanState().fanActive,false);
+});
+test("standalone stairs snap uphill without adding seats and hotkeys select tools",()=>{
+ const g=game();g.select("stairs");g.clickTile(10,30);g.clickTile(10,31);
+ assert.equal(g.api.state().tiles["10,31"].baseFeet,5);assert.equal(g.element("seats").textContent,0);
+ g.key("w");g.clickTile(11,30);assert.equal(g.api.state().tiles["11,30"].type,"path");
+ g.key("g");g.clickTile(11,30);assert.equal(g.api.state().tiles["11,30"],undefined);
+ const again=game(JSON.parse(g.storage.get("svs01")));assert.equal(again.api.state().tiles["10,31"].baseFeet,5);
+});
+
+test("backstop demo is a validated connected layout, preserves occupied parks and is undoable",()=>{
+ const g=game();g.api.buildBackstopDemo();assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),28);
+ assert.equal(g.api.state().money,488300);const before=JSON.stringify(g.api.state().tiles);g.api.buildBackstopDemo();assert.equal(JSON.stringify(g.api.state().tiles),before);
+ g.element("undo").click();g.element("undo").click();assert.equal(Object.keys(g.api.state().tiles).length,0);
+ const occupied=game();occupied.select("restroom");occupied.clickTile(13,12);occupied.api.buildBackstopDemo();assert.equal(occupied.api.state().tiles["13,12"].type,"restroom");
 });

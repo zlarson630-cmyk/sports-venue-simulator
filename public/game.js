@@ -12,6 +12,9 @@
       bleacher: 1500,
       stand: 1800,
       stairStand: 1600,
+      stairs:1200,
+      backstopStand:1800,
+      backstopStair:1600,
       endStairLeft: 1200,
       endStairRight: 1200,
       wall: 200,
@@ -199,12 +202,14 @@
   for(let x=8;x<=14;x++)for(let y=4;y<=10;y++)if(Math.abs(x-y-4)<=2)entrancePaving.push([x,y]);
   const isEndStair = item => item?.type === "endStairLeft" || item?.type === "endStairRight";
   const endSide = item => item.type === "endStairLeft" ? -1 : 1;
-  const isStand = item => item?.type === "stand" || item?.type === "stairStand" || isEndStair(item);
+  const isSeatSection=item=>item?.type==="stand"||item?.type==="backstopStand";
+  const isBackstop=item=>item?.type==="backstopStand"||item?.type==="backstopStair";
+  const isStand = item => isSeatSection(item) || item?.type === "stairs" || item?.type === "backstopStair" || item?.type === "stairStand" || isEndStair(item);
   const isPlatform = item => isStand(item)||item?.type==="concourse";
-  const hasStairs = item => item?.type === "stairStand" || isEndStair(item);
+  const hasStairs = item => item?.type === "stairs" || item?.type === "backstopStair" || item?.type === "stairStand" || isEndStair(item);
   const rowOpens = (item,side) => !isEndStair(item) || side === -endSide(item);
   const stairCenter = item => isEndStair(item) ? -endSide(item)*0.25 : 0;
-  const seatCapacity = item => item?.type === "bleacher" ? 24 : item?.type === "stand" ? 20 : item?.type === "stairStand" ? 8 : 0;
+  const seatCapacity = item => item?.type === "bleacher" ? 24 : isSeatSection(item) ? 20 : (item?.type === "stairStand"||item?.type==="backstopStair") ? 8 : 0;
   const FT = TW / 20, STAND_RISE = 5;
   function standAxes(rotation) {
     const [ax,ay]=directions[rotation];
@@ -212,12 +217,13 @@
   }
   function standPoint(x,y,item,a,b,feet=item.baseFeet||0) {
     const {ax,ay,bx,by}=standAxes(item.rot);
-    return {x:x+0.5+ax*a+bx*b,y:y+0.5+ay*a+by*b,feet};
+    const depth=isBackstop(item)?b*1.5-0.25:b;
+    return {x:x+0.5+ax*a+bx*depth,y:y+0.5+ay*a+by*depth,feet};
   }
   function matchingStand(x,y,item,da,db) {
     const {ax,ay,bx,by}=standAxes(item.rot),nx=x+ax*da+bx*db,ny=y+ay*da+by*db;
     const next=tiles[key(nx,ny)];
-    return isStand(next)&&next.rot===item.rot&&next.baseFeet===(item.baseFeet||0)+db*STAND_RISE&&!wallBlocks(key(x,y),key(nx,ny));
+    return !(isBackstop(item)&&db!==0)&&isStand(next)&&next.rot===item.rot&&isBackstop(next)===isBackstop(item)&&next.baseFeet===(item.baseFeet||0)+db*STAND_RISE&&!wallBlocks(key(x,y),key(nx,ny));
   }
   const neighborOffsets=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
   function footprint(x,y,item) {
@@ -235,12 +241,13 @@
   function footprintError(x,y,item,layout=tiles,walls=edges) {
     const shape=footprint(x,y,item);
     if([...neighborhood,{...parkingLot,w:parkingLot.width,d:parkingLot.depth}].some(b=>overlaps(shape,[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.d],[b.x,b.y+b.d]])))return "Neighborhood scenery is outside the construction area.";
+    if(isBackstop(item)&&overlaps(shape,fenceCorners))return "Seating must remain outside the backstop fence.";
     if(shape.some(([a,b])=>a<0||a>W||b<0||b>H))return "Section extends outside the map.";
     // Only diagonal sections extend outside their anchor cell. Check both directions
     // so later paths/buildings cannot be placed inside their triangular corners.
     for(let a=x-2;a<=x+2;a++)for(let b=y-2;b<=y+2;b++) {
       const k=key(a,b),v=layout[k];
-      if(blockedTile(k)&&overlaps(shape,footprint(a,b,{type:"path"})))return "Section overlaps the field or dugout.";
+      if((dugoutTiles.has(k)||(!isBackstop(item)&&field.has(k)))&&overlaps(shape,footprint(a,b,{type:"path"})))return "Section overlaps the field or dugout.";
       if((a!==x||b!==y)&&v&&(isStand(item)&&item.rot%2||isStand(v)&&v.rot%2)&&overlaps(shape,footprint(a,b,v)))return "Diagonal section footprint overlaps construction. Leave its corners clear.";
       for(const axis of ["h","v","a","d"])if(walls[k+":"+axis]) {
         const {a:start,b:end}=edgePanel(k+":"+axis),dx=end[0]-start[0],dy=end[1]-start[1],epsilon=1e-5;
@@ -256,7 +263,7 @@
     const {ax,ay,bx,by}=standAxes(rotation),heights=[];
     for(const [da,db] of [[-1,0],[1,0],[0,-1],[0,1]]) {
       const next=tiles[key(x+ax*da+bx*db,y+ay*da+by*db)];
-      if(isStand(next)&&next.rot===rotation)heights.push(next.baseFeet-db*STAND_RISE);
+      if(isStand(next)&&next.rot===rotation&&isBackstop(next)===isBackstop({type:tool})&&(!isBackstop(next)||db===0))heights.push(next.baseFeet-db*STAND_RISE);
       if(next?.type==="concourse"&&db!==0)heights.push(next.baseFeet-(db===1?5:0));
     }
     if(heights.some(h=>h!==heights[0]))return {error:"These neighbors have conflicting heights. Leave a gap or undo the mismatched section."};
@@ -329,6 +336,15 @@
       }
       face(cs.map(c=>[...c,top]),color);
     };
+    if(item.type==="stairs") {
+      const steps=[0,1].sort((a,c)=>screen(0,b+a*0.125,0).y-screen(0,b+c*0.125,0).y);
+      for(const n of steps){const h=base+row*1.25+(n+1)*0.625,sb=b+n*0.125;
+        prism(-0.5,sb,1,0.125,h-0.625,h,"#8e9898","#e1e0d4");
+        line(screen(-0.5,sb,h+0.01),screen(0.5,sb,h+0.01),"#edc75b",0.8);
+      }
+      for(const a of [-0.48,0.48]){line(screen(a,b,top-1.25),screen(a,b,top+1.75),"#627986",1);line(screen(a,b,top+1.75),screen(a,b+0.25,top+3),"#a4b5b9",1);}
+      return;
+    }
     if(isEndStair(item)) {
       const side=endSide(item),inner=-side,sa=side>0?-0.5:0,la=side>0?0:-0.5;
       const along=(a,b1,b2,h)=>line(screen(a,b1,h+3),screen(a,b2,h+3),"#8ca2aa",1);
@@ -336,7 +352,7 @@
       prism(la,b,0.5,0.25,0,base+0.04,"#8e9898","#dedbc9",[0,2]);
       for(let n=0;n<2;n++) {
         const h=base+row*1.25+(n+1)*0.625,sb=b+n*0.125;
-        prism(sa,sb,0.5,0.125,0,h,"#8e9898","#e1e0d4",[2]);
+        prism(sa,sb,0.5,0.125,h-0.625,h,"#8e9898","#e1e0d4",[2]);
         line(screen(sa,sb,h+0.01),screen(sa+0.5,sb,h+0.01),"#edc75b",0.8);
       }
       // Separate the rising stair from the lower side landing with a handrail.
@@ -356,17 +372,17 @@
     const front=row>0||matchingStand(x,y,item,0,-1),back=row<3||matchingStand(x,y,item,0,1)|| (hasStairs(item)&&(()=>{const {bx,by}=standAxes(item.rot),n=tiles[key(x+bx,y+by)];return n?.type==="concourse"&&n.baseFeet===base+5&&!wallBlocks(key(x,y),key(x+bx,y+by));})());
     const hidden=[...(front?[0]:[]),...(right?[1]:[]),...(back?[2]:[]),...(left?[3]:[])];
     // Full-width concrete tiers meet exactly at tile edges, without duplicate end rails.
-    if(item.type==="stand")prism(-0.5,b,1,0.25,0,top,"#8e9898","#c9ceca",hidden);
+    if(isSeatSection(item))prism(-0.5,b,1,0.25,0,top,"#8e9898","#c9ceca",hidden);
     else {
       prism(-0.5,b,0.2,0.25,0,top,"#8e9898","#c9ceca",[0,1,2,...(left?[3]:[])]);
       prism(0.3,b,0.2,0.25,0,top,"#8e9898","#c9ceca",[0,2,3,...(right?[1]:[])]);
       for(let step=0;step<2;step++) {
         const h=base+row*1.25+(step+1)*0.625,sb=b+step*0.125;
-        prism(-0.3,sb,0.6,0.125,0,h,"#8e9898","#e1e0d4",[1,2,3,...(step===0&&front?[0]:[])]);
+        prism(-0.3,sb,0.6,0.125,h-0.625,h,"#8e9898","#e1e0d4",[1,2,3,...(step===0&&front?[0]:[])]);
         line(screen(-0.3,sb,h+0.01),screen(0.3,sb,h+0.01),"#edc75b",0.8);
       }
     }
-    const seats=item.type==="stand"?[-0.4,-0.2,0,0.2,0.4]:[-0.4,0.4];
+    const seats=isSeatSection(item)?[-0.4,-0.2,0,0.2,0.4]:[-0.4,0.4];
     for(const a of seats) {
       // Five 2-foot seat bays, or one bay on either side of the 6-foot stair aisle.
       prism(a-0.075,b+0.10,0.15,0.11,top,top+1.4,palette.primary,palette.secondary);
@@ -379,7 +395,7 @@
     if(!left)rail(-0.5,b,-0.5,b+0.25,top);
     if(!right)rail(0.5,b,0.5,b+0.25,top);
     if(row===3&&!back) {
-      if(item.type==="stand")rail(-0.5,0.5,0.5,0.5,top);
+      if(isSeatSection(item))rail(-0.5,0.5,0.5,0.5,top);
       else {rail(-0.5,0.5,-0.3,0.5,top);rail(0.3,0.5,0.5,0.5,top);}
     }
     if(!fanActive) {
@@ -479,6 +495,7 @@
       : blockedTile(key(x,y)) && blockedTile(key(x-1,y)));
   }
   function rotationStep() {
+    if(isBackstop({type:tool})){toast("Backstop pieces face home plate; place matching pieces beside or behind them.");return;}
     rot = tool === "wall" ? wallSlots[(wallSlots.indexOf(rot) + 1) % wallSlots.length] : (rot + ((tool==="concourse"||tool==="halfPath")?2:1)) % 8;
     update(); draw();
   }
@@ -734,28 +751,28 @@
     ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#f6e8bd";
     ctx.fillText("DUGOUT · 30 ft",p.x,p.y);
   }
-  const stadiumBoundary = [[9,10],[14,5],[53,5],[53,29],[33,49],[9,49]];
+  const stadiumBoundary = [[6,7],[11,2],[53,2],[53,29],[33,49],[6,49]];
   const siteTemplates = {
     smallStadium: {
       id:"small-stadium",name:"Small Stadium",roadLayout:"hashtag",
-      roads:[{axis:"x",at:6},{axis:"x",at:56},{axis:"y",at:2},{axis:"y",at:52}],
+      roads:[{axis:"x",at:3},{axis:"x",at:56},{axis:"y",at:-1},{axis:"y",at:52}],
       roadStart:-8,roadEnd:68,roadWidth:2,sidewalkWidth:1,fadeLength:6,
       arrivalIntersection:[6,2]
     }
   };
   const siteTemplate = siteTemplates.smallStadium;
   const streetBoundary = [[-9,-12],[66,-12],[66,59],[-9,59]];
-  const parkingLot={x:-8,y:-9,width:12,depth:10};
-  const parkingSpawn={x:3.5,y:-0.5};
+  const parkingLot={x:-11,y:-12,width:12,depth:10};
+  const parkingSpawn={x:0.5,y:-3.5};
   const neighborhood=[
     {kind:"gas",x:60,y:11,w:4,d:4,height:16,label:"FUEL"},
     {kind:"bar",x:60,y:18,w:4,d:3,height:24,label:"THE DUGOUT"},
     {kind:"apartment",x:60,y:25,w:5,d:4,height:50,label:"PARKSIDE"},
-    ...[18,25,32,39].map((y,i)=>({kind:"house",x:0,y,w:3,d:3,height:18,label:"",variant:i}))
+    ...[18,25,32,39].map((y,i)=>({kind:"house",x:-3,y,w:3,d:3,height:18,label:"",variant:i}))
   ];
   const streetLamps=[];
-  for(const x of [10,15,20,25,30,35,40,45,50])streetLamps.push({x,y:4.2});
-  for(const y of [10,17,24,31,38,45])streetLamps.push({x:8.2,y});
+  for(const x of [10,15,20,25,30,35,40,45,50])streetLamps.push({x,y:1.2});
+  for(const y of [10,17,24,31,38,45])streetLamps.push({x:5.2,y});
   function drawParking() {
     const {x,y,width:w,depth:d}=parkingLot;
     polygon([[x,y],[x+w,y],[x+w,y+d],[x,y+d]].map(p=>project(...p)),"#667274","#b6c0b5",1);
@@ -768,9 +785,9 @@
       }
     }
     // Dedicated pedestrian aisle connects parking to the fixed gate approach.
-    polygon([[3,-1],[4,-1],[4,1],[3,1]].map(p=>project(...p)),PAVEMENT,PAVEMENT_EDGE,0.6);
+    polygon([[0,-4],[1,-4],[1,-2],[0,-2]].map(p=>project(...p)),PAVEMENT,PAVEMENT_EDGE,0.6);
     for(let x=4.1;x<6.8;x+=0.4)line(project(x,x-4.5),project(x+0.5,x-4),"#f1eddb",2);
-    const sign=project(-2,-6);sign.y-=12*zoom;ctx.font=`bold ${8*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#f7f0cd";ctx.fillText("BALLPARK PARKING",sign.x,sign.y);
+    const sign=project(-5,-9);sign.y-=12*zoom;ctx.font=`bold ${8*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#f7f0cd";ctx.fillText("BALLPARK PARKING",sign.x,sign.y);
   }
   function drawNeighborhood(building) {
     const {x,y,w,d,height:h,kind}=building;
@@ -840,7 +857,7 @@
       line(project(...a),project(...b),"#d8c778",1);ctx.restore();
     }
     // Diagonal sidewalk links the corner intersection to the gate behind home.
-    for(const [x,y] of entrancePaving)if(!isPath(tiles[key(x,y)]))diamond(x+0.5,y+0.5,PAVEMENT,PAVEMENT_EDGE);
+    for(const [x,y] of entrancePaving)if(!(usesBackstop()&&x+y>=20)&&!isPath(tiles[key(x,y)])&&!isStand(tiles[key(x,y)]))diamond(x+0.5,y+0.5,PAVEMENT,PAVEMENT_EDGE);
     for(let i=0;i<5;i++) {
       const x=6.7+i*0.24;
       line(project(x,2.9),project(x,3.9),"#f1eddb",2);
@@ -854,8 +871,8 @@
     if(x+y<28 && Math.abs(x-y-4)<3.5) return;
     roadsideTrees.push({x,y,variant:roadsideTrees.length%3});
   };
-  for(let x=12;x<=50;x+=3.5) {addTree(x,4.7);addTree(x,49.3);}
-  for(let y=8;y<=46;y+=3.5) {addTree(8.7,y);addTree(53.3,y);}
+  for(let x=12;x<=50;x+=3.5) {addTree(x,1.7);addTree(x,49.3);}
+  for(let y=8;y<=46;y+=3.5) {addTree(5.7,y);addTree(53.3,y);}
   function drawRoadsideTree(tree) {
     const p=project(tree.x,tree.y),z=zoom;
     const size=[1,0.9,1.1][tree.variant],h=22*size*z;
@@ -886,7 +903,7 @@
   let gateAdmissions=0, gateRevenue=0;
   let fans=[], fanActive=false, fanElapsed=0, fanPlanned=0, fanUnreachable=0, fanFrame=0, reachableCapacity=0, disconnectedSections=new Set(), fanPhase="idle", departureElapsed=0;
   function fanStatus(message) { const e=document.getElementById("fanStatus");if(e.textContent!==message)e.textContent=message; }
-  function insideStadium(x,y) {return x>=9&&x<53&&y>=5&&y<49&&x+y>=19&&x+y<=81;}
+  function insideStadium(x,y) {return x>=6&&x<53&&y>=2&&y<49&&x+y>=13&&x+y<=81;}
   function wallBlocks(a,b) {
     const [x,y]=a.split(",").map(Number), [nx,ny]=b.split(",").map(Number);
     if(nx!==x&&ny!==y) {
@@ -908,8 +925,9 @@
     }
     return false;
   }
+  const usesBackstop=()=>Object.values(tiles).some(isBackstop);
   function approachRoute() {
-    const gate={x:11.5,y:7.5},start={x:6.5,y:2.5},entry={x:14.5,y:10.5};
+    const gate={x:11.5,y:7.5},start={x:6.5,y:2.5},entry=usesBackstop()?gate:{x:14.5,y:10.5};
     const search=(from,to,beforeGate)=>{
       const keyP=p=>`${p.x},${p.y}`,queue=[from],parents=new Map([[keyP(from),null]]);
       if(solidBuildingAt(from.x,from.y)||solidBuildingAt(to.x,to.y))return null;
@@ -963,12 +981,14 @@
   let accessibleNodes=new Set();
   function reachableSeats() {
     accessibleNodes.clear();
-    if(solidBuildingAt(14.5,10.5))return [];
+    const entranceTile=usesBackstop()?"11,7":"14,10";
+    const [entryX,entryY]=entranceTile.split(",").map(Number);
+    if(solidBuildingAt(entryX+0.5,entryY+0.5))return [];
     const nodes=new Map(),links=new Map();
     const add=(id,p)=>{nodes.set(id,p);links.set(id,[]);};
     const join=(a,b)=>{if(nodes.has(a)&&nodes.has(b)){links.get(a).push(b);links.get(b).push(a);}};
     const ground=k=>"g:"+k,step=(k,n)=>`t:${k}:${n}`,rowId=(k,r)=>`r:${k}:${r}`,landing=(k,n)=>`l:${k}:${n}`;
-    add(ground(entranceTile),{x:14.5,y:10.5,feet:0});
+    add(ground(entranceTile),{x:entryX+0.5,y:entryY+0.5,feet:0});
     for(const [k,item] of Object.entries(tiles)) {
       const [x,y]=k.split(",").map(Number);
       if(!insideStadium(x,y))continue;
@@ -1034,12 +1054,12 @@
             if(pathOpens(tiles[outside],-ax*side,-ay*side)&&!wallBlocks(k,outside))join(ground(outside),landing(k,0));
           } else if(pathOpens(tiles[front],bx,by)&&!wallBlocks(k,front))join(ground(front),step(k,-1));
         }
-        if(matchingStand(x,y,item,0,1)&&hasStairs(tiles[back])&&stairCenter(item)===stairCenter(tiles[back]))join(step(k,8),step(back,-1));
+        if(!isBackstop(item)&&matchingStand(x,y,item,0,1)&&hasStairs(tiles[back])&&stairCenter(item)===stairCenter(tiles[back]))join(step(k,8),step(back,-1));
       }
     }
     // The fixed gate landing is traversable even before a path is built on it.
     for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-      const next=key(14+dx,10+dy);if(pathOpens(tiles[next],-dx,-dy)&&!wallBlocks(entranceTile,next))join(ground(entranceTile),ground(next));
+      const next=key(entryX+dx,entryY+dy);if(pathOpens(tiles[next],-dx,-dy)&&!wallBlocks(entranceTile,next))join(ground(entranceTile),ground(next));
     }
     // Walking distance matters more than the number of graph nodes. Crossing a
     // seating row is slower than using the concourse; stairs also cost effort.
@@ -1086,7 +1106,7 @@
         }
         if(route)for(let n=0;n<24;n++)slots.push({seat:n,row:Math.floor(n/8),col:n%8,route,routeFor:traffic=>routeFor(route[route.length-1].node,traffic)});
       } else {
-        const cols=item.type==="stand"?5:2;
+        const cols=isSeatSection(item)?5:2;
         for(let r=0;r<4;r++)if(parents.has(rowId(k,r)))for(let col=0;col<cols;col++)slots.push({seat:r*cols+col,row:r,col,route:routeTo(rowId(k,r)),routeFor:traffic=>routeFor(rowId(k,r),traffic)});
       }
       if(slots.length)result.push({key:k,x,y,rot:item.rot,type:item.type,baseFeet:item.baseFeet||0,route:slots[0].route,capacity:slots.length,slots});
@@ -1116,10 +1136,11 @@
         const d=directions[section.rot],len=Math.hypot(...d),ux=d[0]/len,uy=d[1]/len;
         const a=-0.34+col*0.097,b=-0.28+row*0.22;
         target={x:section.x+0.5+ux*a-uy*b,y:section.y+0.5+uy*a+ux*b,feet:0};
-      } else target=standPoint(section.x,section.y,section,section.type==="stand"?-0.4+col*0.2:(col?0.4:-0.4),-0.3125+row/4,section.baseFeet+(row+1)*1.25);
+      } else target=standPoint(section.x,section.y,section,isSeatSection(section)?-0.4+col*0.2:(col?0.4:-0.4),-0.3125+row/4,section.baseFeet+(row+1)*1.25);
       if(section.type!=="bleacher") {
         const {bx,by}=standAxes(section.rot);
-        target.aisle={x:target.x+bx*0.05,y:target.y+by*0.05,feet:target.feet};
+        const aisleOffset=isBackstop(section)?0.075:0.05;
+        target.aisle={x:target.x+bx*aisleOffset,y:target.y+by*aisleOffset,feet:target.feet};
       }
       if(i===0||partyId!==plan[i-1].partyId)routeTraffic=new Map(traffic);
       const walkingRoute=slot.routeFor(routeTraffic);
@@ -1148,7 +1169,7 @@
       for(let size=requested;size>=1&&!best;size--)for(const section of sections) {
         for(const first of section.slots) {
           const block=section.slots.filter(slot=>slot.row===first.row&&slot.col>=first.col&&slot.col<first.col+size).sort((a,b)=>a.col-b.col);
-          if((section.type==="stairStand"&&size>1)||block.length!==size||block.some(slot=>used.has(id(section,slot))))continue;
+          if(((section.type==="stairStand"||section.type==="backstopStair")&&size>1)||block.length!==size||block.some(slot=>used.has(id(section,slot))))continue;
           const strangers=section.slots.filter(slot=>slot.row===first.row&&(slot.col===first.col-1||slot.col===first.col+size)&&used.has(id(section,slot))).length;
           const score=Math.hypot(section.x+0.5-homeWorld[0],section.y+0.5-homeWorld[1])+first.row*0.8+section.baseFeet*0.04+strangers*12;
           if(!best||score<best.score)best={section,block,score};
@@ -1428,6 +1449,20 @@
     money-=cost;store();update();draw();
     fanStatus(`Diagonal demo ready ($${cost.toLocaleString()}). 128 seats beyond the outfield; 100 fans can use the central stairs. R rotates sections 45°.`);
   }
+  function buildBackstopDemo() {
+    if(fanActive){toast("End the game before building");return;}
+    const planned={"13,12":{type:"backstopStair",rot:5,baseFeet:0},"14,11":{type:"backstopStand",rot:5,baseFeet:0},"10,14":{type:"stairs",rot:0,baseFeet:0}};
+    for(const k of ["11,7","11,8","11,9","10,9","10,10","10,11","10,12","10,13"])planned[k]={type:"path",rot:0};
+    for(const k of ["10,15","11,15","11,14","11,13","11,12","11,11","12,11"])planned[k]={type:"concourse",rot:0,baseFeet:5};
+    for(const [k,v] of Object.entries(planned))if(tiles[k]&&JSON.stringify(tiles[k])!==JSON.stringify(v)){fanStatus("Backstop demo area occupied. Your layout was kept; try it in a clear park or build the pieces yourself.");return;}
+    try{validatePark({version:2,fieldRevision:6,money,team,tiles:{...tiles,...planned},edges});}catch(e){fanStatus("Backstop demo cannot fit: "+e.message);return;}
+    if(Object.keys(planned).some(k=>{const [x,y]=k.split(",").map(Number);return neighborOffsets.some(([dx,dy])=>planned[key(x+dx,y+dy)]&&wallBlocks(k,key(x+dx,y+dy)));})){fanStatus("A wall blocks the demo. Your park was kept.");return;}
+    const additions=Object.entries(planned).filter(([k])=>!tiles[k]),cost=additions.reduce((n,[,v])=>n+prices[v.type],0);
+    if(money<cost){toast("Not enough money for demo");return;}
+    history.push(snapshot());for(const [k,v] of additions)tiles[k]=v;money-=cost;store();update();draw();
+    fanStatus(`Backstop demo ready ($${cost.toLocaleString()}). 28 seats flush to the fence, standalone stairs and a 5 ft rear concourse. Access starts at the main gate tile 11,7.`);
+  }
+  document.getElementById("demoBackstop").onclick=buildBackstopDemo;
   document.getElementById("demoDiagonal").onclick=buildDiagonalDemo;
   document.getElementById("demoConcourse").onclick=buildConcourseDemo;
   document.getElementById("demoSideEntry").onclick=buildSideEntryDemo;
@@ -1471,7 +1506,7 @@
     drawStreets();
     drawParking();
     pitch();
-    diamond(14.5,10.5,PAVEMENT,PAVEMENT_EDGE);
+    if(!usesBackstop())diamond(14.5,10.5,PAVEMENT,PAVEMENT_EDGE);
     // Pavement belongs to the ground pass, below every person and structure.
     for(const [k,v] of Object.entries(tiles)) if(isPath(v)) {
       const [x,y]=k.split(",").map(Number);drawObject(x,y,v);
@@ -1530,7 +1565,7 @@
     help.hidden=!isPlatform({type:tool})&&!hasStairs(hovered);
     if(!help.hidden) {
       const snap=hover?standPlacement(hover.x,hover.y,rot):{baseFeet:0};
-      help.textContent=hasStairs(hovered)?stairEntrance(hover.x,hover.y,hovered).message:snap.error||(tool==="concourse"?`Level concourse · 10 × 10 ft · ${snap.baseFeet} ft high. Snaps to stair tops and adjoining platforms. Only matching walking heights connect.`:(isEndStair({type:tool})?`End stairs · no seats · ${rot%2?"14.1 ft diagonal footprint; stairs + side landing":"5 ft stairs + 5 ft level landing"} · +5 ft rise. Base: ${snap.baseFeet} ft. Green arrow marks the side walkway entrance. R rotates 45°; choose the other end piece to mirror.`:`${tool==="stand"?"20 seats · 5 per row":"8 seats · 6 ft central stairs"} · 4 rows · ${rot%2?"14.1 × 14.1 ft diagonal":"10 × 10 ft"} · +5 ft rise. Base: ${snap.baseFeet} ft. Match facing; build behind to rise. Connect a path to the front of a stair section.`));
+      help.textContent=tool==="stairs"?`Standalone stairs · no seats · ${snap.baseFeet}–${snap.baseFeet+5} ft. Path at bottom; matching-height concourse at top. R rotates 45°.`:isBackstop({type:tool})?`Backstop section · field-facing · front edge aligns with the diagonal fence. Place at 15,10 / 14,11 / 13,12 / 12,13. Use a rear concourse and backstop stair section for access; these deeper front sections do not stack uphill.`:hasStairs(hovered)?stairEntrance(hover.x,hover.y,hovered).message:snap.error||(tool==="concourse"?`Level concourse · 10 × 10 ft · ${snap.baseFeet} ft high. Snaps to stair tops and adjoining platforms. Only matching walking heights connect.`:(isEndStair({type:tool})?`End stairs · no seats · ${rot%2?"14.1 ft diagonal footprint; stairs + side landing":"5 ft stairs + 5 ft level landing"} · +5 ft rise. Base: ${snap.baseFeet} ft. Green arrow marks the side walkway entrance. R rotates 45°; choose the other end piece to mirror.`:`${tool==="stand"?"20 seats · 5 per row":"8 seats · 6 ft central stairs"} · 4 rows · ${rot%2?"14.1 × 14.1 ft diagonal":"10 × 10 ft"} · +5 ft rise. Base: ${snap.baseFeet} ft. Match facing; build behind to rise. Connect a path to the front of a stair section.`));
     }
     if (hover && hover.x >= 0 && hover.x < W && hover.y >= 0 && hover.y < H) {
       const edge = wallEdge(hover.x, hover.y);
@@ -1688,6 +1723,7 @@
     tool = t;
     if(t==="halfPath"){rot-=rot%2;toast("Half-tile paving · R turns the corner 90°. Place its opposite half to complete the square.");}
     if(t==="concourse") {rot=0;toast("Concourse snaps to stair landing height. Matching elevations connect; exposed edges get rails.");}
+    if(isBackstop({type:t}))rot=5;
     if(isStand({type:t})) {toast(isEndStair({type:t})?"Green arrow = side walkway entrance. Match the stand facing; use the other end piece to mirror.":"Sections rotate 45°; matching diagonal pieces snap together. Place stairs in the same direction; connect a path at their front.");}
     if (t === "wall") { if (!wallSlots.includes(rot)) rot = 0; toast("R cycles 4 tile edges and 2 corner-to-corner diagonals."); }
     update(); draw();
@@ -1823,6 +1859,8 @@
     if (e.key.toLowerCase() === "z") {
       document.getElementById("undo").click();
     }
+    if(e.key.toLowerCase()==="w")select("path");
+    if(e.key.toLowerCase()==="g")select("erase");
     if (e.key === "Escape") select("erase");
   });
   function validatePark(saved) {
@@ -1877,6 +1915,7 @@
         else cleanEdges[edge] = {type:"wall",...metadata(v)};
       } else {
         if(v.type==="halfPath"&&v.rot%2!==0)throw Error("Invalid paving corner");
+        if(isBackstop(v)&&v.rot!==5)throw Error("Backstop pieces must face the field");
         if(isPlatform(v)&&(!Number.isInteger(v.baseFeet)||v.baseFeet<0||v.baseFeet>300||v.baseFeet%5!==0||(v.type==="concourse"&&v.rot%2!==0)))throw Error("Invalid stand height or facing");
         clean[k]={type:v.type,rot:v.rot,...(isPlatform(v)?{baseFeet:v.baseFeet}:{}),...metadata(v)};
       }

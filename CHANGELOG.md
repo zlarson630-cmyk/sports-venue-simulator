@@ -1,3 +1,12 @@
+## v0.30 — More building space and field-facing backstop seating
+
+- Expanded the first-/third-base sides of the stadium block by three cells (30 ft); moved bordering roads/landscaping outward. Existing objects, field dimensions and money are not migrated or reset.
+- Added full-width standalone stairs: no seats, 5 ft rise, eight-way rotation, stackable and connected to same-height concourses.
+- Added deeper, field-facing Backstop seating and Backstop stair seats whose front edge meets the actual angled backstop fence. Legacy diagonals remain unchanged. These dedicated front sections connect laterally and to rear concourses; they do not stack uphill.
+- Backstop layouts use the main gate's 11,7 landing for routes and stop the automatic paving before the seating bank, freeing the old approach strip. Legacy parks keep their original 14,10 entrance routing.
+- Stair tread faces now use actual 7.5-inch riser heights instead of solid faces extending to ground level. Added W walkway/G remove shortcuts and button labels.
+- Build backstop demo creates a connected 28-seat layout with independent stairs and a 5 ft rear concourse, with occupied-layout safeguards and undo.
+
 ## v0.29 — Remaining agreed batches (approved release)
 
 - Parties reserve adjacent seats, prefer proximity to the action and leave room from strangers when possible.
