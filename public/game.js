@@ -875,7 +875,7 @@
         target={x:section.x+0.5+ux*a-uy*b,y:section.y+0.5+uy*a+ux*b,feet:0};
       } else target=standPoint(section.x,section.y,section,section.type==="stand"?-0.4+col*0.2:(col?0.4:-0.4),-0.3125+row/4,section.baseFeet+(row+1)*1.25);
       const route=[...arrival,...slot.route.slice(1),target];
-      fans.push({route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start:i*0.35,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===11.5&&p.y===7.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
+      fans.push({route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start:i*0.08,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===11.5&&p.y===7.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
     }
     fanActive=true;fanStatus("Game on · 2:00 remaining · $5 admission. Fans are walking to their seats.");
     let last=null;const run=++fanFrame;
