@@ -165,3 +165,17 @@ Authorized together by the player. Implemented mirrored regular corner seats joi
 Added half-width concourses and promoted the triangular corner landing as Triangular concourse. Shape-aware shared ports, exposed-edge rail segments, depth-sorted clipped surfaces, snapping, full-tile completion, collision checks, import validation, undo and reload are included. The new corner bowl demo contains 132 reachable seats and costs $25,800 from empty. Browser playtest seated all 100 fans; automated full-game runs cover several arrival patterns.
 
 This resolves the continuous single-bank corner transition deferred by v0.32. Automatic stacking of widening corners behind one another remains outside this batch; elevations connect with stair/concourse routes. Restrooms/party reunions, mascot fun, accompanied children, stretch and wave remain queued separately.
+
+## Next pass — player corrections and reproduced crowd stall (November 1)
+
+- Move main gate onto the outer fence. Greatly reduce automatic entrance paving; every remaining visible paved walking surface must participate in the access network. Existing entrance roots differ between ordinary/backstop parks and must be reconciled without stranding saved layouts.
+- Preserve straight stands and backstop stands. Replace the curved/fanned corner seating presentation with straight, angular sections.
+- Increase maximum zoom (currently 3); retain four camera angles for this pass.
+- Make disconnected access explicit: show the broken connection, height mismatch, wall, missing path/stairs, or missing gate route. Offer a validated suggested piece/orientation with a ghost preview, particularly for rear access into backstop stands.
+- PRIORITY: reproduce/fix crowd deadlock using tests/fixtures/rear-concourse-stall.json (player upload). All 212 seats are reachable. With LCG seed 1 (1664525, 1013904223, unsigned 32-bit / 2^32), 100 fans start, 93 seat by 120 seconds, and the same seven remain stalled at 240 and 360 seconds in finishing-arrivals phase. The jam involves the 10 ft rear concourse/stair junction at 11,17 / 12,17. Fans 73 and 98 approach the junction from competing routes; arrivals use traffic-weighted per-party trees. Investigate opposing routes and movement reservations/physical blocking, rather than changing the player's valid construction. The game waits indefinitely for arrivals before allowing departures. The export contains layout, not the original random arrival state; this is an independently reproducible occurrence on the same park.
+
+No gameplay changes made in this notes checkpoint. Use this exact park as a regression case in the crowd fix, along with existing crowd-spacing and arrival/exit tests.
+
+## v0.34: authorized next pass implemented
+
+Completed the five corrections above: opposing keep-right walking lanes and saved-park stall repair; actionable access inspection with validated ghosts; gate on outer fence with nine functional automatic paving cells and free one-time legacy connectors; straight parallel corner seats; 6× cursor-anchored zoom. Narrow seating rows retain single-entry arrival flow. Corner capacity now reflects the straight layout (7 regular / 13 fence); the revised corner demo has 102 seats. Browser review confirmed the player's full 100-fan game and exits. See CHUNK-3.4-TESTING.md. Future crowd needs/party reunions, mascot, accompanied children, stretch and wave remain queued.
