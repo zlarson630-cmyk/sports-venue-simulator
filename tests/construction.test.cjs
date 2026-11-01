@@ -169,14 +169,14 @@ test("click placement, occupied tiles, field protection, undo and reload", () =>
   const g = game();
   g.clickTile(12, 12);
   assert.equal(g.api.state().tiles["12,12"].type, "path");
-  assert.equal(g.api.state().money, 99900);
+  assert.equal(g.api.state().money, 499900);
   g.clickTile(12, 12);
   g.clickTile(20, 20);
   assert.equal(Object.keys(g.api.state().tiles).length, 1);
   const reload = game(JSON.parse(g.storage.get("svs01")));
   assert.equal(reload.api.state().tiles["12,12"].type, "path");
   g.element("undo").click();
-  assert.equal(g.api.state().money, 100000);
+  assert.equal(g.api.state().money, 500000);
   assert.equal(Object.keys(g.api.state().tiles).length, 0);
 });
 test("click placement selects the same world tile after camera rotation", () => {
@@ -186,7 +186,7 @@ test("click placement selects the same world tile after camera rotation", () => 
     g.clickTile(12 + i, 5);
     assert.ok(g.api.state().tiles[`${12 + i},5`]);
   }
-  assert.equal(g.api.state().money, 99600);
+  assert.equal(g.api.state().money, 499600);
 });
 test("wall endpoints follow all four tile boundaries at every camera angle", () => {
   const g=game();
@@ -251,10 +251,10 @@ test("wall tool placement, rotate buttons, refunds and funds checks", () => {
   g.clickTile(12, 12);
   assert.equal(g.api.state().edges["13,12:v"].type, "wall");
   assert.ok(g.api.state().edges["13,12:v"]);
-  assert.equal(g.api.state().money, 99800);
+  assert.equal(g.api.state().money, 499800);
   g.select("erase");
   g.clickTile(12, 12);
-  assert.equal(g.api.state().money, 99940);
+  assert.equal(g.api.state().money, 499940);
   g.element("undo").click();
   assert.ok(g.api.state().edges["13,12:v"]);
   const poor = game({ tiles: {}, money: 100 });
@@ -285,10 +285,10 @@ test("edge walls coexist with paths, reject shared-edge duplicates and survive s
   g.select("path"); g.clickTile(12,12);
   assert.ok(g.api.state().tiles["12,12"]); assert.ok(g.api.state().edges["12,12:h"]);
   g.select("wall"); g.key("r"); g.key("r"); g.clickTile(12,11);
-  assert.equal(g.api.state().money,99700);
+  assert.equal(g.api.state().money,499700);
   const reload=game(JSON.parse(g.storage.get("svs01")));
   assert.ok(reload.api.state().edges["12,12:h"]); assert.ok(reload.api.state().tiles["12,12"]);
-  g.element("undo").click(); assert.equal(g.api.state().money,99800);
+  g.element("undo").click(); assert.equal(g.api.state().money,499800);
   assert.ok(g.api.state().edges["12,12:h"]); assert.equal(Object.keys(g.api.state().tiles).length,0);
 });
 test("old tile walls migrate onto edges without losing the park",()=>{
@@ -425,7 +425,7 @@ test("dugouts measure 30 feet along the fence by 10 feet deep with roofs",()=>{
 
 test("demo fans walk from street through gate to seats and unreachable sections are excluded",()=>{
  const g=game();assert.equal(g.api.reachableSeats().length,0);
- g.api.buildFanDemo();assert.equal(g.api.state().money,98000);
+ g.api.buildFanDemo();assert.equal(g.api.state().money,498000);
  assert.equal(g.api.reachableSeats().length,1);
  g.api.startFanTest();assert.equal(g.api.fanState().fans.length,24);
  g.api.advanceFans(1);assert.ok(g.api.fanState().fans[0].x>6);
@@ -444,13 +444,13 @@ test("fans spread across connected sections and the report separates fans from d
  const tiles={"14,10":{type:"path",rot:0},"14,9":{type:"path",rot:0},"15,9":{type:"path",rot:0},"16,9":{type:"path",rot:0},"17,9":{type:"path",rot:0},"15,8":{type:"bleacher",rot:4},"17,8":{type:"bleacher",rot:4},"11,30":{type:"bleacher",rot:0}};
  const g=game({version:2,fieldRevision:6,money:90000,tiles,edges:{}});
  g.api.startFanTest();const fs=g.api.fanState().fans;
- assert.equal(fs.filter(f=>f.sectionKey==="15,8").length,13);
- assert.equal(fs.filter(f=>f.sectionKey==="17,8").length,12);
- assert.equal(new Set(fs.map(f=>f.sectionKey+":"+f.seat)).size,25);
+ assert.equal(fs.filter(f=>f.sectionKey==="15,8").length,24);
+ assert.equal(fs.filter(f=>f.sectionKey==="17,8").length,24);
+ assert.equal(new Set(fs.map(f=>f.sectionKey+":"+f.seat)).size,48);
  assert.deepEqual(fs.filter(f=>f.sectionKey==="15,8").slice(0,4).map(f=>f.seat).join(","),"0,23,7,16");
  for(let i=0;i<600;i++)g.api.advanceFans(0.1);
  const report=g.element("fanStatus").textContent;
- assert.match(report,/All 25 arriving fans are seated/);assert.match(report,/23 reachable seats remain empty/);
+ assert.match(report,/All 48 arriving fans are seated/);assert.match(report,/0 reachable seats remain empty/);
  assert.match(report,/1 disconnected section \(24 seats\)/);
 });
 
@@ -509,25 +509,25 @@ test("two-minute game charges only at gate crossing and ends automatically",()=>
   assert.equal(g.api.state().money,initial+paid*5);
   assert.ok(fs.every(f=>f.paid===(f.index>=f.gateIndex)));
  }
- assert.equal(paid,24);assert.equal(g.api.state().money,98120);
+ assert.equal(paid,24);assert.equal(g.api.state().money,498120);
  g.api.advanceFans(89);assert.equal(g.api.fanState().fanActive,true);
  assert.match(g.element("fanStatus").textContent,/0:01 remaining/);
- assert.equal(g.api.state().money,98120);
+ assert.equal(g.api.state().money,498120);
  g.api.advanceFans(1);assert.equal(g.api.fanState().fanActive,false);
  assert.equal(g.api.fanState().fans.length,0);
  assert.match(g.element("fanStatus").textContent,/Game complete! 2:00 played · 24 admissions · \$120 gate revenue/);
- g.api.advanceFans(30);assert.equal(g.api.state().money,98120);
- g.element("undo").click();assert.equal(g.api.state().money,100120);
+ g.api.advanceFans(30);assert.equal(g.api.state().money,498120);
+ g.element("undo").click();assert.equal(g.api.state().money,500120);
  const reload=game(JSON.parse(g.storage.get("svs01")));
- assert.equal(reload.api.state().money,100120);
+ assert.equal(reload.api.state().money,500120);
 });
 
 test("another game collects new tickets and large frame deltas stop at two minutes",()=>{
  const g=game();g.api.buildFanDemo();g.api.startFanTest();
  g.api.advanceFans(200);assert.equal(g.api.fanState().fanElapsed,120);
- assert.equal(g.api.fanState().fanActive,false);assert.equal(g.api.state().money,98120);
- g.api.startFanTest();assert.equal(g.api.state().money,98120);
- g.api.advanceFans(120);assert.equal(g.api.state().money,98240);
+ assert.equal(g.api.fanState().fanActive,false);assert.equal(g.api.state().money,498120);
+ g.api.startFanTest();assert.equal(g.api.state().money,498120);
+ g.api.advanceFans(120);assert.equal(g.api.state().money,498240);
  assert.match(g.element("fanStatus").textContent,/24 admissions · \$120 gate revenue/);
 });
 
@@ -559,13 +559,13 @@ test("connected stairs unlock ground and raised rows; fans climb treads then shu
  assert.equal(sections.length,6);assert.equal(sections.reduce((n,s)=>n+s.capacity,0),96);
  const upper=sections.find(s=>s.key==="20,7");assert.equal(upper.capacity,20);
  assert.ok(upper.slots.every(s=>s.route.some(p=>p.feet===0.625)&&s.route.at(-1).feet>5));
- g.api.startFanTest();assert.equal(g.api.fanState().fans.length,25);
+ g.api.startFanTest();assert.equal(g.api.fanState().fans.length,96);
  const upperFan=g.api.fanState().fans.find(f=>f.sectionKey==="20,7");
  assert.ok(upperFan.route.some(p=>p.feet===5));
  for(let i=1;i<upperFan.route.length;i++)assert.ok(Math.abs((upperFan.route[i].feet||0)-(upperFan.route[i-1].feet||0))<=0.625+1e-8);
  g.api.advanceFans(40);
  assert.ok(g.api.fanState().fans.every(f=>f.seated));assert.ok(upperFan.feet>5);
- assert.equal(g.api.state().money,80125);
+ assert.equal(g.api.state().money,80480);
  for(let camera=0;camera<4;camera++){g.commands.length=0;g.api.draw();assert.ok(g.commands.some(c=>c[0]==="fill"));g.key("q");}
 });
 test("paths beside seats cannot replace stairs, and missing upper stairs leave upper seats inaccessible",()=>{
@@ -593,9 +593,9 @@ test("new stand saves validate heights and retain legacy capacity",()=>{
 });
 
 test("stand demo preserves layouts, costs only additions and is undoable",()=>{
- const g=game();g.api.buildStandDemo();assert.equal(g.api.state().money,88900);
+ const g=game();g.api.buildStandDemo();assert.equal(g.api.state().money,488900);
  assert.equal(g.element("seats").textContent,96);assert.equal(g.api.reachableSeats().length,6);
- g.api.buildStandDemo();assert.equal(g.api.state().money,88900);
+ g.api.buildStandDemo();assert.equal(g.api.state().money,488900);
  g.element("undo").click();g.element("undo").click();assert.equal(Object.keys(g.api.state().tiles).length,0);
  const blocked=game(modularPark({"19,8":{type:"restroom",rot:0}})),before=JSON.stringify(blocked.api.state());
  blocked.api.buildStandDemo();assert.equal(JSON.stringify(blocked.api.state()),before);
@@ -619,7 +619,7 @@ test("side-entry end stairs reach 80 seats without any front-row pavement",()=>{
  g.api.startFanTest();const fans=g.api.fanState().fans;
  for(const f of fans)for(let i=1;i<f.route.length;i++)assert.ok(Math.abs((f.route[i].feet||0)-(f.route[i-1].feet||0))<=0.625+1e-8);
  g.api.advanceFans(40);assert.ok(fans.every(f=>f.seated));assert.ok(fans.some(f=>f.feet>5));
- assert.equal(g.api.state().money,90025);
+ assert.equal(g.api.state().money,490300);
 });
 test("end stairs require their marked side entrance; walls, wrong mirror and raised landings cannot grant ground access",()=>{
  for(const mutate of [s=>delete s.tiles["16,8"],s=>s.edges["17,8:v"]={type:"wall"},s=>s.tiles["17,8"].type="endStairLeft",s=>s.tiles["17,8"].baseFeet=5]) {
@@ -644,7 +644,7 @@ test("both end-stair mirrors accept side access at all four facings and retain e
  }
 });
 test("side-entry demo is undoable and never overwrites an existing stand layout",()=>{
- const g=game();g.api.buildSideEntryDemo();assert.equal(g.api.state().money,89900);
+ const g=game();g.api.buildSideEntryDemo();assert.equal(g.api.state().money,489900);
  g.element("undo").click();assert.equal(Object.keys(g.api.state().tiles).length,0);
  g.api.buildStandDemo();const before=JSON.stringify(g.api.state());g.api.buildSideEntryDemo();assert.equal(JSON.stringify(g.api.state()),before);
  assert.match(g.element("fanStatus").textContent,/area is occupied/);
@@ -685,7 +685,7 @@ test("concourse placement snaps to stair tops, saves heights and opens rails onl
 });
 
  test("concourse demo forces the rear route, costs only additions and preserves occupied layouts",()=>{
- const g=game();g.api.buildConcourseDemo();assert.equal(g.api.state().money,88600);assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),48);
+ const g=game();g.api.buildConcourseDemo();assert.equal(g.api.state().money,488600);assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),48);
  for(const section of g.api.reachableSeats())assert.ok(section.slots.every(slot=>slot.route.some(p=>p.x===18.5&&p.y===7.5&&p.feet===5)));
  g.element("undo").click();assert.equal(Object.keys(g.api.state().tiles).length,0);
  g.api.buildStandDemo();const before=JSON.stringify(g.api.state());g.api.buildConcourseDemo();assert.equal(JSON.stringify(g.api.state()),before);
@@ -704,16 +704,16 @@ test("expanded home-plate apron supports accessible stands without changing the 
  const g=game(saved);assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),28);
  assert.equal(JSON.stringify(g.api.fenceCorners),JSON.stringify([[14,14],[18,10],[48,10],[48,27],[31,44],[14,44]]));
  const route=g.api.approachRoute();assert.ok(route.some(p=>p.x===11.5&&p.y===7.5));
- g.api.startFanTest();g.api.advanceFans(40);assert.ok(g.api.fanState().fans.every(f=>f.seated));assert.equal(g.api.state().money,90125);
+ g.api.startFanTest();g.api.advanceFans(40);assert.ok(g.api.fanState().fans.every(f=>f.seated));assert.equal(g.api.state().money,90140);
 });
 
 test("half walkways rotate, cost half price, complete complementary squares and survive undo/reload",()=>{
- const g=game();g.select("halfPath");g.clickTile(10,30);assert.equal(g.api.state().money,99950);
+ const g=game();g.select("halfPath");g.clickTile(10,30);assert.equal(g.api.state().money,499950);
  assert.equal(g.api.state().tiles["10,30"].rot,0);g.key("r");g.key("r");g.clickTile(10,30);
- assert.equal(g.api.state().tiles["10,30"].type,"path");assert.equal(g.api.state().money,99900);
+ assert.equal(g.api.state().tiles["10,30"].type,"path");assert.equal(g.api.state().money,499900);
  g.element("undo").click();assert.equal(g.api.state().tiles["10,30"].type,"halfPath");
  assert.equal(game(JSON.parse(g.storage.get("svs01"))).api.state().tiles["10,30"].type,"halfPath");
- g.select("path");g.clickTile(10,30);assert.equal(g.api.state().money,99900);
+ g.select("path");g.clickTile(10,30);assert.equal(g.api.state().money,499900);
 });
 test("half paths only connect through paved edges and keep every route point within the triangle",()=>{
  const saved=modularPark();saved.tiles["16,9"]={type:"halfPath",rot:0};
@@ -742,4 +742,12 @@ test("fans traverse a half-tile corner without crossing its unpaved half",()=>{
   if(x>=15&&x<=16&&y>=9&&y<=10)assert.ok(g.api.halfContains(saved.tiles["15,9"],x-15,y-9));
  }
  g.api.startFanTest();g.api.advanceFans(40);assert.ok(g.api.fanState().fans.every(f=>f.seated));
+});
+
+// New parks get $500k; saved parks retain their existing financial balance.
+test("new park budget and legacy save balance",()=>{
+ const fresh=game();assert.equal(fresh.api.state().money,500000);
+ const saved=game({version:2,fieldRevision:6,money:73123,tiles:{},edges:{}});
+ assert.equal(saved.api.state().money,73123);
+ fresh.element("reset").click();assert.equal(fresh.api.state().money,500000);
 });
