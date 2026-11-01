@@ -156,3 +156,12 @@ Player authorized priorities 1 and 2 after the ideas-only hold. Implemented the 
 Added a six-cell, 60 ft ramp with 5 ft rise, endpoint height snapping, full-footprint collision/import validation, accessible fan routes, depth-sorted slope rendering, save/reload, undo and removal from any covered cell. Added triangular corner landings with two full walking sides and matching-height deck/stair connections. Improved side-entry guidance and stair tread order for every view. Standalone stairs and fence-aligned backstop seats continue from v0.30.
 
 The triangular landing is an access transition, not continuous angled seating rows. Custom wedge seating remains future work. Restroom visits/rejoining parties, mascot fun boosts, accompanied children, seventh-inning stretch and the wave remain queued separately. Existing park coordinates, balances, capacities and legacy routes are preserved.
+
+
+## v0.33: continuous corner seating and partial concourses
+
+Authorized together by the player. Implemented mirrored regular corner seats joining cardinal and 45° banks, plus dedicated first/third-base fence corners joining the deeper backstop pieces to straight stands. Their row boundary points match adjacent banks at every tier; corner aisle ports carry fans across the transition. No new stair entrance is implied. Matching neighboring banks determine base height; mismatches disconnect and placement rejects conflicting elevations. The dedicated fence corners fit directly on x+y=28 without modifying older pieces.
+
+Added half-width concourses and promoted the triangular corner landing as Triangular concourse. Shape-aware shared ports, exposed-edge rail segments, depth-sorted clipped surfaces, snapping, full-tile completion, collision checks, import validation, undo and reload are included. The new corner bowl demo contains 132 reachable seats and costs $25,800 from empty. Browser playtest seated all 100 fans; automated full-game runs cover several arrival patterns.
+
+This resolves the continuous single-bank corner transition deferred by v0.32. Automatic stacking of widening corners behind one another remains outside this batch; elevations connect with stair/concourse routes. Restrooms/party reunions, mascot fun, accompanied children, stretch and wave remain queued separately.

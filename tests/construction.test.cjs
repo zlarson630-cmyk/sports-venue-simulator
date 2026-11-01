@@ -52,7 +52,7 @@ function game(saved, random=()=>0.5) {
     "concourse",
     "bleacher",
     "stand",
-    "stairStand", "stairs", "ramp", "cornerLanding", "backstopStand", "backstopStair",
+    "stairStand", "halfConcourse", "cornerStandLeft", "cornerStandRight", "backstopCornerFirst", "backstopCornerThird", "stairs", "ramp", "cornerLanding", "backstopStand", "backstopStair",
     "endStairLeft",
     "endStairRight",
     "wall",
@@ -99,7 +99,7 @@ function game(saved, random=()=>0.5) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={drawNeighborhood,buildBackstopDemo,parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot,team}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={cornerPoint,cornerPorts,cornerCols,rowNeighbor,deckShape,deckCenter,deckOpening,deckRailSegments,pointInPolygon,buildCornerDemo,drawPartialDeck,drawNeighborhood,buildBackstopDemo,parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot,team}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -1124,4 +1124,95 @@ test("standalone stair risers remain one step tall at all facings and camera ang
    for(const face of risers){assert.ok(Math.abs(Math.abs(face[0][1]-face[3][1])-0.625*feetScale)<1e-6);assert.ok(Math.abs(Math.abs(face[1][1]-face[2][1])-0.625*feetScale)<1e-6);}
   }g.key("q");
  }
+});
+
+test("corner bowl demo fits the home-plate fence and connects every seating row",()=>{
+ const g=game();g.api.buildCornerDemo();const tiles=g.api.state().tiles;
+ assert.equal(tiles["17,9"]?.type,"backstopCornerFirst",g.element("fanStatus").textContent);
+ assert.equal(tiles["13,13"].type,"backstopCornerThird");
+ const all=g.api.reachableSeats();assert.equal(all.length,6);assert.equal(all.reduce((n,s)=>n+s.capacity,0),132);
+ for(const [k,side] of [["17,9",1],["13,13",-1]]){const [x,y]=k.split(",").map(Number),v=tiles[k];for(const a of [-0.5,0,0.5]){const p=g.api.standPoint(x,y,v,a,-0.5);assert.equal(p.x+p.y,28);}assert.ok(g.api.rowNeighbor(x,y,v,-1));assert.ok(g.api.rowNeighbor(x,y,v,1));}
+ assert.equal(g.api.state().money,474200);
+ const saved=JSON.parse(g.storage.get("svs01"));assert.equal(game(saved).api.reachableSeats().reduce((n,s)=>n+s.capacity,0),132);
+ const before=JSON.stringify(g.api.state());g.api.buildCornerDemo();assert.equal(JSON.stringify(g.api.state()),before);
+ g.element("undo").click();assert.equal(Object.keys(g.api.state().tiles).length,0);assert.equal(g.api.state().money,500000);
+});
+test("regular corner mirrors meet straight and diagonal rows exactly at all cardinal rotations",()=>{
+ const g=game();
+ for(const type of ["cornerStandLeft","cornerStandRight"])for(const rot of [0,2,4,6]){
+  const corner={type,rot,baseFeet:10},ports=g.api.cornerPorts(25,25,corner);
+  assert.equal(g.api.seatCapacity(corner),22);
+  for(let n=0;n<2;n++)for(const b of [-0.5,-0.2625,-0.0125,0.5]){
+   const p=g.api.standPoint(25,25,corner,n?0.5:-0.5,b),port=ports[n],q=g.api.standPoint(port.x,port.y,{type:"stand",rot:port.rot,baseFeet:10},port.side*0.5,b);
+   assert.ok(Math.hypot(p.x-q.x,p.y-q.y)<1e-8);
+  }
+  const tiles=g.api.state().tiles;for(const k of Object.keys(tiles))delete tiles[k];tiles["25,25"]=corner;
+  for(const p of ports)tiles[`${p.x},${p.y}`]={type:"stand",rot:p.rot,baseFeet:10};
+  assert.ok(g.api.rowNeighbor(25,25,corner,-1));assert.ok(g.api.rowNeighbor(25,25,corner,1));
+  tiles[`${ports[1].x},${ports[1].y}`].baseFeet=5;assert.equal(g.api.rowNeighbor(25,25,corner,1),null);
+ }
+});
+test("corner row links carry fans across a transition when the other bank has no stairs",()=>{
+ const g=game();g.api.buildCornerDemo();const tiles=g.api.state().tiles;
+ delete tiles["12,14"]; // Block third-base stair top: its bank must use the joined rows.
+ const all=g.api.reachableSeats(),third=all.find(s=>s.key==="13,14");assert.ok(third);assert.equal(third.capacity,8);
+ assert.ok(third.slots.every(s=>s.route.some(p=>p.node?.startsWith("corner:17,9"))&&s.route.some(p=>p.node?.startsWith("corner:13,13"))));
+ tiles["17,9"].baseFeet=5;assert.equal(g.api.reachableSeats().find(s=>s.key==="13,14"),undefined);
+});
+test("partial concourses connect through shared surface, keep uncovered rails, and complete at retained height",()=>{
+ const g=game(),tiles=g.api.state().tiles;tiles["10,30"]={type:"concourse",rot:0,baseFeet:5};
+ g.select("halfConcourse");g.clickTile(11,30);const half=tiles["11,30"];assert.equal(half.baseFeet,5);
+ const port=g.api.concourseConnection(10,30,tiles["10,30"],1,0);assert.equal(port.kind,"deck");assert.equal(port.point.y,30.25);
+ assert.deepEqual(Array.from(port.opening),[0,0.5]);
+ const rails=g.api.deckRailSegments(10,30,tiles["10,30"],1);assert.equal(rails.length,1);assert.deepEqual(Array.from(rails[0][0]),[1,0.5]);
+ tiles["11,31"]={type:"concourse",rot:0,baseFeet:5};assert.equal(g.api.concourseConnection(11,30,half,0,1),null);
+ tiles["12,30"]={type:"halfConcourse",rot:4,baseFeet:5};assert.equal(g.api.concourseConnection(11,30,half,1,0),null,"opposite strips only touch at a point");
+ g.key("r");g.key("r");g.clickTile(11,30);assert.equal(tiles["11,30"].type,"concourse");assert.equal(tiles["11,30"].baseFeet,5);assert.equal(g.api.state().money,499100);
+ g.element("undo").click();assert.equal(g.api.state().tiles["11,30"].type,"halfConcourse");
+ const t=game();t.select("cornerLanding");t.clickTile(10,30);t.select("concourse");t.clickTile(10,30);assert.equal(t.api.state().money,499100);assert.equal(t.api.state().tiles["10,30"].type,"concourse");
+});
+test("partial deck route waypoints stay on its polygon and import rejects invalid corner geometry",()=>{
+ const g=game();g.api.buildCornerDemo();const tiles=g.api.state().tiles,all=g.api.reachableSeats();
+ let partialNodes=0;
+ for(const s of all)for(const slot of s.slots)for(const p of slot.route)if(p.node?.startsWith("c:")){
+  const k=p.node.split(":")[1],v=tiles[k];if(v?.type!=="halfConcourse"&&v?.type!=="cornerLanding")continue;
+  const [x,y]=k.split(",").map(Number);assert.ok(g.api.pointInPolygon(p.x,p.y,g.api.footprint(x,y,v)));partialNodes++;
+ }
+ assert.ok(partialNodes>0);
+ const saved=JSON.parse(g.storage.get("svs01"));saved.tiles["17,9"].rot=2;assert.throws(()=>g.api.validatePark(saved),/fixed facing/);
+ saved.tiles["17,9"].rot=4;saved.tiles["16,10"]={type:"path",rot:0};assert.throws(()=>g.api.validatePark(saved),/overlaps/);
+ const before=g.api.state().money;g.select("restroom");g.clickTile(16,10);assert.equal(g.api.state().money,before);
+});
+test("100 fans use the corner bowl and partial concourses then return to parking",()=>{
+ for(const seed of [1,33,42]){const g=game(undefined,seededRandom(seed));g.api.buildCornerDemo();const before=g.api.state().money;
+ g.api.startFanTest();const fans=g.api.fanState().fans;assert.equal(fans.length,100);
+ g.api.advanceFans(110);assert.ok(fans.every(f=>f.seated),`${fans.filter(f=>f.seated).length}/100 seated`);
+ g.api.advanceFans(160);assert.equal(g.api.fanState().fanActive,false,`${fans.filter(f=>f.exited).length}/100 exited`);assert.ok(fans.every(f=>f.exited));assert.equal(g.api.state().money,before+500);}
+});
+
+test("partial completion protects adjacent diagonal corners and existing deck-boundary walls reload",()=>{
+ const g=game(),tiles=g.api.state().tiles;
+ tiles["11,30"]={type:"halfConcourse",rot:0,baseFeet:5};tiles["11,31"]={type:"stand",rot:1,baseFeet:0};
+ assert.equal(g.api.footprintError(11,30,tiles["11,30"]),null);
+ g.select("concourse");g.clickTile(11,30);assert.equal(tiles["11,30"].type,"halfConcourse");assert.equal(g.api.state().money,500000);
+ const park={version:2,fieldRevision:6,money:90000,tiles:{"10,30":{type:"concourse",rot:0,baseFeet:5}},edges:{"10,30:h":{type:"wall"}}};
+ assert.equal(game(park).api.state().tiles["10,30"].type,"concourse");
+});
+
+test("regular corner construction snaps to raised banks and supports refund, undo and reload",()=>{
+ for(const type of ["cornerStandLeft","cornerStandRight"])for(const rot of [0,2,4,6]){
+  const g=game(),corner={type,rot,baseFeet:5};
+  for(const p of g.api.cornerPorts(11,30,corner))g.api.state().tiles[`${p.x},${p.y}`]={type:"stand",rot:p.rot,baseFeet:5};
+  g.select(type);for(let n=0;n<rot/2;n++)g.key("r");g.clickTile(11,30);
+  assert.equal(g.api.state().tiles["11,30"]?.baseFeet,5);assert.equal(g.api.state().money,497800);
+  assert.equal(game(JSON.parse(g.storage.get("svs01"))).api.state().tiles["11,30"].type,type);
+  g.key("g");g.clickTile(11,30);assert.equal(g.api.state().tiles["11,30"],undefined);assert.equal(g.api.state().money,499340);
+  g.element("undo").click();assert.equal(g.api.state().tiles["11,30"].baseFeet,5);
+ }
+});
+
+test("stairs snap only to a partial deck edge that meets their landing",()=>{
+ const g=game(),tiles=g.api.state().tiles;g.select("stairs");
+ tiles["11,31"]={type:"halfConcourse",rot:4,baseFeet:10};assert.equal(g.api.standPlacement(11,30,0).baseFeet,0);
+ tiles["11,31"].rot=0;assert.equal(g.api.standPlacement(11,30,0).baseFeet,5);
 });

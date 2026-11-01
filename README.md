@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.32 includes diagonal modular stands, clear stair feedback, visible concourses, 100 fans in seated parties, team identity and overrides, fence finishes, shops, four scoreboard models, and parking/neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
+**Design → Build → Unfold → Review.** Version 0.33 includes diagonal modular stands, clear stair feedback, visible concourses, 100 fans in seated parties, team identity and overrides, fence finishes, shops, four scoreboard models, and parking/neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
 
 ## Play and develop
 
@@ -97,3 +97,12 @@ The entrance sidewalk now reaches the relocated inner curb; parking crossing mar
 Ramp ($3,600): six cells / 60 ft long, 10 ft wide, +5 ft rise (1:12). R rotates 90°. Join its low end to a path or matching-height concourse and its high end to a concourse. Place the ramp first, then its landing to snap the height. Remove can select any occupied ramp cell. Corner landing ($700) is triangular, rotates 90°, and opens its two full sides at the adjoining deck height. Use stairs and landings to connect separate seating banks; this release does not create continuous wedge seating rows. End-stair entry labels and help distinguish the 5 ft side landing from the walkway that must lead back to the gate.
 
 See docs/CHUNK-3.2-TESTING.md for the player checklist.
+
+## v0.33 continuous corners and partial concourses
+
+- **Corner seating L/R ($2,200):** mirrored 45° transitions between a cardinal stand and a diagonal stand. R rotates 90°. Four rows (22 seats) meet both banks at the same base height. Access comes through stairs in either bank; corner pieces add no stairs.
+- **Fence corner 1B/3B ($3,000):** deeper, fixed-facing transitions for the home-plate front bank. First-base corner at 17,9 joins straight seating/stairs at 18,9 to Backstop seating at 15,10. Third-base corner at 13,13 joins straight seating/stairs at 13,14 to Backstop seating at 14,11. Their front edges lie on the actual angled fence; each holds 38 seats in four widening rows.
+- **Half concourse ($450):** 5 × 10 ft, level, R rotates 90°. **Triangular concourse ($700)** extends the existing corner landing. Both snap to matching stair/ramp/deck heights. Only shared walking surfaces connect; unconnected portions retain rails. Add the opposite half/triangle or select full Concourse to complete the tile for the remaining $450/$200, preserving its height and colors.
+- **Build corner bowl demo ($25,800):** a connected 132-seat front bowl with both fence corners, stair entrances, half-width rear concourses and a triangular turn. Open gates for up to 100 fans. Use an empty area; the demo preserves occupied parks and is undoable.
+
+Corners connect rows laterally at matching heights. They do not provide an uphill route or automatically stack behind one another. Use matching stairs and concourses between elevations. Older parks, balances and the save format remain unchanged. See docs/CHUNK-3.3-TESTING.md and the visual review in docs/review-v0.33.jpg.
