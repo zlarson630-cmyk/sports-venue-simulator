@@ -15,6 +15,9 @@
       stairs:1200,
       ramp:3600,
       cornerLanding:700,
+      halfConcourse:450,
+      cornerStandLeft:2200, cornerStandRight:2200,
+      backstopCornerFirst:3000, backstopCornerThird:3000,
       backstopStand:1800,
       backstopStair:1600,
       endStairLeft: 1200,
@@ -204,40 +207,84 @@
   for(let x=5;x<=14;x++)for(let y=1;y<=10;y++)if(Math.abs(x-y-4)<=2)entrancePaving.push([x,y]);
   const isEndStair = item => item?.type === "endStairLeft" || item?.type === "endStairRight";
   const endSide = item => item.type === "endStairLeft" ? -1 : 1;
-  const isSeatSection=item=>item?.type==="stand"||item?.type==="backstopStand";
+  const isFenceCorner=item=>item?.type==="backstopCornerFirst"||item?.type==="backstopCornerThird";
+  const isCorner=item=>isFenceCorner(item)||item?.type==="cornerStandLeft"||item?.type==="cornerStandRight";
+  const isSeatSection=item=>isCorner(item)||item?.type==="stand"||item?.type==="backstopStand";
   const isBackstop=item=>item?.type==="backstopStand"||item?.type==="backstopStair";
   const isStand = item => isSeatSection(item) || item?.type === "stairs" || item?.type === "backstopStair" || item?.type === "stairStand" || isEndStair(item);
-  const isDeck=item=>item?.type==="concourse"||item?.type==="cornerLanding";
+  const isDeck=item=>item?.type==="concourse"||item?.type==="cornerLanding"||item?.type==="halfConcourse";
+  const completableDeck=(item,type,rotation)=>isDeck(item)&&item.type!=="concourse"&&(type==="concourse"||(type===item.type&&(rotation+4)%8===item.rot));
   const isRamp=item=>item?.type==="ramp";
   const isPlatform = item => isStand(item)||isDeck(item)||isRamp(item);
-  const deckOpens=(item,dx,dy)=>item?.type!=="cornerLanding"||pathOpens({type:"halfPath",rot:item.rot},dx,dy);
+  const deckShape=item=>item?.type==="cornerLanding"?halfCorners(item.rot):item?.type==="halfConcourse"?[
+    [[0,0],[1,0],[1,0.5],[0,0.5]],[[0.5,0],[1,0],[1,1],[0.5,1]],[[0,0.5],[1,0.5],[1,1],[0,1]],[[0,0],[0.5,0],[0.5,1],[0,1]]
+  ][item.rot/2]:[[0,0],[1,0],[1,1],[0,1]];
+  function deckEdge(item,dx,dy) {
+    const ps=deckShape(item).filter(([x,y])=>Math.abs(dx?x-(dx>0?1:0):y-(dy>0?1:0))<1e-8);
+    if(ps.length<2)return null;const vs=ps.map(p=>p[dx?1:0]);return [Math.min(...vs),Math.max(...vs)];
+  }
+  const deckOpens=(item,dx,dy)=>!isDeck(item)|| (dx&&dy?!!deckEdge(item,dx,0)&&!!deckEdge(item,0,dy):!!deckEdge(item,dx,dy));
+  const deckCenter=(x,y,item)=>{const ps=deckShape(item);return {x:x+ps.reduce((n,p)=>n+p[0],0)/ps.length,y:y+ps.reduce((n,p)=>n+p[1],0)/ps.length,feet:item.baseFeet};};
+  function deckOpening(x,y,item,next,dx,dy) {
+    if(Math.abs(dx)+Math.abs(dy)!==1)return null;
+    const a=deckEdge(item,dx,dy),b=deckEdge(isDeck(next)?next:next?.type==="halfPath"?{type:"cornerLanding",rot:next.rot}:{type:"concourse"},-dx,-dy);
+    if(!a||!b)return null;const lo=Math.max(a[0],b[0]),hi=Math.min(a[1],b[1]);if(hi-lo<0.16)return null;
+    return {opening:[lo,hi],point:{x:x+(dx?(dx>0?1:0):(lo+hi)/2),y:y+(dy?(dy>0?1:0):(lo+hi)/2),feet:item.baseFeet}};
+  }
   const rampPoint=(x,y,item,t)=>{const [dx,dy]=directions[item.rot];return {x:x+0.5+dx*(t-0.5),y:y+0.5+dy*(t-0.5),feet:item.baseFeet+t*5/6};};
   const hasStairs = item => item?.type === "stairs" || item?.type === "backstopStair" || item?.type === "stairStand" || isEndStair(item);
   const rowOpens = (item,side) => !isEndStair(item) || side === -endSide(item);
   const stairCenter = item => isEndStair(item) ? -endSide(item)*0.25 : 0;
-  const seatCapacity = item => item?.type === "bleacher" ? 24 : isSeatSection(item) ? 20 : (item?.type === "stairStand"||item?.type==="backstopStair") ? 8 : 0;
+  const seatCapacity = item => isCorner(item)?[0,1,2,3].reduce((n,r)=>n+cornerCols(item,r),0):item?.type === "bleacher" ? 24 : isSeatSection(item) ? 20 : (item?.type === "stairStand"||item?.type==="backstopStair") ? 8 : 0;
   const FT = TW / 20, STAND_RISE = 5;
   function standAxes(rotation) {
     const [ax,ay]=directions[rotation];
     return {ax,ay,bx:-ay,by:ax}; // a = across the row; b = uphill, away from the field.
   }
+  const cornerSide=item=>item.type==="cornerStandLeft"||item.type==="backstopCornerThird"?-1:1;
+  function cornerPoint(x,y,item,a,b,feet=item.baseFeet||0) {
+    const side=cornerSide(item),deep=isFenceCorner(item),t=a+0.5;
+    const u=-side*0.5+(side*(deep?1.25+1.5*b:0.5+b)+side*0.5)*t;
+    const v=b+((deep?-0.75+1.5*b:-0.5+b)-b)*t,{ax,ay,bx,by}=standAxes(item.rot);
+    return {x:x+0.5+ax*u+bx*v,y:y+0.5+ay*u+by*v,feet};
+  }
+  function cornerCols(item,row) {const a=cornerPoint(0,0,item,-0.5,-0.3125+row/4),b=cornerPoint(0,0,item,0.5,-0.3125+row/4);return Math.floor(Math.hypot(a.x-b.x,a.y-b.y)*5);}
+  function cornerPorts(x,y,item) {
+    const side=cornerSide(item),{ax,ay,bx,by}=standAxes(item.rot),out=(item.rot+side+8)%8,span=isFenceCorner(item)?2:1;
+    return [{x:x-ax*side,y:y-ay*side,rot:item.rot,side,backstop:false},{x:x+ax*side*span-bx,y:y+ay*side*span-by,rot:out,side:-side,backstop:isFenceCorner(item)}];
+  }
+  function rowNeighbor(x,y,item,side) {
+    if(isCorner(item)) {
+      const port=cornerPorts(x,y,item)[side===-1?0:1],next=tiles[key(port.x,port.y)];
+      return isStand(next)&&!isCorner(next)&&next.rot===port.rot&&isBackstop(next)===port.backstop&&next.baseFeet===item.baseFeet&&rowOpens(next,port.side)&&!wallBlocks(key(x,y),key(port.x,port.y))?key(port.x,port.y):null;
+    }
+    if(!rowOpens(item,side))return null;
+    const {ax,ay}=standAxes(item.rot),nx=x+ax*side,ny=y+ay*side,next=tiles[key(nx,ny)];
+    if(isStand(next)&&!isCorner(next)&&next.rot===item.rot&&isBackstop(next)===isBackstop(item)&&next.baseFeet===item.baseFeet&&rowOpens(next,-side)&&!wallBlocks(key(x,y),key(nx,ny)))return key(nx,ny);
+    for(const [k,c] of Object.entries(tiles))if(isCorner(c)&&c.baseFeet===item.baseFeet){const [cx,cy]=k.split(",").map(Number);if(Math.abs(cx-x)>3||Math.abs(cy-y)>3)continue;const ports=cornerPorts(cx,cy,c);for(let n=0;n<2;n++)if(ports[n].x===x&&ports[n].y===y&&ports[n].side===side&&rowNeighbor(cx,cy,c,n===0?-1:1)===key(x,y))return k;}
+    return null;
+  }
   function standPoint(x,y,item,a,b,feet=item.baseFeet||0) {
+    if(isCorner(item))return cornerPoint(x,y,item,a,b,feet);
     const {ax,ay,bx,by}=standAxes(item.rot);
     const depth=isBackstop(item)?b*1.5-0.25:b;
     return {x:x+0.5+ax*a+bx*depth,y:y+0.5+ay*a+by*depth,feet};
   }
   function matchingStand(x,y,item,da,db) {
+    if(db===0&&da)return !!rowNeighbor(x,y,item,da);
+    if(isCorner(item))return false;
     const {ax,ay,bx,by}=standAxes(item.rot),nx=x+ax*da+bx*db,ny=y+ay*da+by*db;
     const next=tiles[key(nx,ny)];
-    return !(isBackstop(item)&&db!==0)&&isStand(next)&&next.rot===item.rot&&isBackstop(next)===isBackstop(item)&&next.baseFeet===(item.baseFeet||0)+db*STAND_RISE&&!wallBlocks(key(x,y),key(nx,ny));
+    return !(isBackstop(item)&&db!==0)&&isStand(next)&&!isCorner(next)&&next.rot===item.rot&&isBackstop(next)===isBackstop(item)&&next.baseFeet===(item.baseFeet||0)+db*STAND_RISE&&!wallBlocks(key(x,y),key(nx,ny));
   }
   const neighborOffsets=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
   function footprint(x,y,item) {
     if(isRamp(item)){const [dx,dy]=directions[item.rot];return [[0,-0.5],[6,-0.5],[6,0.5],[0,0.5]].map(([t,a])=>{const p=rampPoint(x,y,item,t);return [p.x-dy*a,p.y+dx*a];});}
-    if(item?.type==="cornerLanding")return halfCorners(item.rot).map(([a,b])=>[x+a,y+b]);
+    if(isDeck(item))return deckShape(item).map(([a,b])=>[x+a,y+b]);
     if(isStand(item))return [[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]].map(([a,b])=>{const p=standPoint(x,y,item,a,b);return [p.x,p.y];});
     return (item?.type==="halfPath"?halfCorners(item.rot):[[0,0],[1,0],[1,1],[0,1]]).map(([a,b])=>[x+a,y+b]);
   }
+  function pointInPolygon(x,y,poly) {let sign=0;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],cross=(b[0]-a[0])*(y-a[1])-(b[1]-a[1])*(x-a[0]);if(Math.abs(cross)<1e-8)continue;const side=Math.sign(cross);if(sign&&side!==sign)return false;sign=side;}return true;}
   function overlaps(a,b) {
     for(const poly of [a,b])for(let i=0;i<poly.length;i++) {
       const q=poly[i],r=poly[(i+1)%poly.length],axis=[q[1]-r[1],r[0]-q[0]];
@@ -249,7 +296,7 @@
   function footprintError(x,y,item,layout=tiles,walls=edges) {
     const shape=footprint(x,y,item);
     if([...neighborhood,{...parkingLot,w:parkingLot.width,d:parkingLot.depth}].some(b=>overlaps(shape,[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.d],[b.x,b.y+b.d]])))return "Neighborhood scenery is outside the construction area.";
-    if(isBackstop(item)&&overlaps(shape,fenceCorners))return "Seating must remain outside the backstop fence.";
+    if((isBackstop(item)||isFenceCorner(item))&&overlaps(shape,fenceCorners))return "Seating must remain outside the backstop fence.";
     if(shape.some(([a,b])=>a<0||a>W||b<0||b>H))return "Section extends outside the map.";
     // Diagonal sections and six-cell ramps extend outside their anchor cell. Check both directions
     // so later paths/buildings cannot be placed inside their triangular corners.
@@ -257,12 +304,12 @@
     const radius=isRamp(item)?7:2;
     for(let a=x-radius;a<=x+radius;a++)for(let b=y-radius;b<=y+radius;b++) {
       const k=key(a,b),v=layout[k];
-      if((dugoutTiles.has(k)||(!isBackstop(item)&&field.has(k)))&&overlaps(shape,footprint(a,b,{type:"path"})))return "Section overlaps the field or dugout.";
-      if((a!==x||b!==y)&&v&&(isStand(item)&&item.rot%2||isStand(v)&&v.rot%2||isRamp(item)||isRamp(v)||item.type==="cornerLanding"||v.type==="cornerLanding")&&overlaps(shape,footprint(a,b,v)))return "Section footprint overlaps construction. Leave its footprint clear.";
+      if((dugoutTiles.has(k)||(!isBackstop(item)&&!isFenceCorner(item)&&field.has(k)))&&overlaps(shape,footprint(a,b,{type:"path"})))return "Section overlaps the field or dugout.";
+      if((a!==x||b!==y)&&v&&(isStand(item)&&item.rot%2||isStand(v)&&v.rot%2||isRamp(item)||isRamp(v)||isCorner(item)||isCorner(v)||isDeck(item)||isDeck(v))&&overlaps(shape,footprint(a,b,v)))return "Section footprint overlaps construction. Leave its footprint clear.";
       for(const axis of ["h","v","a","d"])if(walls[k+":"+axis]) {
         const {a:start,b:end}=edgePanel(k+":"+axis),dx=end[0]-start[0],dy=end[1]-start[1],epsilon=1e-5;
         const strip=[[start[0]-dy*epsilon,start[1]+dx*epsilon],[end[0]-dy*epsilon,end[1]+dx*epsilon],[end[0]+dy*epsilon,end[1]-dx*epsilon],[start[0]+dy*epsilon,start[1]-dx*epsilon]];
-        if(((isStand(item)&&item.rot%2)||isRamp(item))&&overlaps(shape,strip))return "A wall crosses the section footprint.";
+        if(((isStand(item)&&item.rot%2)||isRamp(item)||isCorner(item))&&overlaps(shape,strip))return "A wall crosses the section footprint.";
       }
     }
     return null;
@@ -271,18 +318,24 @@
     if(isRamp({type:tool})) {
       const item={type:tool,rot:rotation,baseFeet:0},error=footprintError(x,y,item);if(error)return {error};
       const [dx,dy]=directions[rotation],a=tiles[key(x-dx,y-dy)],b=tiles[key(x+dx*6,y+dy*6)];
-      const heights=[];if(isDeck(a))heights.push(a.baseFeet);if(isPath(a))heights.push(0);if(isDeck(b))heights.push(b.baseFeet-5);
+      const heights=[];if(isDeck(a)&&deckOpens(a,dx,dy))heights.push(a.baseFeet);if(isPath(a))heights.push(0);if(isDeck(b)&&deckOpens(b,-dx,-dy))heights.push(b.baseFeet-5);
       if(heights.some(h=>h!==heights[0]))return {error:"Ramp endpoints need a five-foot height difference."};
       const baseFeet=heights[0]??0;return baseFeet<0||baseFeet>295?{error:"Ramp base must be 0–295 ft."}:{baseFeet};
     }
-    if(isDeck({type:tool}))return concoursePlacement(x,y);
+    if(isDeck({type:tool}))return concoursePlacement(x,y,rotation,tool);
+    if(isCorner({type:tool})) {
+      const item={type:tool,rot:rotation,baseFeet:0},error=footprintError(x,y,item);if(error)return {error};const heights=[];
+      for(const port of cornerPorts(x,y,item)){const n=tiles[key(port.x,port.y)];if(isStand(n)&&!isCorner(n)&&n.rot===port.rot&&isBackstop(n)===port.backstop)heights.push(n.baseFeet);}
+      if(heights.some(h=>h!==heights[0]))return {error:"Corner rows need both neighboring banks at the same base height."};return {baseFeet:heights[0]??0};
+    }
     const error=footprintError(x,y,{type:tool,rot:rotation});if(error)return {error};
     const {ax,ay,bx,by}=standAxes(rotation),heights=[];
     for(const [da,db] of [[-1,0],[1,0],[0,-1],[0,1]]) {
       const next=tiles[key(x+ax*da+bx*db,y+ay*da+by*db)];
-      if(isStand(next)&&next.rot===rotation&&isBackstop(next)===isBackstop({type:tool})&&(!isBackstop(next)||db===0))heights.push(next.baseFeet-db*STAND_RISE);
-      if(isDeck(next)&&db!==0)heights.push(next.baseFeet-(db===1?5:0));
+      if(isStand(next)&&!isCorner(next)&&next.rot===rotation&&isBackstop(next)===isBackstop({type:tool})&&(!isBackstop(next)||db===0))heights.push(next.baseFeet-db*STAND_RISE);
+      if(isDeck(next)&&db!==0&&deckOpens(next,-bx*db,-by*db))heights.push(next.baseFeet-(db===1?5:0));
     }
+    for(const [ck,c] of Object.entries(tiles))if(isCorner(c)){const [cx,cy]=ck.split(",").map(Number);for(const port of cornerPorts(cx,cy,c))if(port.x===x&&port.y===y&&port.rot===rotation&&isBackstop({type:tool})===port.backstop)heights.push(c.baseFeet);}
     if(heights.some(h=>h!==heights[0]))return {error:"These neighbors have conflicting heights. Leave a gap or undo the mismatched section."};
     const baseFeet=heights[0]??0;
     if(baseFeet<0||baseFeet>300)return {error:"Start at ground level and build uphill behind the front row."};
@@ -293,8 +346,8 @@
     if(!deckOpens(item,dx,dy)||wallBlocks(key(x,y),key(x+dx,y+dy)))return null;
     for(const [rk,rv] of Object.entries(tiles))if(isRamp(rv)){const [a,b]=rk.split(",").map(Number),[rx,ry]=directions[rv.rot];if(x===a+rx*6&&y===b+ry*6&&dx===-rx&&dy===-ry&&item.baseFeet===rv.baseFeet+5)return {kind:"rampTop",key:rk};}
     if(!next||!deckOpens(next,-dx,-dy))return null;
-    if(Math.abs(dx)+Math.abs(dy)===1&&isDeck(next)&&next.baseFeet===item.baseFeet)return {kind:"deck"};
-    if(Math.abs(dx)+Math.abs(dy)===1&&isPath(next)&&pathOpens(next,-dx,-dy)&&item.baseFeet===0)return {kind:"ground"};
+    if(Math.abs(dx)+Math.abs(dy)===1&&isDeck(next)&&next.baseFeet===item.baseFeet){const opening=deckOpening(x,y,item,next,dx,dy);return opening?{kind:"deck",...opening}:null;}
+    if(Math.abs(dx)+Math.abs(dy)===1&&isPath(next)&&item.baseFeet===0){const opening=deckOpening(x,y,item,next,dx,dy);return opening?{kind:"ground",...opening}:null;}
     if(isRamp(next)){const [rx,ry]=directions[next.rot];if(dx===rx&&dy===ry&&item.baseFeet===next.baseFeet)return {kind:"rampBottom",key:key(x+dx,y+dy)};}
     if(hasStairs(next)) {
       const {ax,ay,bx,by}=standAxes(next.rot),scale=ax*ax+ay*ay,a=(-dx*ax-dy*ay)/scale,b=(-dx*bx-dy*by)/scale;
@@ -304,17 +357,13 @@
     }
     return null;
   }
-  function concoursePlacement(x,y) {
-    const heights=[];
-    for(const [rk,rv] of Object.entries(tiles))if(isRamp(rv)){const [a,b]=rk.split(",").map(Number),[dx,dy]=directions[rv.rot];if(x===a-dx&&y===b-dy)heights.push(rv.baseFeet);if(x===a+dx*6&&y===b+dy*6)heights.push(rv.baseFeet+5);}
+  function concoursePlacement(x,y,rotation=rot,type=tool) {
+    const heights=[],consider=(h,dx,dy)=>{if(concourseConnection(x,y,{type,rot:rotation,baseFeet:h},dx,dy))heights.push(h);};
+    for(const [rk,rv] of Object.entries(tiles))if(isRamp(rv)){const [a,b]=rk.split(",").map(Number),[dx,dy]=directions[rv.rot];if(x===a-dx&&y===b-dy)consider(rv.baseFeet,dx,dy);if(x===a+dx*6&&y===b+dy*6)consider(rv.baseFeet+5,-dx,-dy);}
     for(const [dx,dy] of neighborOffsets) {
       const next=tiles[key(x+dx,y+dy)];
-      if(Math.abs(dx)+Math.abs(dy)===1&&isDeck(next))heights.push(next.baseFeet);
-      if(hasStairs(next)) {
-        const {ax,ay,bx,by}=standAxes(next.rot),scale=ax*ax+ay*ay,a=(-dx*ax-dy*ay)/scale,b=(-dx*bx-dy*by)/scale;
-        if(a===0&&b===1)heights.push(next.baseFeet+5);
-        if((a===0&&b===-1)||(isEndStair(next)&&b===0&&a===endSide(next)))heights.push(next.baseFeet);
-      }
+      if(Math.abs(dx)+Math.abs(dy)===1&&isDeck(next))consider(next.baseFeet,dx,dy);
+      if(hasStairs(next)){consider(next.baseFeet,dx,dy);consider(next.baseFeet+5,dx,dy);}
     }
     if(heights.some(h=>h!==heights[0]))return {error:"Concourse neighbors have different heights. Connect them with stairs."};
     if((heights[0]??0)>300)return {error:"Concourse height exceeds the supported range."};
@@ -334,13 +383,31 @@
     } else if(h>0) {
       for(const [i,dx,dy] of [[0,0,-1],[1,1,0],[2,0,1],[3,-1,0]]) {
         if(railIndex!==null&&i!==railIndex)continue;
-        if(concourseConnection(x,y,item,dx,dy))continue;
-        const a=corners[i],b=corners[(i+1)%4];
-        line(p(...a),p(...a,h+3*FT),"#607c88",1);
-        line(p(...b),p(...b,h+3*FT),"#607c88",1);
-        line(p(...a,h+3*FT),p(...b,h+3*FT),"#a9c3c5",1.2);
+        for(const [a,b] of deckRailSegments(x,y,item,i)) {
+          line(p(...a),p(...a,h+3*FT),"#607c88",1);
+          line(p(...b),p(...b,h+3*FT),"#607c88",1);
+          line(p(...a,h+3*FT),p(...b,h+3*FT),"#a9c3c5",1.2);
+        }
       }
     }
+  }
+  function clipDeck(poly,axis,limit,greater) {
+    const out=[],inside=p=>greater?p[axis]>=limit-1e-8:p[axis]<=limit+1e-8;
+    for(let n=0;n<poly.length;n++){const a=poly[n],b=poly[(n+1)%poly.length],ai=inside(a),bi=inside(b);if(ai)out.push(a);if(ai!==bi){const t=(limit-a[axis])/(b[axis]-a[axis]);out.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]);}}
+    return out;
+  }
+  function deckRailSegments(x,y,item,i) {
+    const cs=deckShape(item),a=cs[i],b=cs[(i+1)%cs.length],dx=a[0]===b[0]?(a[0]===0?-1:a[0]===1?1:0):0,dy=a[1]===b[1]?(a[1]===0?-1:a[1]===1?1:0):0;
+    const connection=(dx||dy)&&concourseConnection(x,y,item,dx,dy);if(!connection)return [[a,b]];
+    if(!connection.opening)return [];
+    const axis=dx?1:0,lo=Math.min(a[axis],b[axis]),hi=Math.max(a[axis],b[axis]),[start,end]=connection.opening,at=t=>dx?[a[0],t]:[t,a[1]],segments=[];
+    if(start>lo+1e-8)segments.push([at(lo),at(Math.min(start,hi))]);if(end<hi-1e-8)segments.push([at(Math.max(end,lo)),at(hi)]);return segments;
+  }
+  function drawPartialDeck(x,y,item,patch=null,rail=null) {
+    const at=(p,h=item.baseFeet)=>{const q=project(x+p[0],y+p[1]);q.y-=h*FT*zoom;return q;};
+    if(rail!==null){if(item.baseFeet<=0)return;for(const [a,b] of deckRailSegments(x,y,item,rail)){line(at(a),at(a,item.baseFeet+3),"#607c88",1);line(at(b),at(b,item.baseFeet+3),"#607c88",1);line(at(a,item.baseFeet+3),at(b,item.baseFeet+3),"#a9c3c5",1.2);}return;}
+    let cs=deckShape(item);if(patch)for(const [axis,value,greater] of [[0,patch[0],true],[0,patch[0]+0.25,false],[1,patch[1],true],[1,patch[1]+0.25,false]])cs=clipDeck(cs,axis,value,greater);
+    if(cs.length<3)return;polygon(cs.map(p=>at(p)),PAVEMENT,null);
   }
   // Each row is a separate painter entry, so fans and neighboring sections share depth order.
   function drawRampPatch(x,y,item,n) {
@@ -395,7 +462,7 @@
       return;
     }
     const left=matchingStand(x,y,item,-1,0),right=matchingStand(x,y,item,1,0);
-    const front=row>0||matchingStand(x,y,item,0,-1),back=row<3||matchingStand(x,y,item,0,1)|| (hasStairs(item)&&(()=>{const {bx,by}=standAxes(item.rot),n=tiles[key(x+bx,y+by)];return isDeck(n)&&n.baseFeet===base+5&&!wallBlocks(key(x,y),key(x+bx,y+by));})());
+    const front=row>0||matchingStand(x,y,item,0,-1),back=row<3||matchingStand(x,y,item,0,1)|| (hasStairs(item)&&(()=>{const {bx,by}=standAxes(item.rot),n=tiles[key(x+bx,y+by)];return isDeck(n)&&deckOpens(n,-bx,-by)&&n.baseFeet===base+5&&!wallBlocks(key(x,y),key(x+bx,y+by));})());
     const hidden=[...(front?[0]:[]),...(right?[1]:[]),...(back?[2]:[]),...(left?[3]:[])];
     // Full-width concrete tiers meet exactly at tile edges, without duplicate end rails.
     if(isSeatSection(item))prism(-0.5,b,1,0.25,0,top,"#8e9898","#c9ceca",hidden);
@@ -408,11 +475,12 @@
         line(screen(-0.3,sb,h+0.01),screen(0.3,sb,h+0.01),"#edc75b",0.8);
       }
     }
-    const seats=isSeatSection(item)?[-0.4,-0.2,0,0.2,0.4]:[-0.4,0.4];
+    const seats=isCorner(item)?Array.from({length:cornerCols(item,row)},(_,n)=>-0.5+(n+0.5)/cornerCols(item,row)):isSeatSection(item)?[-0.4,-0.2,0,0.2,0.4]:[-0.4,0.4];
+    const seatWidth=isCorner(item)?0.75/cornerCols(item,row):0.15;
     for(const a of seats) {
       // Five 2-foot seat bays, or one bay on either side of the 6-foot stair aisle.
-      prism(a-0.075,b+0.10,0.15,0.11,top,top+1.4,palette.primary,palette.secondary);
-      prism(a-0.075,b+0.205,0.15,0.025,top+1.4,top+2.8,palette.primary,palette.primary);
+      prism(a-seatWidth/2,b+0.10,seatWidth,0.11,top,top+1.4,palette.primary,palette.secondary);
+      prism(a-seatWidth/2,b+0.205,seatWidth,0.025,top+1.4,top+2.8,palette.primary,palette.primary);
     }
     const rail=(a1,b1,a2,b2,h)=>{
       line(screen(a1,b1,h),screen(a1,b1,h+3),"#627986",0.8);
@@ -507,7 +575,7 @@
   function diagonalWallCollision(edge) {
     const {a,b}=edgePanel(edge),wallOnly={[edge]:{type:"wall"}};
     return Object.entries(tiles).some(([k,v])=>{
-      if(!isRamp(v)&&(!isStand(v)||v.rot%2===0))return false;
+      if(!isRamp(v)&&!isCorner(v)&&!isDeck(v)&&(!isStand(v)||v.rot%2===0))return false;
       const [x,y]=k.split(",").map(Number);
       if(Math.abs(x-(a[0]+b[0])/2)>7||Math.abs(y-(a[1]+b[1])/2)>7)return false;
       return !!footprintError(x,y,v,{},wallOnly);
@@ -523,8 +591,8 @@
       : blockedTile(key(x,y)) && blockedTile(key(x-1,y)));
   }
   function rotationStep() {
-    if(isBackstop({type:tool})){toast("Backstop pieces face home plate; place matching pieces beside or behind them.");return;}
-    rot = tool === "wall" ? wallSlots[(wallSlots.indexOf(rot) + 1) % wallSlots.length] : (rot + ((isDeck({type:tool})||isRamp({type:tool})||tool==="halfPath")?2:1)) % 8;
+    if(isBackstop({type:tool})||isFenceCorner({type:tool})){toast("Backstop pieces face home plate; place matching pieces beside or behind them.");return;}
+    rot = tool === "wall" ? wallSlots[(wallSlots.indexOf(rot) + 1) % wallSlots.length] : (rot + ((isDeck({type:tool})||isRamp({type:tool})||isCorner({type:tool})||tool==="halfPath")?2:1)) % 8;
     update(); draw();
   }
   function drawObject(x, y, item) {
@@ -572,12 +640,7 @@
         0.8,
       );
     };
-    if(item.type==="cornerLanding") {
-      const cs=footprint(x,y,item),up=([a,b],h=item.baseFeet)=>{const p=project(a,b);p.y-=h*FT*zoom;return p;};
-      polygon(cs.map(c=>up(c)),PAVEMENT,"#8c9d99",0.8);
-      for(let i=0;i<3;i++){const a=cs[i],b=cs[(i+1)%3],dx=Math.sign((a[0]+b[0])/2-x-0.5),dy=Math.sign((a[1]+b[1])/2-y-0.5);if(concourseConnection(x,y,item,dx,dy))continue;if(item.baseFeet>0){line(up(a),up(a,item.baseFeet+3),"#627986",1);line(up(b),up(b,item.baseFeet+3),"#627986",1);line(up(a,item.baseFeet+3),up(b,item.baseFeet+3),"#a4b5b9",1);}}
-      return;
-    }
+    if(isDeck(item)&&item.type!=="concourse"){drawPartialDeck(x,y,item);for(let i=0;i<deckShape(item).length;i++)drawPartialDeck(x,y,item,null,i);return;}
     if(isRamp(item)){for(let n=0;n<24;n++)drawRampPatch(x,y,item,n);return;}
     if(isDeck(item)){drawConcourse(x,y,item);drawConcourse(x,y,item,true);return;}
     if(isStand(item)) {
@@ -961,6 +1024,7 @@
     // Reserve the whole occupied cell, including a small pedestrian clearance.
     for(const [k,v] of Object.entries(tiles)) {
       if(![...amenityTypes,...scoreboardTypes,"bleacher"].includes(v.type)&&!isPlatform(v))continue;
+      if(isCorner(v)||isDeck(v)&&v.type!=="concourse"){const [a,b]=k.split(",").map(Number);if(pointInPolygon(x,y,footprint(a,b,v)))return true;continue;}
       if(isRamp(v)){const [a,b]=k.split(",").map(Number),[dx,dy]=directions[v.rot],along=(x-a-0.5)*dx+(y-b-0.5)*dy+0.5,across=-(x-a-0.5)*dy+(y-b-0.5)*dx;if(along>0&&along<6&&Math.abs(across)<0.5)return true;continue;}
       const [bx,by]=k.split(",").map(Number);
       if(isStand(v)&&v.rot%2) {
@@ -970,7 +1034,7 @@
     }
     return false;
   }
-  const usesBackstop=()=>Object.values(tiles).some(isBackstop);
+  const usesBackstop=()=>Object.values(tiles).some(v=>isBackstop(v)||isFenceCorner(v));
   function approachRoute() {
     const gate={x:11.5,y:7.5},start={x:6.5,y:2.5},entry=usesBackstop()?gate:{x:14.5,y:10.5};
     const search=(from,to,beforeGate)=>{
@@ -1038,7 +1102,7 @@
       const [x,y]=k.split(",").map(Number);
       if(!insideStadium(x,y))continue;
       if(isPath(item))add(ground(k),pathPoint(x,y,item));
-      if(isDeck(item))add("c:"+k,{...pathPoint(x,y,item.type==="cornerLanding"?{type:"halfPath",rot:item.rot}:item),feet:item.baseFeet});
+      if(isDeck(item))add("c:"+k,deckCenter(x,y,item));
       if(isRamp(item)){for(let n=0;n<=12;n++)add(`ramp:${k}:${n}`,rampPoint(x,y,item,n/2));for(let n=0;n<12;n++)join(`ramp:${k}:${n}`,`ramp:${k}:${n+1}`);}
       if(!isStand(item))continue;
       for(let r=0;r<4;r++)add(rowId(k,r),standPoint(x,y,item,stairCenter(item),-0.2625+r/4,item.baseFeet+(r+1)*1.25));
@@ -1081,7 +1145,7 @@
           const connection=concourseConnection(x,y,item,dx,dy),next=key(x+dx,y+dy);
           if(!connection)continue;
           const port=`c:${k}:${dx}:${dy}`;
-          add(port,{x:x+0.5+dx*0.5,y:y+0.5+dy*0.5,feet:item.baseFeet});join("c:"+k,port);
+          add(port,connection.point||{x:x+0.5+dx*0.5,y:y+0.5+dy*0.5,feet:item.baseFeet});join("c:"+k,port);
           const id=connection.kind==="deck"?"c:"+next:connection.kind==="ground"?ground(next):connection.kind==="top"?step(next,8):connection.kind==="bottom"?step(next,-1):connection.kind==="rampTop"?`ramp:${connection.key}:12`:connection.kind==="rampBottom"?`ramp:${connection.key}:0`:landing(next,0);
           join(port,id);
         }
@@ -1097,8 +1161,9 @@
       if(!isStand(item))continue;
       const {ax,ay,bx,by}=standAxes(item.rot);
       for(const side of [-1,1]) {
-        const next=key(x+ax*side,y+ay*side);
-        if(matchingStand(x,y,item,side,0)&&rowOpens(item,side)&&rowOpens(tiles[next],-side))for(let r=0;r<4;r++)join(rowId(k,r),rowId(next,r));
+        const next=rowNeighbor(x,y,item,side);if(!next)continue;
+        if(isCorner(item))for(let r=0;r<4;r++){const id=`corner:${k}:${side}:${r}`;add(id,standPoint(x,y,item,side*0.5,-0.2625+r/4,item.baseFeet+(r+1)*1.25));join(rowId(k,r),id);join(id,rowId(next,r));}
+        else if(!isCorner(tiles[next]))for(let r=0;r<4;r++)join(rowId(k,r),rowId(next,r));
       }
       if(hasStairs(item)) {
         const front=key(x-bx,y-by),back=key(x+bx,y+by);
@@ -1120,7 +1185,7 @@
     const routeCost=(a,b,traffic=new Map())=>{
       const p=nodes.get(a),q=nodes.get(b);
       const distance=Math.hypot(p.x-q.x,p.y-q.y,((p.feet||0)-(q.feet||0))/10);
-      const row=a.startsWith("r:")&&b.startsWith("r:");
+      const row=(a.startsWith("r:")||a.startsWith("corner:"))&&(b.startsWith("r:")||b.startsWith("corner:"));
       const stairs=a.startsWith("t:")||b.startsWith("t:");
       return distance*(row?6:stairs?1.8:1)+(traffic.get(b)||0)*0.025;
     };
@@ -1160,8 +1225,8 @@
         }
         if(route)for(let n=0;n<24;n++)slots.push({seat:n,row:Math.floor(n/8),col:n%8,route,routeFor:traffic=>routeFor(route[route.length-1].node,traffic)});
       } else {
-        const cols=isSeatSection(item)?5:2;
-        for(let r=0;r<4;r++)if(parents.has(rowId(k,r)))for(let col=0;col<cols;col++)slots.push({seat:r*cols+col,row:r,col,route:routeTo(rowId(k,r)),routeFor:traffic=>routeFor(rowId(k,r),traffic)});
+        let seat=0;
+        for(let r=0;r<4;r++){const cols=isCorner(item)?cornerCols(item,r):isSeatSection(item)?5:2;for(let col=0;col<cols;col++){if(parents.has(rowId(k,r)))slots.push({seat:seat,row:r,col,route:routeTo(rowId(k,r)),routeFor:traffic=>routeFor(rowId(k,r),traffic)});seat++;}}
       }
       if(slots.length)result.push({key:k,x,y,rot:item.rot,type:item.type,baseFeet:item.baseFeet||0,route:slots[0].route,capacity:slots.length,slots});
     }
@@ -1190,11 +1255,11 @@
         const d=directions[section.rot],len=Math.hypot(...d),ux=d[0]/len,uy=d[1]/len;
         const a=-0.34+col*0.097,b=-0.28+row*0.22;
         target={x:section.x+0.5+ux*a-uy*b,y:section.y+0.5+uy*a+ux*b,feet:0};
-      } else target=standPoint(section.x,section.y,section,isSeatSection(section)?-0.4+col*0.2:(col?0.4:-0.4),-0.3125+row/4,section.baseFeet+(row+1)*1.25);
+      } else target=standPoint(section.x,section.y,section,isCorner(section)?-0.5+(col+0.5)/cornerCols(section,row):isSeatSection(section)?-0.4+col*0.2:(col?0.4:-0.4),-0.3125+row/4,section.baseFeet+(row+1)*1.25);
       if(section.type!=="bleacher") {
         const {bx,by}=standAxes(section.rot);
         const aisleOffset=isBackstop(section)?0.075:0.05;
-        target.aisle={x:target.x+bx*aisleOffset,y:target.y+by*aisleOffset,feet:target.feet};
+        target.aisle=isCorner(section)?standPoint(section.x,section.y,section,-0.5+(col+0.5)/cornerCols(section,row),-0.2625+row/4,target.feet):{x:target.x+bx*aisleOffset,y:target.y+by*aisleOffset,feet:target.feet};
       }
       if(i===0||partyId!==plan[i-1].partyId)routeTraffic=new Map(traffic);
       const walkingRoute=slot.routeFor(routeTraffic);
@@ -1249,7 +1314,7 @@
     // before doubling back to a nearer seat. Trim only the final straight row.
     while(route.length>1) {
       const a=route[route.length-2],b=route[route.length-1];
-      if(!b.node?.startsWith("r:")||Math.abs((a.feet||0)-(target.feet||0))>1e-8)break;
+      if(!(b.node?.startsWith("r:")||b.node?.startsWith("corner:"))||Math.abs((a.feet||0)-(target.feet||0))>1e-8)break;
       const dx=b.x-a.x,dy=b.y-a.y,length=dx*dx+dy*dy;
       const t=length?((target.x-a.x)*dx+(target.y-a.y)*dy)/length:2;
       if(t<0||t>1||Math.hypot(target.x-a.x-t*dx,target.y-a.y-t*dy)>1e-8)break;
@@ -1516,6 +1581,21 @@
     history.push(snapshot());for(const [k,v] of additions)tiles[k]=v;money-=cost;store();update();draw();
     fanStatus(`Backstop demo ready ($${cost.toLocaleString()}). 28 seats flush to the fence, standalone stairs and a 5 ft rear concourse. Access starts at the main gate tile 11,7.`);
   }
+  function buildCornerDemo() {
+    if(fanActive){toast("End the game before building");return;}
+    const planned={},add=(x,y,type,rot=0,baseFeet=0)=>planned[key(x,y)]={type,rot,...(isPlatform({type})?{baseFeet}:{})};
+    for(const [x,y] of [[11,7],[10,7],[10,8]])add(x,y,"path");add(10,9,"stairs");
+    for(const [x,y] of [[10,10],[11,10],[12,10],[12,9],[12,8],[18,8],[11,14],[12,14]])add(x,y,"concourse",0,5);
+    for(let x=13;x<=17;x++)add(x,8,"halfConcourse",0,5);
+    for(let y=11;y<=13;y++)add(10,y,"halfConcourse",6,5);add(10,14,"cornerLanding",2,5);
+    add(18,9,"stairStand",4);add(17,9,"backstopCornerFirst",4);add(15,10,"backstopStand",5);add(14,11,"backstopStand",5);add(13,13,"backstopCornerThird",6);add(13,14,"stairStand",6);
+    for(const [k,v] of Object.entries(planned))if(tiles[k]&&JSON.stringify(tiles[k])!==JSON.stringify(v)){fanStatus("Corner demo area is occupied. Use an empty park or Undo first.");return;}
+    try{validatePark({version:2,fieldRevision:6,money,team,tiles:{...tiles,...planned},edges});}catch(e){fanStatus("Corner demo cannot fit: "+e.message);return;}
+    const additions=Object.entries(planned).filter(([k])=>!tiles[k]),cost=additions.reduce((n,[,v])=>n+prices[v.type],0);if(money<cost){fanStatus("Not enough money for the corner demo.");return;}
+    if(additions.length){history.push(snapshot());for(const [k,v] of additions)tiles[k]=v;money-=cost;store();update();draw();}
+    fanStatus(`Corner bowl ready ($${cost.toLocaleString()}). Continuous straight–corner–backstop rows, both stair entrances, half-width rear concourses and a triangular turn. Open gates to test the bowl.`);
+  }
+  document.getElementById("demoCorners").onclick=buildCornerDemo;
   document.getElementById("demoBackstop").onclick=buildBackstopDemo;
   document.getElementById("demoDiagonal").onclick=buildDiagonalDemo;
   document.getElementById("demoConcourse").onclick=buildConcourseDemo;
@@ -1570,6 +1650,10 @@
       .flatMap(([k, v]) => {
         const [x,y]=k.split(",").map(Number);
         if(isRamp(v))return Array.from({length:24},(_,n)=>{const p=rampPoint(x,y,v,(n+0.5)/4);return {x:p.x-0.5,y:p.y-0.5,v,rampPatch:n,originX:x,originY:y};});
+        if(isDeck(v)&&v.type!=="concourse") {
+          const parts=[];for(let a=0;a<4;a++)for(let b=0;b<4;b++)parts.push({x:x+a/4-0.375,y:y+b/4-0.375,v,partialPatch:[a/4,b/4],originX:x,originY:y});
+          const cs=deckShape(v);for(let i=0;i<cs.length;i++){const a=cs[i],b=cs[(i+1)%cs.length];parts.push({x:x+(a[0]+b[0])/2-0.5,y:y+(a[1]+b[1])/2-0.5,v,partialRail:i,originX:x,originY:y});}return parts;
+        }
         if(v.type==="concourse") {
           const parts=[];
           for(let a=0;a<4;a++)for(let b=0;b<4;b++)parts.push({x:x+a/4-0.375,y:y+b/4-0.375,v,deckPatch:[a/4,b/4],originX:x,originY:y});
@@ -1598,7 +1682,9 @@
         return Math.abs(depth)>1e-8?depth:(a.fan?1:0)-(b.fan?1:0);
       });
     for (let e of all) {
-      if(e.rampPatch!==undefined)drawRampPatch(e.originX,e.originY,e.v,e.rampPatch);
+      if(e.partialPatch)drawPartialDeck(e.originX,e.originY,e.v,e.partialPatch);
+      else if(e.partialRail!==undefined)drawPartialDeck(e.originX,e.originY,e.v,null,e.partialRail);
+      else if(e.rampPatch!==undefined)drawRampPatch(e.originX,e.originY,e.v,e.rampPatch);
       else if(e.deckPatch)drawConcourse(e.originX,e.originY,e.v,false,e.deckPatch);
       else if(e.deckRail!==undefined)drawConcourse(e.originX,e.originY,e.v,true,null,e.deckRail);
       else if(e.standRow!==undefined)drawStandRow(e.originX,e.originY,e.v,e.standRow);
@@ -1620,15 +1706,16 @@
     const hovered=hover&&tiles[key(hover.x,hover.y)];
     help.hidden=!isPlatform({type:tool})&&!hasStairs(hovered);
     if(!help.hidden) {
-      const snap=hover?standPlacement(hover.x,hover.y,rot):{baseFeet:0};
-      help.textContent=tool==="ramp"?`Ramp · 10 × 60 ft · six cells · 1:12 slope · ${snap.baseFeet}–${snap.baseFeet+5} ft. Connect only at its low and high ends.`:tool==="cornerLanding"?`Triangular corner landing · ${snap.baseFeet} ft · R turns 90°. Connect separate seating banks through stairs and concourses; seats do not join across the corner.`:tool==="stairs"?`Standalone stairs · no seats · ${snap.baseFeet}–${snap.baseFeet+5} ft. Path at bottom; matching-height concourse at top. R rotates 45°.`:isBackstop({type:tool})?`Backstop section · field-facing · front edge aligns with the diagonal fence. Place at 15,10 / 14,11 / 13,12 / 12,13. Use a rear concourse and backstop stair section for access; these deeper front sections do not stack uphill.`:hasStairs(hovered)?stairEntrance(hover.x,hover.y,hovered).message:snap.error||(tool==="concourse"?`Level concourse · 10 × 10 ft · ${snap.baseFeet} ft high. Snaps to stair tops and adjoining platforms. Only matching walking heights connect.`:(isEndStair({type:tool})?`End stairs · no seats · ${rot%2?"14.1 ft diagonal footprint; stairs + side landing":"5 ft stairs + 5 ft level landing"} · +5 ft rise. Base: ${snap.baseFeet} ft. Green arrow marks the side walkway entrance. Connect the highlighted entry walkway continuously to the gate. R rotates 45°; choose the other end piece to mirror.`:`${tool==="stand"?"20 seats · 5 per row":"8 seats · 6 ft central stairs"} · 4 rows · ${rot%2?"14.1 × 14.1 ft diagonal":"10 × 10 ft"} · +5 ft rise. Base: ${snap.baseFeet} ft. Match facing; build behind to rise. Connect a path to the front of a stair section.`));
+      const snap=hover&&completableDeck(hovered,tool,rot)?{baseFeet:hovered.baseFeet}:hover?standPlacement(hover.x,hover.y,rot):{baseFeet:0};
+      help.textContent=isFenceCorner({type:tool})?`Fence corner · ${tool==="backstopCornerFirst"?"first-base at 17,9 (straight 18,9; backstop 15,10)":"third-base at 13,13 (straight 13,14; backstop 14,11)"}. Four continuous rows; match base heights. Connect stairs in an adjoining seating bank.`:isCorner({type:tool})?`Corner seating · joins a straight bank to a 45° bank · four continuous rows · ${seatCapacity({type:tool,rot})} seats · base ${snap.baseFeet} ft. R turns 90°; choose L/R to mirror. Both banks need matching base heights; access comes through their stairs.`:tool==="halfConcourse"?`Half concourse · 5 × 10 ft · level at ${snap.baseFeet} ft. R turns 90°; add its opposite half or a full concourse to complete the tile. Rails guard exposed edges.`:tool==="ramp"?`Ramp · 10 × 60 ft · six cells · 1:12 slope · ${snap.baseFeet}–${snap.baseFeet+5} ft. Connect only at its low and high ends.`:tool==="cornerLanding"?`Triangular corner landing · ${snap.baseFeet} ft · R turns 90°. Triangular concourse connects matching-height walking surfaces. Add the opposite triangle or full concourse to complete the tile.`:tool==="stairs"?`Standalone stairs · no seats · ${snap.baseFeet}–${snap.baseFeet+5} ft. Path at bottom; matching-height concourse at top. R rotates 45°.`:isBackstop({type:tool})?`Backstop section · field-facing · front edge aligns with the diagonal fence. Place at 15,10 / 14,11 / 13,12 / 12,13. Use a rear concourse and backstop stair section for access; these deeper front sections do not stack uphill.`:hasStairs(hovered)?stairEntrance(hover.x,hover.y,hovered).message:snap.error||(tool==="concourse"?`Level concourse · 10 × 10 ft · ${snap.baseFeet} ft high. Snaps to stair tops and adjoining platforms. Only matching walking heights connect.`:(isEndStair({type:tool})?`End stairs · no seats · ${rot%2?"14.1 ft diagonal footprint; stairs + side landing":"5 ft stairs + 5 ft level landing"} · +5 ft rise. Base: ${snap.baseFeet} ft. Green arrow marks the side walkway entrance. Connect the highlighted entry walkway continuously to the gate. R rotates 45°; choose the other end piece to mirror.`:`${tool==="stand"?"20 seats · 5 per row":"8 seats · 6 ft central stairs"} · 4 rows · ${rot%2?"14.1 × 14.1 ft diagonal":"10 × 10 ft"} · +5 ft rise. Base: ${snap.baseFeet} ft. Match facing; build behind to rise. Connect a path to the front of a stair section.`));
       if(snap.error&&!hasStairs(hovered))help.textContent=snap.error;
     }
     if (hover && hover.x >= 0 && hover.x < W && hover.y >= 0 && hover.y < H) {
       const edge = wallEdge(hover.x, hover.y);
-      const standSnap=isPlatform({type:tool})?standPlacement(hover.x,hover.y,rot):null;
+      const existing=tiles[key(hover.x,hover.y)],completingDeck=completableDeck(existing,tool,rot),candidate=completingDeck?{...existing,type:"concourse"}:{type:tool,rot};
+      const standSnap=completingDeck?{baseFeet:existing.baseFeet}:isPlatform({type:tool})?standPlacement(hover.x,hover.y,rot):null;
       const occupied = tool === "wall" ? edges[edge] || !edgeAllowed(edge) || diagonalWallCollision(edge) || sceneryBlocksEdge(edge) || (/[ad]$/.test(edge) && tiles[key(hover.x,hover.y)])
-        : standSnap?.error || footprintError(hover.x,hover.y,{type:tool,rot}) || blockedTile(key(hover.x, hover.y)) || (tiles[key(hover.x, hover.y)]&&!(tiles[key(hover.x,hover.y)].type==="halfPath"&&(tool==="path"||(tool==="halfPath"&&(rot+4)%8===tiles[key(hover.x,hover.y)].rot)))) || edges[key(hover.x,hover.y)+":a"] || edges[key(hover.x,hover.y)+":d"];
+        : standSnap?.error || footprintError(hover.x,hover.y,candidate) || blockedTile(key(hover.x, hover.y)) || (tiles[key(hover.x, hover.y)]&&!(completingDeck||tiles[key(hover.x,hover.y)].type==="halfPath"&&(tool==="path"||(tool==="halfPath"&&(rot+4)%8===tiles[key(hover.x,hover.y)].rot)))) || edges[key(hover.x,hover.y)+":a"] || edges[key(hover.x,hover.y)+":d"];
       if (tool === "wall") {
         drawWall(edge, occupied ? "#d35b65aa" : "#f5d554bb");
         const panel = edgePanel(edge);
@@ -1644,7 +1731,7 @@
       if (tool !== "erase" && tool!=="paint" && !occupied) {
         ctx.save();
         ctx.globalAlpha = 0.65;
-        const preview={type:tool,rot,baseFeet:standSnap?.baseFeet||0};
+        const preview={...candidate,rot:completingDeck?0:rot,baseFeet:standSnap?.baseFeet||0};
         if(isStand(preview)||isRamp(preview)||isDeck(preview))polygon(footprint(hover.x,hover.y,preview).map(([x,y])=>project(x,y)),"#f8e78c44","#f6e284");
         drawObject(hover.x,hover.y,preview);
         if(hasStairs(preview))drawStairEntrance(hover.x,hover.y,preview);
@@ -1664,8 +1751,8 @@
       Object.values(tiles).reduce((sum,item)=>sum+seatCapacity(item),0);
     document.getElementById("placed").textContent = Object.keys(tiles).length + Object.keys(edges).length;
     document.getElementById("rotation").textContent = tool === "wall" ? ({0:"Top edge",2:"Right edge",4:"Bottom edge",6:"Left edge",1:"Diagonal /",5:"Diagonal \\"})[rot] : rot * 45 + "°";
-    document.getElementById("rotate").textContent = tool === "wall" ? "↻ Wall edge (R)" : (isDeck({type:tool})||isRamp({type:tool})||tool==="halfPath")?"↻ Section 90° (R)":"↻ Item 45° (R)";
-    document.getElementById("mobileRotate").textContent = tool === "wall" ? "↻ Wall edge" : (isDeck({type:tool})||isRamp({type:tool})||tool==="halfPath")?"↻ Section 90°":"↻ Item 45°";
+    document.getElementById("rotate").textContent = tool === "wall" ? "↻ Wall edge (R)" : (isDeck({type:tool})||isRamp({type:tool})||isCorner({type:tool})||tool==="halfPath")?"↻ Section 90° (R)":"↻ Item 45° (R)";
+    document.getElementById("mobileRotate").textContent = tool === "wall" ? "↻ Wall edge" : (isDeck({type:tool})||isRamp({type:tool})||isCorner({type:tool})||tool==="halfPath")?"↻ Section 90°":"↻ Item 45°";
   }
   function toast(s) {
     const t = document.getElementById("toast");
@@ -1691,7 +1778,7 @@
     disconnectedSections.clear();
     if (!hover) return;
     let k = key(hover.x, hover.y);
-    if((tool==="erase"||tool==="paint")&&!tiles[k])for(const [rk,rv] of Object.entries(tiles))if(isRamp(rv)){const [rx,ry]=rk.split(",").map(Number);if(overlaps(footprint(hover.x,hover.y,{type:"path"}),footprint(rx,ry,rv))){k=rk;break;}}
+    if((tool==="erase"||tool==="paint")&&!tiles[k])for(const [rk,rv] of Object.entries(tiles))if(isRamp(rv)||isCorner(rv)){const [rx,ry]=rk.split(",").map(Number);if(overlaps(footprint(hover.x,hover.y,{type:"path"}),footprint(rx,ry,rv))){k=rk;break;}}
     if (hover.x < 0 || hover.x >= W || hover.y < 0 || hover.y >= H) return;
     const edge = wallEdge(hover.x, hover.y);
     if(tool==="paint") {
@@ -1737,6 +1824,8 @@
       else { money += Math.round(prices[tiles[k].type]*0.7); delete tiles[k]; }
     } else {
       if (blockedTile(k)) { toast("Keep the playing field clear!"); return; }
+      const oldDeck=tiles[k],completeDeck=completableDeck(oldDeck,tool,rot);
+      if(completeDeck){const error=footprintError(hover.x,hover.y,{...oldDeck,type:"concourse"});if(error){toast(error);return;}const cost=prices.concourse-prices[oldDeck.type];if(money<cost){toast("Not enough money");return;}history.push(snapshot());money-=cost;tiles[k]={...oldDeck,type:"concourse",rot:0};update();store();draw();toast(`Concourse completed · level at ${oldDeck.baseFeet} ft`);return;}
       const complete=tiles[k]?.type==="halfPath"&&(tool==="path"||(tool==="halfPath"&&(rot+4)%8===tiles[k].rot));
       if(complete) {
         if(money<prices.halfPath){toast("Not enough money");return;}
@@ -1751,7 +1840,7 @@
       history.push(snapshot());
       money -= prices[tool];
       tiles[k] = {type:tool, rot,...(snap?{baseFeet:snap.baseFeet}:{})};
-      if(snap)toast(`Section placed · ${snap.baseFeet}–${snap.baseFeet+5} ft · ${seatCapacity(tiles[k])} seats. Connect stair sections for access.`);
+      if(snap)toast(isDeck(tiles[k])?`Concourse placed · level at ${snap.baseFeet} ft. Join matching-height walking surfaces.`:isRamp(tiles[k])?`Ramp placed · ${snap.baseFeet}–${snap.baseFeet+5} ft. Connect paths or concourses at its ends.`:`Section placed · ${snap.baseFeet}–${snap.baseFeet+5} ft · ${seatCapacity(tiles[k])} seats. Connect stair sections for access.`);
     }
     if (history.length > 70) history.shift();
     update();
@@ -1781,8 +1870,11 @@
     tool = t;
     if(t==="halfPath"){rot-=rot%2;toast("Half-tile paving · R turns the corner 90°. Place its opposite half to complete the square.");}
     if(isDeck({type:t})||isRamp({type:t})) {rot=rot-rot%2;toast(t==="ramp"?"Six-cell ramp: 5 ft rise over 60 ft. Join paths or matching-height concourses at its ends.":"Landings snap to stair and ramp heights. Matching elevations connect; exposed edges get rails.");}
+    if(isCorner({type:t}))rot-=rot%2;
+    if(t==="backstopCornerFirst")rot=4;if(t==="backstopCornerThird")rot=6;
     if(isBackstop({type:t}))rot=5;
-    if(isStand({type:t})) {toast(isEndStair({type:t})?"Green arrow = side walkway entrance. Match the stand facing; use the other end piece to mirror.":"Sections rotate 45°; matching diagonal pieces snap together. Place stairs in the same direction; connect a path at their front.");}
+    if(isCorner({type:t}))toast("Four rows connect matching-height straight and diagonal banks. R turns regular corners 90°; fence corners have fixed facing.");
+    else if(isStand({type:t})) {toast(isEndStair({type:t})?"Green arrow = side walkway entrance. Match the stand facing; use the other end piece to mirror.":"Sections rotate 45°; matching diagonal pieces snap together. Place stairs in the same direction; connect a path at their front.");}
     if (t === "wall") { if (!wallSlots.includes(rot)) rot = 0; toast("R cycles 4 tile edges and 2 corner-to-corner diagonals."); }
     update(); draw();
     if (t === "bleacher") toast("Gold arrow = fans face this way. R rotates before placement.");
@@ -1973,14 +2065,15 @@
         else cleanEdges[edge] = {type:"wall",...metadata(v)};
       } else {
         if(v.type==="halfPath"&&v.rot%2!==0)throw Error("Invalid paving corner");
+        if((v.type==="backstopCornerFirst"&&v.rot!==4)||(v.type==="backstopCornerThird"&&v.rot!==6))throw Error("Fence corners have fixed facing");
         if(isBackstop(v)&&v.rot!==5)throw Error("Backstop pieces must face the field");
-        if(isPlatform(v)&&(!Number.isInteger(v.baseFeet)||v.baseFeet<0||v.baseFeet>300||v.baseFeet%5!==0||((isDeck(v)||isRamp(v))&&v.rot%2!==0)||(isRamp(v)&&v.baseFeet>295)))throw Error("Invalid stand height or facing");
+        if(isPlatform(v)&&(!Number.isInteger(v.baseFeet)||v.baseFeet<0||v.baseFeet>300||v.baseFeet%5!==0||((isDeck(v)||isRamp(v)||isCorner(v))&&v.rot%2!==0)||(isRamp(v)&&v.baseFeet>295)))throw Error("Invalid stand height or facing");
         clean[k]={type:v.type,rot:v.rot,...(isPlatform(v)?{baseFeet:v.baseFeet}:{}),...metadata(v)};
       }
     }
     for (const k of Object.keys(clean))
       if (cleanEdges[k+":a"] || cleanEdges[k+":d"]) throw Error("Diagonal crosses an occupied tile");
-    for(const [k,v] of Object.entries(clean))if((isStand(v)&&v.rot%2)||isRamp(v)||v.type==="cornerLanding") {
+    for(const [k,v] of Object.entries(clean))if((isStand(v)&&v.rot%2)||isRamp(v)||isCorner(v)||isDeck(v)) {
       const [x,y]=k.split(",").map(Number),error=footprintError(x,y,v,clean,cleanEdges);
       if(error)throw Error(error);
     }

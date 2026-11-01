@@ -1,7 +1,9 @@
-# Release status — v0.32
+# Release status — v0.33
 
-The two requested batches are implemented: entrance/building/scoreboard cleanup followed by seating access polish. See README.md and CHUNK-3.2-TESTING.md for behavior and player checks. `npm run check` passes all 87 tests. Browser review confirmed the updated approach, opaque roofs and the backstop layout. Automated coverage includes full crowd regressions and the new ramp routes, collision/save handling, triangular landing connections, physical scoreboard faces, roof detail order and stair riser geometry.
+Continuous seating corners and partial concourses are implemented. Regular mirrored corners join straight and 45° banks; dedicated fence corners align the deeper backstop pieces with the first/third-base straight banks. Half-width and triangular concourses use shared walking surfaces and partial rail openings. Tile completion preserves height and palette and checks the completed footprint.
 
-Public publication is authorized by the user for zlarson630-cmyk/sports-venue-simulator. Merge only after GitHub CI succeeds; verify the Publish game workflow and live version afterward.
+The new $25,800 corner bowl demo has 132 reachable seats. Browser review confirmed the physical seating joins and a complete browser game: all 100 fans seated, then returned to parking, with exactly $500 admission revenue; docs/review-v0.33.jpg records that view. Regression coverage includes all regular rotations/mirrors, raised placement, refund/undo/reload, fence alignment, cross-bank access, partial ports/rails, completion/collision/import guards and full 100-fan cycles under multiple seeds.
 
-Known scope: corner landings connect access routes; continuous wedge seating rows are future work. Restroom needs and party reunions, mascot fun, accompanied children, stretch and wave remain in DESIGN-BACKLOG.md. Scoreboards still use placeholder scores and shops remain decorative.
+Publication remains authorized for zlarson630-cmyk/sports-venue-simulator. Merge only after GitHub CI succeeds; verify the Publish game workflow and live version afterward. Corners do not automatically stack uphill. Needs/amenity visits, mascots, accompanied children, stretch and wave remain in DESIGN-BACKLOG.md.
+
+The full local suite passed 95 tests before the final partial-edge snapping guard; focused snapping/access checks pass afterward. GitHub CI runs the final 96-test suite before merge.

@@ -6,15 +6,15 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Sports Venue Simulator — Sandbox 0.32</title>
-    <link rel="stylesheet" href="styles.css?v=0.32.0" />
+    <title>Sports Venue Simulator — Sandbox 0.33</title>
+    <link rel="stylesheet" href="styles.css?v=0.33.0" />
   </head>
   <body>
     <header>
       <div class="logo">🏟️</div>
       <div>
         <h1>SPORTS VENUE<br />SIMULATOR</h1>
-        <small>BUILD SANDBOX · v0.32</small>
+        <small>BUILD SANDBOX · v0.33</small>
       </div>
       <div class="topstats">
         <div class="stat">💵 <strong id="money">$500,000</strong></div>
@@ -70,11 +70,16 @@
           <span class="emoji">🗑️</span><span>Remove (G)</span
           ><span class="price">70% refund</span>
         </button>
+        <button class="tool" data-tool="halfConcourse"><span class="emoji">▰</span><span>Half concourse</span><span class="price">$450</span></button>
+        <button class="tool" data-tool="cornerStandLeft"><span class="emoji">◢</span><span>Corner seating · L</span><span class="price">$2,200</span></button>
+        <button class="tool" data-tool="cornerStandRight"><span class="emoji">◣</span><span>Corner seating · R</span><span class="price">$2,200</span></button>
+        <button class="tool" data-tool="backstopCornerFirst"><span class="emoji">◈</span><span>Fence corner · 1B</span><span class="price">$3,000</span></button>
+        <button class="tool" data-tool="backstopCornerThird"><span class="emoji">◈</span><span>Fence corner · 3B</span><span class="price">$3,000</span></button>
         <button class="tool" data-tool="stairs"><span class="emoji">↗</span><span>Standalone stairs</span><span class="price">$1,200</span></button>
         <button class="tool" data-tool="backstopStand"><span class="emoji">◈</span><span>Backstop seating</span><span class="price">$1,800</span></button>
         <button class="tool" data-tool="backstopStair"><span class="emoji">◈</span><span>Backstop stair seats</span><span class="price">$1,600</span></button>
         <button class="tool" data-tool="ramp"><span class="emoji">↗</span><span>Ramp · 60 ft</span><span class="price">$3,600</span></button>
-        <button class="tool" data-tool="cornerLanding"><span class="emoji">◩</span><span>Corner landing</span><span class="price">$700</span></button>
+        <button class="tool" data-tool="cornerLanding"><span class="emoji">◩</span><span>Triangular concourse</span><span class="price">$700</span></button>
         <div class="section">SHOPS &amp; SCOREBOARDS</div>
         <button class="tool" data-tool="drinks"><span class="emoji">🥤</span><span>Drinks</span><span class="price">$2,200</span></button>
         <button class="tool" data-tool="iceCream"><span class="emoji">🍦</span><span>Ice cream</span><span class="price">$2,300</span></button>
@@ -87,6 +92,7 @@
         <p id="standHelp" class="standhelp" role="status" hidden></p>
         <div class="sidebarbottom">
           <div class="section">GAME DAY · 2 MINUTES</div>
+          <button class="smallbtn" id="demoCorners" style="width:100%;margin-bottom:6px">Build corner bowl demo · up to $25,800</button>
           <button class="smallbtn" id="demoBackstop" style="width:100%;margin-bottom:6px">Build backstop demo · up to $11,700</button>
           <button class="smallbtn" id="demoDiagonal" style="width:100%;margin-bottom:6px">Build diagonal demo · up to $20,300</button>
           <button class="smallbtn" id="demoConcourse" style="width:100%;margin-bottom:6px">Build concourse demo · up to $11,400</button>
@@ -157,6 +163,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=0.32.0" defer></script>
+    <script src="game.js?v=0.33.0" defer></script>
   </body>
 </html>
