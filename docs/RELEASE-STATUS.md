@@ -1,13 +1,7 @@
-# Release status — v0.29
+# Release status — v0.32
 
-Local implementation is complete. `npm run check` passes 76 tests. A real browser check confirmed the complete cycle: 100 admissions, all 100 fans seated, all 100 returned to parking after the game, and exactly $500 gate revenue. Existing park state/balance survived preview reload. Three-color updates and padded outfield rendering were checked visually. Node coverage includes full arrival/exit cycles, both diagonal end-stair mirrors, 100-fan spacing, parties, financial accounting, legacy saves, new models, materials, customization metadata, undo and scenery protection.
+The two requested batches are implemented: entrance/building/scoreboard cleanup followed by seating access polish. See README.md and CHUNK-3.2-TESTING.md for behavior and player checks. `npm run check` passes all 87 tests. Browser review confirmed the updated approach, opaque roofs and the backstop layout. Automated coverage includes full crowd regressions and the new ramp routes, collision/save handling, triangular landing connections, physical scoreboard faces, roof detail order and stair riser geometry.
 
-The user explicitly approved uploading and publishing v0.29 to the public repository zlarson630-cmyk/sports-venue-simulator on November 1, 2026. The earlier public-upload approval blocker is resolved. Publication must pass GitHub CI before merging; the Publish game workflow provides deployment status.
+Public publication is authorized by the user for zlarson630-cmyk/sports-venue-simulator. Merge only after GitHub CI succeeds; verify the Publish game workflow and live version afterward.
 
-Branches/checkpoints:
-- seating-access-diagonal: v0.28 seating/access checkpoint; 69 tests passed.
-- remaining-agreed-batches: complete v0.29 local source and documented player checklist.
-
-A standalone HTML preview was generated for downloadable testing without GitHub publication. It uses browser-local saves; transfer an existing hosted park with Export/Import. The source repository remains the canonical multi-file development project.
-
-See OVERNIGHT-TESTING.md for the player checklist and DESIGN-BACKLOG.md for the remaining mascot, accompanied children, attractions/needs, stretch and wave designs. Shop transactions and live scoreboard feeds are deliberately deferred. The self-crossing gate-approach crowd issue and square-concourse/diagonal-stair corner geometry remain documented limitations.
+Known scope: corner landings connect access routes; continuous wedge seating rows are future work. Restroom needs and party reunions, mascot fun, accompanied children, stretch and wave remain in DESIGN-BACKLOG.md. Scoreboards still use placeholder scores and shops remain decorative.

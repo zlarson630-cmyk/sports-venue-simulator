@@ -143,3 +143,16 @@ Player clarified the requested three additional cells apply down BOTH the first-
 ## v0.30 construction implementation
 
 Implemented the requested 30 ft baseline-side expansion, standalone stairs, dedicated deeper backstop seating/stair-seat pieces, and W/G shortcuts. Dedicated backstop front edges meet x+y=28 without modifying older diagonal geometry. Rear edges retain concourse endpoint compatibility; dedicated sections are one bank deep and cannot stack uphill. Paths for backstop layouts start at the inner main-gate landing 11,7; existing layouts continue using 14,10. Stair riser geometry reduced to actual step height to address tread occlusion; visual acceptance remains part of player testing. Bathroom simulation, ramps, general cardinal/diagonal wedge transitions, building roof/window repair and scoreboard orientation remain separate backlog items.
+
+## Main entrance sidewalk follow-up — November 1 (ideas only)
+
+Player clarified that the main paved approach sidewalk needs updating after the block/road expansion. Inspection confirms the automatic paving still begins at x8/y4 and crossing markings/arrival-intersection metadata still refer to the old road corner, although the roads moved outward three cells. Explore extending the main sidewalk to the new inner curb and realigning the crossing/parking approach, while preserving room for backstop seats and existing constructed paths. Do not change the game yet: the player explicitly requested collecting ideas before implementing further changes. Inspection only; no sidewalk/game code edits were made.
+
+
+## v0.32: layout cleanup, then access polish
+
+Player authorized priorities 1 and 2 after the ideas-only hold. Implemented the curb-reaching main sidewalk and transverse parking crossing, opaque roofs with visible wall details and doors, and physically oriented/clipped scoreboard displays. Back-facing boards show their solid back, preserving the line-score format on the front.
+
+Added a six-cell, 60 ft ramp with 5 ft rise, endpoint height snapping, full-footprint collision/import validation, accessible fan routes, depth-sorted slope rendering, save/reload, undo and removal from any covered cell. Added triangular corner landings with two full walking sides and matching-height deck/stair connections. Improved side-entry guidance and stair tread order for every view. Standalone stairs and fence-aligned backstop seats continue from v0.30.
+
+The triangular landing is an access transition, not continuous angled seating rows. Custom wedge seating remains future work. Restroom visits/rejoining parties, mascot fun boosts, accompanied children, seventh-inning stretch and the wave remain queued separately. Existing park coordinates, balances, capacities and legacy routes are preserved.
