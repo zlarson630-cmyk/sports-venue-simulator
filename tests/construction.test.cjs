@@ -285,10 +285,10 @@ test("edge walls coexist with paths, reject shared-edge duplicates and survive s
   g.select("path"); g.clickTile(12,12);
   assert.ok(g.api.state().tiles["12,12"]); assert.ok(g.api.state().edges["12,12:h"]);
   g.select("wall"); g.key("r"); g.key("r"); g.clickTile(12,11);
-  assert.equal(g.api.state().money,99700);
+  assert.equal(g.api.state().money,499700);
   const reload=game(JSON.parse(g.storage.get("svs01")));
   assert.ok(reload.api.state().edges["12,12:h"]); assert.ok(reload.api.state().tiles["12,12"]);
-  g.element("undo").click(); assert.equal(g.api.state().money,99800);
+  g.element("undo").click(); assert.equal(g.api.state().money,499800);
   assert.ok(g.api.state().edges["12,12:h"]); assert.equal(Object.keys(g.api.state().tiles).length,0);
 });
 test("old tile walls migrate onto edges without losing the park",()=>{
