@@ -717,7 +717,7 @@
           while(at!==null){const [x,y]=at.split(",").map(Number);route.unshift({x,y});at=parents.get(at);}
           return route;
         }
-        for(const [dx,dy] of [[0.1,0],[-0.1,0],[0,0.1],[0,-0.1]]) {
+        for(const [dx,dy] of [[0.1,0],[-0.1,0],[0,0.1],[0,-0.1],[0.1,0.1],[0.1,-0.1],[-0.1,0.1],[-0.1,-0.1]]) {
           const q={x:Math.round((p.x+dx)*10)/10,y:Math.round((p.y+dy)*10)/10},k=keyP(q);
           if(parents.has(k)||q.x<5.5||q.y<1.5||q.x>15||q.y>11||Math.abs(q.x-q.y-4)>1.4)continue;
           if(beforeGate?q.x+q.y>19+1e-8:q.x+q.y<19-1e-8)continue;
@@ -725,6 +725,16 @@
           for(let t=0;t<=8;t++)if(solidBuildingAt(p.x+dx*t/8,p.y+dy*t/8)||!entrancePavedAt(p.x+dx*t/8,p.y+dy*t/8)){blocked=true;break;}
           const a=key(Math.floor(p.x),Math.floor(p.y)),b=key(Math.floor(q.x),Math.floor(q.y));
           if(blocked||(a!==b&&wallBlocks(a,b)))continue;
+          // Require clear orthogonal corridors on both sides of a diagonal.
+          if(dx&&dy) {
+            for(const [ox,oy] of [[dx,0],[0,dy]]) {
+              const mid={x:Math.round((p.x+ox)*10)/10,y:Math.round((p.y+oy)*10)/10};
+              if(!entrancePavedAt(mid.x,mid.y)||solidBuildingAt(mid.x,mid.y)) {blocked=true;break;}
+              const mk=key(Math.floor(mid.x),Math.floor(mid.y));
+              if((a!==mk&&wallBlocks(a,mk))||(mk!==b&&wallBlocks(mk,b))) {blocked=true;break;}
+            }
+          }
+          if(blocked)continue;
           parents.set(k,keyP(p));queue.push(q);
         }
       }
@@ -764,8 +774,22 @@
     for(const [k,item] of Object.entries(tiles)) {
       const [x,y]=k.split(",").map(Number);
       if(!insideStadium(x,y))continue;
-      if(isPath(item)||k===entranceTile)for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-        const next=key(x+dx,y+dy);if(pathOpens(item,dx,dy)&&pathOpens(tiles[next],-dx,-dy)&&!wallBlocks(k,next))join(ground(k),ground(next));
+      if(isPath(item)||k===entranceTile) {
+        const openGround=(fromX,fromY,dx,dy)=>{
+          const from=key(fromX,fromY),to=key(fromX+dx,fromY+dy);
+          return nodes.has(ground(from))&&nodes.has(ground(to))&&
+            pathOpens(tiles[from],dx,dy)&&pathOpens(tiles[to],-dx,-dy)&&!wallBlocks(from,to);
+        };
+        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+          if(openGround(x,y,dx,dy))join(ground(k),ground(key(x+dx,y+dy)));
+        }
+        // Both orthogonal routes must be open to prevent corner cutting.
+        for(const [dx,dy] of [[1,1],[1,-1],[-1,1],[-1,-1]]) {
+          if(openGround(x,y,dx,0)&&openGround(x,y,0,dy)&&
+             openGround(x+dx,y,0,dy)&&openGround(x,y+dy,dx,0)) {
+            join(ground(k),ground(key(x+dx,y+dy)));
+          }
+        }
       }
       if(item.type==="concourse") {
         for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
@@ -801,13 +825,8 @@
     const queue=[ground(entranceTile)],parents=new Map([[queue[0],null]]);
     for(let i=0;i<queue.length;i++)for(const next of links.get(queue[i])||[])if(!parents.has(next)){parents.set(next,queue[i]);queue.push(next);}
     const routeTo=id=>{const ids=[];for(let at=id;at!==null;at=parents.get(at))ids.unshift(at);
-      const route=[];for(let i=0;i<ids.length;i++) {
-        if(i&&ids[i].startsWith("g:")&&ids[i-1].startsWith("g:")) {
-          const [x,y]=ids[i-1].slice(2).split(",").map(Number),[nx,ny]=ids[i].slice(2).split(",").map(Number);
-          route.push({x:(x+nx+1)/2,y:(y+ny+1)/2,feet:0});
-        }
-        route.push(nodes.get(ids[i]));
-      }return route;};
+      // Direct links between walkable tile centers prevent unnecessary zigzags.
+      return ids.map(id=>nodes.get(id));};
     const result=[];
     for(const [k,item] of Object.entries(tiles)) {
       if(!seatCapacity(item))continue;
