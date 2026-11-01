@@ -631,7 +631,7 @@
         for(const a of [-width*0.36,width*0.36])line(local(a,0,0),local(a,0,bottom),"#7c8d92",2);
         if(frontVisible) {
           ctx.save();ctx.beginPath();face.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));ctx.closePath();ctx.clip();
-          const tl=local(-width/2,-0.075,top),tr=local(width/2,-0.075,top),bl=local(-width/2,-0.075,bottom);
+          const tl=local(width/2,-0.075,top),tr=local(-width/2,-0.075,top),bl=local(width/2,-0.075,bottom);
           ctx.transform((tr.x-tl.x)/1000,(tr.y-tl.y)/1000,(bl.x-tl.x)/600,(bl.y-tl.y)/600,tl.x,tl.y);
           const label=(text,y,color=palette.accent)=>{ctx.font=`bold ${Math.min(115,900/(text.length*0.63))}px monospace`;ctx.textAlign="center";ctx.fillStyle=color;ctx.fillText(text,500,y);};
           label(vintage?"BALLPARK":video?"GAME DAY":deluxe?"LINE SCORE":"SCORE",125);

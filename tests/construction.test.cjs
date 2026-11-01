@@ -1066,7 +1066,7 @@ test("scoreboard display is clipped to its world plane and never appears on the 
  for(let camera=0;camera<4;camera++){
   g.commands.length=0;g.api.drawObject(11,30,{type:"deluxeScoreboard",rot:0});
   const labels=g.commands.filter(c=>c[0]==="fillText"),transform=g.commands.find(c=>c[0]==="transform");
-  if(labels.length){fronts++;assert.ok(g.commands.some(c=>c[0]==="clip"));assert.ok(transform);assert.ok(transform.slice(1).every(Number.isFinite));assert.ok(labels.some(c=>c[1]==="LINE SCORE"));for(const c of labels){assert.equal(c[2],500);assert.ok(c[3]>0&&c[3]<600);}}
+  if(labels.length){fronts++;assert.ok(g.commands.some(c=>c[0]==="clip"));assert.ok(transform);assert.ok(transform.slice(1).every(Number.isFinite));assert.ok(transform[1]>0,"front lettering must read left to right");assert.ok(labels.some(c=>c[1]==="LINE SCORE"));for(const c of labels){assert.equal(c[2],500);assert.ok(c[3]>0&&c[3]<600);}}
   else{backs++;assert.equal(transform,undefined);}
   g.key("q");
  }
