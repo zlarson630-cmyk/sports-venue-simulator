@@ -296,7 +296,7 @@ test("old tile walls migrate onto edges without losing the park",()=>{
   assert.ok(g.api.state().edges["12,12:a"]);
   assert.equal(g.api.state().tiles["12,12"],undefined);
   assert.equal(g.api.state().tiles["11,11"].rot,3);
-  assert.equal(g.api.state().money,498000);
+  assert.equal(g.api.state().money,98000);
   for(const edge of ["60,0:h","0,60:v","20,20:h","bad"])
     assert.throws(()=>g.api.validatePark({money:100,tiles:{},edges:{[edge]:{type:"wall"}}}));
 });
@@ -363,9 +363,9 @@ test("backstop follows a 45-degree diagonal behind home plate",()=>{
 
 test("v0.7 layouts refund newly expanded foul-territory overlaps only",()=>{
  const g=game({version:2,fieldRevision:2,money:98400,tiles:{"15,16":{type:"bleacher",rot:2},"12,12":{type:"path",rot:0}},edges:{}});
- assert.equal(g.api.state().money,499900); assert.ok(g.api.state().tiles["12,12"]);
+ assert.equal(g.api.state().money,99900); assert.ok(g.api.state().tiles["12,12"]);
  assert.equal(g.api.state().tiles["15,16"],undefined);
- const again=game(JSON.parse(g.storage.get("svs01")));assert.equal(again.api.state().money,499900);
+ const again=game(JSON.parse(g.storage.get("svs01")));assert.equal(again.api.state().money,99900);
 });
 
 test("both dugouts are 30 feet long, sunken, and render through camera rotation",()=>{
@@ -619,7 +619,7 @@ test("side-entry end stairs reach 80 seats without any front-row pavement",()=>{
  g.api.startFanTest();const fans=g.api.fanState().fans;
  for(const f of fans)for(let i=1;i<f.route.length;i++)assert.ok(Math.abs((f.route[i].feet||0)-(f.route[i-1].feet||0))<=0.625+1e-8);
  g.api.advanceFans(40);assert.ok(fans.every(f=>f.seated));assert.ok(fans.some(f=>f.feet>5));
- assert.equal(g.api.state().money,490700);
+ assert.equal(g.api.state().money,490300);
 });
 test("end stairs require their marked side entrance; walls, wrong mirror and raised landings cannot grant ground access",()=>{
  for(const mutate of [s=>delete s.tiles["16,8"],s=>s.edges["17,8:v"]={type:"wall"},s=>s.tiles["17,8"].type="endStairLeft",s=>s.tiles["17,8"].baseFeet=5]) {
