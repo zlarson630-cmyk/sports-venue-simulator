@@ -34,7 +34,7 @@
     cameraInit = false,
     down = null,
     dragged = false,
-    money = 100000,
+    money = 500000,
     tiles = {},
     edges = {},
     history = [];
@@ -859,7 +859,7 @@
     disconnectedSections=new Set(Object.entries(tiles).filter(([k,v])=>seatCapacity(v)&&!sections.some(s=>s.key===k)).map(([k])=>k));
     fanUnreachable=total-reachableCapacity;
     if(!sections.length) {draw();fanStatus("No reachable seats. Build walkways from the marked entrance to bleachers, or use Build demo route.");return;}
-    fanPlanned=Math.min(25,reachableCapacity);fanElapsed=0;gateAdmissions=0;gateRevenue=0;fans=[];
+    fanPlanned=Math.min(100,reachableCapacity);fanElapsed=0;gateAdmissions=0;gateRevenue=0;fans=[];
     const assigned=new Map(sections.map(section=>[section.key,0]));
     for(let i=0;i<fanPlanned;i++) {
       const available=sections.filter(section=>assigned.get(section.key)<section.capacity);
@@ -1270,7 +1270,7 @@
     if (confirm("Reset the ballpark and restore the starting budget?")) {
       tiles = {};
       edges = {};
-      money = 100000;
+      money = 500000;
       history = [];
       store();
       update();
