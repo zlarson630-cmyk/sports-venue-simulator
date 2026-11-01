@@ -96,3 +96,23 @@ Random schedules contain 1–5 people per group, short within-group intervals an
 Phases are game → finishing arrivals (only if queues outlast the clock) → exiting → idle. Fans nearest an exit route release first with randomized 0.10–0.22-second gaps before seeking space to stand; exiting fans disappear only at the original spawn coordinate. No admission is collected during exit. Simulation state is transient; the existing browser save schema/key, construction geometry and economy remain unchanged. End game/import/reset retain explicit early-stop behavior.
 
 The Node harness uses deterministic randomness and checks full cycles with varied seeds, 100-fan spacing, exact spawn return, access geometry, accounting and save reload. See CHUNK-2.5-TESTING.md for the remaining player acceptance checks. This is a lightweight reservation/queue model, not continuous crowd physics or live congestion rerouting.
+
+
+## Diagonal seating and access feedback (v0.28)
+
+Stands and stair pieces now retain all eight rotations. Cardinal axes and footprints are unchanged. Odd rotations use integer diagonal axes, so lateral/uphill anchor offsets remain integral and matching edges meet exactly. Their physical width/depth is 10√2 ft; capacity and 5 ft rise remain unchanged. SAT footprint checks protect the adjacent triangular corners against construction, field/dugout intersections and walls, including import validation and subsequent construction. Cardinal-to-diagonal row connections are intentionally not inferred; link independent sections via stairs and paths/concourse.
+
+Diagonal stair-concourse endpoint tests use local-axis dot products divided by axis length squared. Diagonal wall checks conservatively inspect both orthogonal boundary routes. Half-path diagonal access requires both corner edges. Ground path centers meet the diagonal stair midpoint via the shared corner; the existing single-file movement/reservation model applies.
+
+Concourse decks render as 16 surface patches and four independent edge-rail entries in the world-depth pass. Rails remain closed on square deck edges that are not ordinary edge connections; diagonal endpoint connections currently meet at corners. This is a visual/geometry limitation of square concourses, not a new diagonal concourse building type.
+
+`update` refreshes accessible graph node IDs and disconnected section labels when not simulating; per-frame draws reuse that result. Hover feedback uses the exact outer-side/front tile appropriate to the stair type. Existing simulation state stays transient and save version 2/key svs01 remain unchanged.
+
+
+## Parties, identity, models and neighborhood (v0.29 local)
+
+Social seat assignment reserves contiguous per-row blocks, scoring proximity to home plate, row/elevation and neighboring strangers. A stair-aisle pair is never treated as adjacent party seats. Party IDs, sizes and arrival times are transient; the seating party system does not yet imply coordinated amenity visits or child/adult roles. Existing spacing and route reservations continue to apply.
+
+Save schema v2 now optionally includes team={primary,secondary,accent,fenceMaterial}. Old saves load a navy/gold/cream palette and chain-link outfield without changing cash. Objects/walls may store validated customColors and built walls may store material. Undo snapshots include team; imports and exports preserve all metadata. New tool types are drinks, iceCream, souvenir, basicScoreboard, deluxeScoreboard, videoScoreboard and vintageScoreboard. Pricing lives in the normal prices registry. No new revenue source is active.
+
+Neighborhood models are static canvas geometry outside the stadium, with banner colors read from team. Parking adds a fixed pedestrian prefix to the validated existing gate approach; fans now originate at parkingSpawn (3.5,-0.5) and reverse the same full route to leave. No traffic/collision simulation was added for decorative buildings or cars. Exported parks do not duplicate static scenery.

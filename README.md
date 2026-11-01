@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.27 includes construction, modular stands, concourses, up to 100 fans, grouped arrivals, queues and postgame exits. Detailed amenity needs and review reports remain future milestones.
+**Design → Build → Unfold → Review.** Version 0.29 includes diagonal modular stands, clear stair feedback, visible concourses, 100 fans in seated parties, team identity and overrides, fence finishes, shops, four scoreboard models, and parking/neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
 
 ## Play and develop
 
@@ -80,6 +80,8 @@ No credentials belong in the repository. This game is a static website with no b
 
 ## First fan test
 
-Use **Build demo route** (up to $2,000) then **Open gates** to watch 24 fans arrive from the street and sit. The demo preserves existing objects and reports any conflicts. **End test** clears the fans so you can build again. You can also connect your own walkways from the marked entrance tile (14,10) to bleachers. Walkways can connect diagonally when both adjoining orthogonal corridors are clear; walls block crossings. Games use up to 100 fans, limited by reachable seats, and charge $5 when each fan crosses the main gate. Arrivals have groups and gaps; fans prefer walkways/concourses over long seating-row crossings and queue with personal spacing. After the two-minute game, staggered departures return to the street spawn point. Let everyone leave before opening gates again. End game remains a manual early stop. Existing save balances are preserved.
+Use **Build demo route** (up to $2,000) then **Open gates** to watch 24 fans arrive from parking and sit. The demo preserves existing objects and reports any conflicts. **End test** clears the fans so you can build again. You can also connect your own walkways from the marked entrance tile (14,10) to bleachers. Walkways can connect diagonally when both adjoining orthogonal corridors are clear; walls block crossings. Games use up to 100 fans, limited by reachable seats, and charge $5 when each fan crosses the main gate. Arrivals have groups and gaps; fans prefer walkways/concourses over long seating-row crossings and queue with personal spacing. After the two-minute game, staggered departures return to the parking-lot spawn point. Let everyone leave before opening gates again. End game remains a manual early stop. Existing save balances are preserved.
 
 See [the design backlog](docs/DESIGN-BACKLOG.md) and [Chunk 2.5 gameplay checks](docs/CHUNK-2.5-TESTING.md).
+
+See [the overnight gameplay checklist](docs/OVERNIGHT-TESTING.md) for all completed local batches and known limits. The mascot, accompanied children, stretch and wave remain future ideas.

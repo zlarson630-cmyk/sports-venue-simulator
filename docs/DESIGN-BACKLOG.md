@@ -19,7 +19,7 @@ This file distinguishes accepted player tests from ideas and implementation work
 | Chunk 2 | Up to 100 fans limited by accessible seats; $500,000 for new/reset parks; existing save balances preserved; existing prices and $5 admission retained | All six player tests passed |
 | Side-stair investigation | A connected walkway must touch the outer entrance marked by the green arrow. Nearby pavement alone is insufficient. Support side stairs and rear-concourse access. | Player confirmed the walkway resolved the reported NO STAIRS issue |
 
-## Current priority — Chunk 2.5: intelligent fan movement
+## Published foundation — Chunk 2.5: intelligent fan movement
 
 - Random arrival intervals, small groups, singles and quiet gaps; vary the pattern each game.
 - Personal spacing and queues on arrival and departure, including gates and stair bottlenecks.
@@ -27,19 +27,19 @@ This file distinguishes accepted player tests from ideas and implementation work
 - At the end of the two-minute game, stagger departures, return through valid stairs/paths/gate to the original spawn point, then allow the next game.
 - Preserve ticket accounting, saves and construction undo. Never charge again on departure.
 - Verify 100-fan completion and performance, mirrored end stairs, raised concourses, diagonal routes, camera rotation and repeated games.
-- Status: implemented in v0.27 on a development branch; regression and release checks required before publication; player acceptance pending.
+- Status: published in v0.27; 62 regression checks passed before publication. Subsequent local v0.29 checks cover all agreed batches.
 
 ## New player observations and priorities — October 31 follow-up
 
-- **Next construction priority: diagonal seating options.** Add 45-degree seating choices while preserving existing cardinal modular stands, standalone bleachers, snapping, stair access and saved parks. Design/test diagonal footprints and connections before expanding other customization. This is queued work, not part of the current movement patch.
-- **High-priority visual bug: invisible concourse.** Player reports the concourse exists and fans can use it, but its surface is invisible / visually poor. Investigate rendering and depth ordering separately from successful connectivity. Do not mark resolved based only on access tests.
-- **Future seating parties:** natural parties of 2, 3 or 4, with solo attendance possible. Party members should sit together, prefer proximity to the action, and prefer a gap from strangers where capacity permits. These are preferences with competing tradeoffs, not a guarantee of isolated front-row seats. Current randomized arrival waves are not persistent social parties; current seat allocation still distributes fans among reachable sections.
+- **Next construction priority: diagonal seating options.** Add 45-degree seating choices while preserving existing cardinal modular stands, standalone bleachers, snapping, stair access and saved parks. Design/test diagonal footprints and connections before expanding other customization. Implemented locally in v0.28/v0.29; awaiting publication and player acceptance.
+- **High-priority visual bug: invisible concourse.** Player reports the concourse exists and fans can use it, but its surface is invisible / visually poor. Fixed locally with deck/rail depth ordering; browser preview checked. Player acceptance remains pending.
+- **Seating parties (local v0.29):** natural parties of 2, 3 or 4, with solo attendance possible. Party members should sit together, prefer proximity to the action, and prefer a gap from strangers where capacity permits. These are preferences with competing tradeoffs, not a guarantee of isolated front-row seats. Persistent per-game seated parties are now implemented locally in v0.29; player acceptance pending.
 - **Future attractions/destinations:** placeable statues, trophies or similar points of interest along routes. Some fans stop to view them; others head straight to seats, a restroom or concessions. Add these when amenity visits and fan needs are implemented, rather than inserting random unsupported detours now.
 - **Future fan meters (RCT-style):** hunger, thirst, restroom and fun. Define fun and its effects later. Use needs to drive destination choices once the basic movement systems are reliable.
 
-## Next approved design batches (not yet implemented)
+## Agreed batches (implemented locally in v0.29; not yet published)
 
-Diagonal seating takes priority before the previously numbered customization batches below.
+Diagonal seating/access, parties, and the batches below are implemented locally. Public upload and publication were explicitly approved on November 1, 2026; release checks and deployment verification are required.
 
 | Priority / batch | Scope | Acceptance |
 | --- | --- | --- |
@@ -52,7 +52,7 @@ Neighborhood buildings initially have no interiors, traffic, residents, customer
 
 ## Investigations and later work
 
-- **High: access clarity.** NO STAIRS currently signals an incomplete gate-to-seat route. Add actionable connection messages, a highlighted entrance arrow and ghost connecting walkway tile. Both mirrored side stairs must remain valid without front pavement.
+- **Access clarity — implemented locally.** NO SEAT ROUTE and stair-hover explanations distinguish missing paths, blocked walls and mismatched heights. Highlighted entrance tiles guide both stair mirrors without requiring front pavement.
 - **Hands-on investigation: dugout-adjacent seats.** Test placement, collision boundaries, fan access, height and stair/concourse connections. Do not remove dugout collision checks as a shortcut. The side-walkway resolution does not settle every dugout seating case.
 - **Separate larger project: multi-level grandstands.** Under-stand construction and more advanced elevated access require deliberate design/testing.
 - **Later: tutorial.** Keep immediate placement guidance lightweight.
@@ -67,4 +67,35 @@ Chunk 1: entrance, diagonals, zigzags, rotated cameras, obstacles, stairs — PA
 
 Chunk 2: saved balance, new budget, 100 accessible seats, 100 admissions/seats, crowd/camera/stairs, spending/revenue — PASS.
 
-Chunk 2.5: pending gameplay test; see docs/CHUNK-2.5-TESTING.md when implemented.
+Chunk 2.5: published; subsequent player reports identified side-entry clarity, concourse visuals and social seating improvements now addressed in local v0.29.
+
+
+## v0.28 — Seating and access release
+
+Implemented: 45° modular seating, central stairs and both mirrored end stairs; matching-facing height snapping; diagonal footprint previews and overlap protection; diagonal stair endpoints connected to rear concourses; a 128-seat diagonal demo supporting the 100-fan limit. Cardinal pieces and existing save balances stay unchanged. Diagonal pieces use a grid-aligned 14.14 × 14.14 ft footprint (two grid cells of area), four rows and the same 5 ft rise. They connect to matching-facing sections, not directly around bends into cardinal sections; use the path/concourse network for separate sections.
+
+Implemented access clarity: highlighted stair entrance tiles and directional arrows; red for an unconnected stair, green for a gate-connected stair; hover a stair for a missing-walkway, wall, height or disconnected-main-gate explanation. Seating labels now read NO SEAT ROUTE. Rear access remains supported. Raised concourse surfaces and rails now share the painter ordering with seating and pedestrians.
+
+Awaiting player acceptance: place diagonal stands, test both end-stair mirrors, observe the concourse from all camera angles, and reload a saved park. See CHUNK-2.8-TESTING.md.
+
+Open crowd issue found during additional layout testing: a path that doubles back across the fixed gate approach can cause opposing arrival streams to stall. Keep the clear entry approach in the acceptance layouts; investigate shared entrance routing separately. This release does not claim to solve every self-crossing crowd route.
+
+### New agreed future features
+
+- **Roaming mascot:** walks around public fan areas and increases nearby fans' fun. Implement when fun meters and amenity/destination visits exist; define effect radius, cooldown and amount then. No mascot simulation in v0.28.
+- **Children/family parties:** child-sized fan models alongside adult fans. Every child belongs to a party with at least one adult and stays with that party during arrival, seating, visits and departure. Build on persistent social parties and adjacent-seat assignment; children must never arrive or navigate independently as an unaccompanied party.
+- **Next fan batch:** persistent parties of 2–4 with occasional solo adults; choose adjacent seats near the action and prefer space from strangers when capacity allows. Arrival waves alone do not provide this behavior.
+
+- **Future shared crowd moments:** seventh-inning stretch (crowd stands and sings together) and a wave that travels around connected seating. Define timing, sound/mute controls and interaction with fun later. Not part of the overnight foundation batches.
+
+
+## Overnight agreed batches — v0.29, local implementation
+
+- **Party seating:** implemented persistent per-game party IDs, groups usually 2–4 with occasional solo fans, contiguous seats in the same section/row, preference for front rows/near-action sections and a gap from strangers when available. Capacity constraints can reduce a party size; children are not generated yet. Parties share shirt colors and arrival waves. Central stair seats across an aisle count as separate solo blocks.
+- **Team identity:** three global colors with live updates on linked seats, shop awnings, scoreboard trim, padded walls and street banners; per-item custom primary colors and Follow team colors control; undo/save/reload preserve the palette and overrides.
+- **Fence materials:** original chain-link outfield remains default, optional team-colored padding on the 8 ft outfield; built walls may be chain link, padded or wood. Existing wood walls retain their look and collision rules.
+- **Concessions/scoreboards:** general food, drinks, ice cream and souvenir shops with automatic decorative staffing. Basic electronic, deluxe line-score, LED/video-style and vintage manual board models. All place/rotate/save; shop transactions and live score/video feeds remain deferred.
+- **Neighborhood:** functional parking-lot spawn and return route; static parked cars; four houses, gas station, sports bar and apartment block; street lamps with team-colored banners. No building interiors, road traffic or neighborhood economy. Decoration adds no construction charges.
+- **Publication:** the initial public-upload blocker was resolved by explicit user approval on November 1, 2026. Publish to zlarson630-cmyk/sports-venue-simulator after successful GitHub checks and verify deployment.
+
+Future: mascot fun boosts; accompanied child fans; seventh-inning stretch and a traveling wave. All remain design backlog items until needs/family-party systems are designed.
