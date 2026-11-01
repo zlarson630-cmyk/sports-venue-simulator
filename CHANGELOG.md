@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.27.0 — Chunk 2.5: intelligent fan movement
+
+- Save the agreed design backlog and distinguish completed player tests from future features.
+- Randomize arrivals into singles, small groups and gaps. Hold fans off-map until spawn space is free.
+- Use distance-weighted navigation with higher seating-row/stair costs and an arrival-group traffic estimate; keep all existing access/wall rules.
+- Separate modular row aisles from seats, avoid overshooting near seats, maintain personal space and reserve turning room to form natural queues.
+- After two minutes, stagger departures along a shared low-resistance exit tree through stairs, concourses and the main gate to the original street spawn point. Finish queued arrivals before reversing narrow-aisle flow.
+- Preserve $5 gate accounting, construction undo income, $500,000 new parks, the 100-fan cap and saved geometry/balances. Exit travel adds no second ticket charge.
+- Add deterministic crowd, weighted-routing, spacing, full-cycle and persistence regression coverage. Gameplay checklist: docs/CHUNK-2.5-TESTING.md.
+
 ## 0.26.0
 
 - Rebuilt the main entrance walkway from grid-aligned square pavers matching regular walkways.
