@@ -688,7 +688,7 @@
   const entranceTile = "14,10";
   const GAME_SECONDS=120, TICKET_PRICE=5;
   let gateAdmissions=0, gateRevenue=0;
-  let fans=[], fanActive=false, fanElapsed=0, fanPlanned=0, fanUnreachable=0, fanFrame=0, reachableCapacity=0, disconnectedSections=new Set();
+  let fans=[], fanActive=false, fanElapsed=0, fanPlanned=0, fanUnreachable=0, fanFrame=0, reachableCapacity=0, disconnectedSections=new Set(), fanPhase="idle", departureElapsed=0;
   function fanStatus(message) { const e=document.getElementById("fanStatus");if(e.textContent!==message)e.textContent=message; }
   function insideStadium(x,y) {return x>=9&&x<53&&y>=5&&y<49&&x+y>=19&&x+y<=81;}
   function wallBlocks(a,b) {
@@ -756,7 +756,7 @@
       if(isPath(item))add(ground(k),pathPoint(x,y,item));
       if(item.type==="concourse")add("c:"+k,{x:x+0.5,y:y+0.5,feet:item.baseFeet});
       if(!isStand(item))continue;
-      for(let r=0;r<4;r++)add(rowId(k,r),standPoint(x,y,item,stairCenter(item),-0.3125+r/4,item.baseFeet+(r+1)*1.25));
+      for(let r=0;r<4;r++)add(rowId(k,r),standPoint(x,y,item,stairCenter(item),-0.2625+r/4,item.baseFeet+(r+1)*1.25));
       if(hasStairs(item)) {
         add(step(k,-1),standPoint(x,y,item,stairCenter(item),-0.5,item.baseFeet));
         for(let n=0;n<8;n++)add(step(k,n),standPoint(x,y,item,stairCenter(item),-0.4375+n/8,item.baseFeet+(n+1)*0.625));
@@ -822,11 +822,38 @@
     for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
       const next=key(14+dx,10+dy);if(pathOpens(tiles[next],-dx,-dy)&&!wallBlocks(entranceTile,next))join(ground(entranceTile),ground(next));
     }
-    const queue=[ground(entranceTile)],parents=new Map([[queue[0],null]]);
-    for(let i=0;i<queue.length;i++)for(const next of links.get(queue[i])||[])if(!parents.has(next)){parents.set(next,queue[i]);queue.push(next);}
-    const routeTo=id=>{const ids=[];for(let at=id;at!==null;at=parents.get(at))ids.unshift(at);
-      // Direct links between walkable tile centers prevent unnecessary zigzags.
-      return ids.map(id=>nodes.get(id));};
+    // Walking distance matters more than the number of graph nodes. Crossing a
+    // seating row is slower than using the concourse; stairs also cost effort.
+    const routeCost=(a,b,traffic=new Map())=>{
+      const p=nodes.get(a),q=nodes.get(b);
+      const distance=Math.hypot(p.x-q.x,p.y-q.y,((p.feet||0)-(q.feet||0))/10);
+      const row=a.startsWith("r:")&&b.startsWith("r:");
+      const stairs=a.startsWith("t:")||b.startsWith("t:");
+      return distance*(row?6:stairs?1.8:1)+(traffic.get(b)||0)*0.025;
+    };
+    const searchRoutes=(traffic=new Map())=>{
+      const root=ground(entranceTile),parents=new Map([[root,null]]),costs=new Map([[root,0]]),open=[[0,root]];
+      while(open.length) {
+        open.sort((a,b)=>b[0]-a[0]);
+        const [cost,id]=open.pop();if(cost!==costs.get(id))continue;
+        for(const next of links.get(id)||[]) {
+          const value=cost+routeCost(id,next,traffic);
+          if(value<(costs.get(next)??Infinity)-1e-9){costs.set(next,value);parents.set(next,id);open.push([value,next]);}
+        }
+      }
+      return parents;
+    };
+    const parents=searchRoutes();
+    const routeTo=(id,tree=parents)=>{const ids=[];for(let at=id;at!==null;at=tree.get(at))ids.unshift(at);
+      return ids.map(id=>({...nodes.get(id),node:id}));};
+    // Keep a consistent direction through shared narrow aisles. Traffic estimates
+    // select a weighted routing tree for each arrival group, rather than replan
+    // every animation frame (which causes oscillation and wastes work).
+    let cachedTraffic=null,cachedTree=parents;
+    const routeFor=(id,traffic)=>{
+      if(traffic!==cachedTraffic){cachedTraffic=traffic;cachedTree=searchRoutes(traffic);}
+      return routeTo(id,cachedTree);
+    };
     const result=[];
     for(const [k,item] of Object.entries(tiles)) {
       if(!seatCapacity(item))continue;
@@ -837,17 +864,17 @@
           const next=key(x+dx,y+dy),id=ground(next);
           if(insideStadium(x,y)&&parents.has(id)&&pathOpens(tiles[next],-dx,-dy)&&!wallBlocks(k,next)){route=routeTo(id);break;}
         }
-        if(route)for(let n=0;n<24;n++)slots.push({seat:n,row:Math.floor(n/8),col:n%8,route});
+        if(route)for(let n=0;n<24;n++)slots.push({seat:n,row:Math.floor(n/8),col:n%8,route,routeFor:traffic=>routeFor(route[route.length-1].node,traffic)});
       } else {
         const cols=item.type==="stand"?5:2;
-        for(let r=0;r<4;r++)if(parents.has(rowId(k,r)))for(let col=0;col<cols;col++)slots.push({seat:r*cols+col,row:r,col,route:routeTo(rowId(k,r))});
+        for(let r=0;r<4;r++)if(parents.has(rowId(k,r)))for(let col=0;col<cols;col++)slots.push({seat:r*cols+col,row:r,col,route:routeTo(rowId(k,r)),routeFor:traffic=>routeFor(rowId(k,r),traffic)});
       }
       if(slots.length)result.push({key:k,x,y,rot:item.rot,type:item.type,baseFeet:item.baseFeet||0,route:slots[0].route,capacity:slots.length,slots});
     }
     return result;
   }
   function endFanTest(message) {
-    fanActive=false;fans=[];disconnectedSections.clear();fanFrame++;
+    fanActive=false;fanPhase="idle";fans=[];disconnectedSections.clear();fanFrame++;
     fanStatus(message||`Game ended early. ${gateAdmissions} admissions · $${gateRevenue} gate revenue. Adjust your park, then open gates again.`);draw();
   }
   function startFanTest() {
@@ -859,8 +886,9 @@
     disconnectedSections=new Set(Object.entries(tiles).filter(([k,v])=>seatCapacity(v)&&!sections.some(s=>s.key===k)).map(([k])=>k));
     fanUnreachable=total-reachableCapacity;
     if(!sections.length) {draw();fanStatus("No reachable seats. Build walkways from the marked entrance to bleachers, or use Build demo route.");return;}
-    fanPlanned=Math.min(100,reachableCapacity);fanElapsed=0;gateAdmissions=0;gateRevenue=0;fans=[];
+    fanPlanned=Math.min(100,reachableCapacity);fanElapsed=0;departureElapsed=0;fanPhase="game";gateAdmissions=0;gateRevenue=0;fans=[];
     const assigned=new Map(sections.map(section=>[section.key,0]));
+    const arrivals=arrivalSchedule(fanPlanned),traffic=new Map();let routeTraffic=new Map();
     for(let i=0;i<fanPlanned;i++) {
       const available=sections.filter(section=>assigned.get(section.key)<section.capacity);
       const section=available[i%available.length],ordinal=assigned.get(section.key);
@@ -874,8 +902,15 @@
         const a=-0.34+col*0.097,b=-0.28+row*0.22;
         target={x:section.x+0.5+ux*a-uy*b,y:section.y+0.5+uy*a+ux*b,feet:0};
       } else target=standPoint(section.x,section.y,section,section.type==="stand"?-0.4+col*0.2:(col?0.4:-0.4),-0.3125+row/4,section.baseFeet+(row+1)*1.25);
-      const route=[...arrival,...slot.route.slice(1),target];
-      fans.push({route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start:i*0.08,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===11.5&&p.y===7.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
+      if(section.type!=="bleacher") {
+        const {bx,by}=standAxes(section.rot);
+        target.aisle={x:target.x+bx*0.05,y:target.y+by*0.05,feet:target.feet};
+      }
+      if(i===0||arrivals[i]-arrivals[i-1]>0.25)routeTraffic=new Map(traffic);
+      const walkingRoute=slot.routeFor(routeTraffic);
+      for(const p of walkingRoute)traffic.set(p.node,(traffic.get(p.node)||0)+1);
+      const route=seatRoute(arrival,walkingRoute,target);
+      fans.push({route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start:arrivals[i],spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===11.5&&p.y===7.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][i%4]});
     }
     fanActive=true;fanStatus("Game on · 2:00 remaining · $5 admission. Fans are walking to their seats.");
     let last=null;const run=++fanFrame;
@@ -887,34 +922,144 @@
     };
     if(typeof requestAnimationFrame==="function")requestAnimationFrame(frame);
   }
+  function seatRoute(arrival,walking,seat) {
+    const target=seat.aisle||seat;
+    const route=[...arrival,...walking.slice(1)];
+    // A graph row center is a routing anchor, not a point fans must walk past
+    // before doubling back to a nearer seat. Trim only the final straight row.
+    while(route.length>1) {
+      const a=route[route.length-2],b=route[route.length-1];
+      if(!b.node?.startsWith("r:")||Math.abs((a.feet||0)-(target.feet||0))>1e-8)break;
+      const dx=b.x-a.x,dy=b.y-a.y,length=dx*dx+dy*dy;
+      const t=length?((target.x-a.x)*dx+(target.y-a.y)*dy)/length:2;
+      if(t<0||t>1||Math.hypot(target.x-a.x-t*dx,target.y-a.y-t*dy)>1e-8)break;
+      route.pop();
+    }
+    route.push(target);if(target!==seat)route.push(seat);return route;
+  }
+  function arrivalSchedule(count,random=Math.random) {
+    const times=[];let time=0;
+    while(times.length<count) {
+      const group=1+Math.floor(random()*5);
+      for(let n=0;n<group&&times.length<count;n++) {times.push(time);time+=0.08+random()*0.12;}
+      time+=0.25+random()*0.65;
+    }
+    return times;
+  }
+  const FAN_SPACE=0.16, FAN_SPEED=2.8;
+  const fanDistance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,((a.feet||0)-(b.feet||0))/10);
+  function beginDepartures() {
+    fanPhase="exiting";departureElapsed=0;
+    // Use a common low-resistance exit tree to avoid opposing flows around
+    // loops. All edges still use the existing validated access graph.
+    const sections=reachableSeats(),arrival=approachRoute();
+    for(const fan of fans) {
+
+      const slot=sections.find(s=>s.key===fan.sectionKey)?.slots.find(s=>s.seat===fan.seat);
+      const route=slot&&arrival?seatRoute(arrival,slot.route,fan.route[fan.route.length-1]):fan.route;
+      fan.route=route.slice().reverse();fan.index=0;
+      fan.remaining=fan.route.map(()=>0);
+      for(let i=fan.route.length-2;i>=0;i--)fan.remaining[i]=fan.remaining[i+1]+fanDistance(fan.route[i],fan.route[i+1]);
+    }
+    // Clear the seats nearest the exit before feeding deeper rows into them.
+    // Jittered release gaps keep departures natural while preventing a person
+    // from standing directly in the way of an already moving neighbor.
+    let release=0;
+    for(const fan of fans.slice().sort((a,b)=>a.remaining[0]-b.remaining[0])) {
+      fan.exitStart=release;release+=0.1+Math.random()*0.12;
+    }
+  }
   function advanceFans(dt) {
     if(!fanActive||!Number.isFinite(dt)||dt<=0)return;
-    dt=Math.min(dt,GAME_SECONDS-fanElapsed);
-    const previousElapsed=fanElapsed;fanElapsed+=dt;
+    // Fixed small integration steps prevent tunneling on slow/hidden tabs and
+    // make the result independent of the animation frame rate.
     let collected=0;
-    for(const fan of fans) {
-      if(fanElapsed<fan.start||fan.seated)continue;
-      let distance=Math.max(0,fanElapsed-Math.max(previousElapsed,fan.start))*2.8;
-      while(distance>0&&!fan.seated) {
-        const next=fan.route[fan.index+1];
-        if(!next) {fan.seated=true;break;}
-        const dx=next.x-fan.x,dy=next.y-fan.y,dh=(next.feet||0)-fan.feet,length=Math.hypot(dx,dy,dh/10);
-        if(length<=distance) {fan.x=next.x;fan.y=next.y;fan.feet=next.feet||0;fan.index++;distance-=length;
-          if(!fan.paid&&fan.index>=fan.gateIndex) {fan.paid=true;gateAdmissions++;gateRevenue+=TICKET_PRICE;collected+=TICKET_PRICE;}}
-        else {fan.x+=dx/length*distance;fan.y+=dy/length*distance;fan.feet+=dh/length*distance;distance=0;}
+    while(dt>1e-8&&fanActive) {
+      const step=Math.min(dt,1/60);dt-=step;
+      const previousElapsed=fanElapsed;
+      fanElapsed=fanElapsed+step>=GAME_SECONDS-1e-8?GAME_SECONDS:fanElapsed+step;
+      if(fanPhase==="exiting")departureElapsed+=step;
+      // Leaders move first; followers can use the space they just vacated.
+      const moving=fans.filter(f=>!f.exited).sort((a,b)=>fanPhase==="exiting"?
+        (a.remaining[a.index+1]||0)+fanDistance(a,a.route[a.index+1]||a)-
+        (b.remaining[b.index+1]||0)-fanDistance(b,b.route[b.index+1]||b)||a.exitStart-b.exitStart:a.start-b.start);
+      const priority=new Map(moving.map((f,i)=>[f,i]));
+      const lookAhead=fan=>{
+        const points=[fan];let left=0.35,p=fan;
+        for(let i=fan.index+1;i<fan.route.length&&left>0;i++) {
+          const q=fan.route[i],length=fanDistance(p,q),ratio=Math.min(1,left/(length||1));
+          const next={x:p.x+(q.x-p.x)*ratio,y:p.y+(q.y-p.y)*ratio,feet:(p.feet||0)+((q.feet||0)-(p.feet||0))*ratio};
+          points.push(next);
+          left-=length;p=q;
+        }
+        return points;
+      };
+      const corridorDistance=(p,points)=>{
+        let best=Infinity;
+        for(let i=1;i<points.length;i++) {
+          const a=points[i-1],b=points[i],dx=b.x-a.x,dy=b.y-a.y,dz=((b.feet||0)-(a.feet||0))/10;
+          const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy+((p.feet||0)-(a.feet||0))/10*dz)/(dx*dx+dy*dy+dz*dz||1)));
+          best=Math.min(best,fanDistance(p,{x:a.x+t*dx,y:a.y+t*dy,feet:(a.feet||0)+t*dz*10}));
+        }
+        return best;
+      };
+      const corridors=new Map();
+      for(const fan of moving) {
+        if(fanPhase==="exiting"?departureElapsed<fan.exitStart:fanElapsed<fan.start||fan.seated)continue;
+        const occupied=p=>fans.some(other=>other!==fan&&other.spawned&&!other.exited&&(!other.seated||other.standSeat)&&
+          // Fans still sitting during their staggered release occupy seats,
+          // not the walking aisle in front of that row.
+          !(fanPhase==="exiting"&&departureElapsed<other.exitStart)&&(fanDistance(p,other)<(other.seated?0.03:FAN_SPACE)-1e-8||
+            (!other.seated&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
+              corridorDistance(p,corridors.get(other)||lookAhead(other))<FAN_SPACE-1e-8)));
+        if(fanPhase==="exiting"&&fan.seated) {
+          if(occupied(fan))continue;
+          fan.seated=false;
+        }
+        if(!fan.spawned) {
+          if(occupied(fan))continue;
+          fan.spawned=true;
+        }
+        let distance=FAN_SPEED*(fanPhase==="exiting"?step:(fanPhase==="finishing arrivals"?step:Math.max(0,fanElapsed-Math.max(previousElapsed,fan.start))));
+        while(distance>1e-8) {
+          const next=fan.route[fan.index+1];
+          if(!next){if(fanPhase==="exiting")fan.exited=true;else fan.seated=true;break;}
+          const length=fanDistance(fan,next),travel=Math.min(distance,length);
+          const ratio=length>1e-9?travel/length:1;
+          const proposed={x:fan.x+(next.x-fan.x)*ratio,y:fan.y+(next.y-fan.y)*ratio,feet:fan.feet+((next.feet||0)-fan.feet)*ratio};
+          if(occupied(proposed))break;
+          Object.assign(fan,proposed);distance-=travel;
+          if(length<=travel+1e-9) {
+            fan.index++;
+            if(fanPhase!=="exiting"&&!fan.paid&&fan.index>=fan.gateIndex) {
+              fan.paid=true;gateAdmissions++;gateRevenue+=TICKET_PRICE;collected+=TICKET_PRICE;
+            }
+            if(fan.index===fan.route.length-1){if(fanPhase==="exiting")fan.exited=true;else fan.seated=true;break;}
+          } else break;
+        }
+        corridors.set(fan,lookAhead(fan));
+      }
+      if(fanElapsed>=GAME_SECONDS&&fanPhase==="game")fanPhase="finishing arrivals";
+      // Late/queued arrivals finish before reversing flow on narrow stairs.
+      if(fanPhase==="finishing arrivals"&&fans.every(f=>f.seated))beginDepartures();
+      if(fanPhase==="exiting"&&fans.every(f=>f.exited)) {
+        endFanTest(`Game complete! 2:00 played · ${gateAdmissions} admissions · $${gateRevenue} gate revenue. All fans returned to the spawn point. Ready to build or open gates for another game.`);
       }
     }
     if(collected) {
       money+=collected;
-      // Construction undo must preserve admission income earned afterward.
       for(const snapshot of history)snapshot.money+=collected;
       store();update();
     }
-    if(fanElapsed>=GAME_SECONDS) {
-      endFanTest(`Game complete! 2:00 played · ${gateAdmissions} admissions · $${gateRevenue} gate revenue. Ready to build or open gates for another game.`);return;
+    if(!fanActive)return;
+    if(fanPhase==="exiting") {
+      fanStatus(`Postgame · Fans exiting: ${fans.filter(f=>f.exited).length}/${fanPlanned}. Fans queue at stairs and the gate, then return to the street.`);return;
     }
-    const remaining=Math.ceil(GAME_SECONDS-fanElapsed),clock=`${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,"0")}`;
-    const seated=fans.filter(f=>f.seated).length,arrived=fans.filter(f=>fanElapsed>=f.start).length;
+    if(fanPhase==="finishing arrivals") {
+      fanStatus("Postgame · Waiting for queued arrivals to reach their seats before opening the exit flow.");return;
+    }
+    const remaining=Math.ceil(GAME_SECONDS-fanElapsed-1e-8),clock=`${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,"0")}`;
+    const seated=fans.filter(f=>f.seated).length,arrived=fans.filter(f=>f.spawned).length;
     const access=fanUnreachable ? `${disconnectedSections.size} disconnected section${disconnectedSections.size===1?"":"s"} (${fanUnreachable} seats), marked red. Connect walkways to use them.` : "All seating sections have a route from the gate.";
     fanStatus(`Game on · ${clock} remaining · ${gateAdmissions} admissions · $${gateRevenue} gate revenue. `+(seated===fanPlanned?`All ${seated} arriving fans are seated. ${reachableCapacity-seated} reachable seats remain empty. ${access}`:
       `Fans arriving: ${arrived}/${fanPlanned} · Fans seated: ${seated}. ${access}`));
@@ -1074,7 +1219,7 @@
       }))
       .concat(defensivePlayers.map(player=>({x:player.x-0.5,y:player.y-0.5,player})))
       .concat(dugouts.map(dugout=>({x:dugout.x+(dugout.swap?dugout.width:dugout.length)/2-0.5,y:dugout.y+(dugout.swap?dugout.length:dugout.width)/2-0.5,dugout})))
-      .concat(fans.filter(f=>fanElapsed>=f.start).map(fan=>({x:fan.x-0.5,y:fan.y-0.5,fan})))
+      .concat(fans.filter(f=>f.spawned&&!f.exited).map(fan=>({x:fan.x-0.5,y:fan.y-0.5,fan})))
       .concat(roadsideTrees.map(tree=>({x:tree.x-0.5,y:tree.y-0.5,tree})))
       .concat(outerFence.map(panel=>({x:(panel.a[0]+panel.b[0])/2-0.5,y:(panel.a[1]+panel.b[1])/2-0.5,panel})))
       .concat([{x:11,y:7,mainEntry:true}])

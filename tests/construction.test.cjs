@@ -9,7 +9,7 @@ const source = fs.readFileSync(
 
 // Exercise the actual game and its event handlers without a browser dependency.
 // Canvas commands are recorded so tests can check world geometry, not just counters.
-function game(saved) {
+function game(saved, random=()=>0.5) {
   const commands = [],
     elements = new Map(),
     storage = new Map(saved ? [["svs01", JSON.stringify(saved)]] : []);
@@ -68,7 +68,7 @@ function game(saved) {
   const keys = {};
   const context = {
     console,
-    Math,
+    Math: Object.assign(Object.create(Math),{random}),
     JSON,
     Number,
     Object,
@@ -99,7 +99,7 @@ function game(saved) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,fanState:()=>({fans,fanActive,fanElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -513,7 +513,10 @@ test("two-minute game charges only at gate crossing and ends automatically",()=>
  g.api.advanceFans(89);assert.equal(g.api.fanState().fanActive,true);
  assert.match(g.element("fanStatus").textContent,/0:01 remaining/);
  assert.equal(g.api.state().money,498120);
- g.api.advanceFans(1);assert.equal(g.api.fanState().fanActive,false);
+ g.api.advanceFans(1);assert.equal(g.api.fanState().fanActive,true);
+ assert.equal(g.api.fanState().fanPhase,"exiting");
+ assert.match(g.element("fanStatus").textContent,/Postgame/);
+ g.api.advanceFans(60);assert.equal(g.api.fanState().fanActive,false);
  assert.equal(g.api.fanState().fans.length,0);
  assert.match(g.element("fanStatus").textContent,/Game complete! 2:00 played · 24 admissions · \$120 gate revenue/);
  g.api.advanceFans(30);assert.equal(g.api.state().money,498120);
@@ -522,12 +525,12 @@ test("two-minute game charges only at gate crossing and ends automatically",()=>
  assert.equal(reload.api.state().money,500120);
 });
 
-test("another game collects new tickets and large frame deltas stop at two minutes",()=>{
+test("another game collects new tickets and large frame deltas include spaced departures",()=>{
  const g=game();g.api.buildFanDemo();g.api.startFanTest();
  g.api.advanceFans(200);assert.equal(g.api.fanState().fanElapsed,120);
  assert.equal(g.api.fanState().fanActive,false);assert.equal(g.api.state().money,498120);
  g.api.startFanTest();assert.equal(g.api.state().money,498120);
- g.api.advanceFans(120);assert.equal(g.api.state().money,498240);
+ g.api.advanceFans(200);assert.equal(g.api.state().money,498240);
  assert.match(g.element("fanStatus").textContent,/24 admissions · \$120 gate revenue/);
 });
 
@@ -750,4 +753,92 @@ test("new park budget and legacy save balance",()=>{
  const saved=game({version:2,fieldRevision:6,money:73123,tiles:{},edges:{}});
  assert.equal(saved.api.state().money,73123);
  fresh.element("reset").click();assert.equal(fresh.api.state().money,500000);
+});
+
+function seededRandom(seed) {
+ return ()=>((seed=(1664525*seed+1013904223)>>>0)/4294967296);
+}
+
+test("arrival schedules contain groups, singles and gaps and vary between games",()=>{
+ const g=game(),a=Array.from(g.api.arrivalSchedule(100,seededRandom(42))),b=Array.from(g.api.arrivalSchedule(100,seededRandom(99)));
+ assert.equal(a.length,100);assert.equal(a[0],0);assert.notDeepEqual(a,b);
+ const gaps=a.slice(1).map((time,i)=>time-a[i]);
+ assert.ok(gaps.every(gap=>gap>0));assert.ok(gaps.some(gap=>gap<0.2));assert.ok(gaps.some(gap=>gap>0.6));
+ assert.ok(a.at(-1)<90,"arrivals fit inside the two-minute game");
+});
+
+test("weighted routes use the rear concourse and the aisle nearest the seat",()=>{
+ const g=game();g.api.buildConcourseDemo();
+ g.api.state().tiles["21,8"]={type:"stairStand",rot:4,baseFeet:0};
+ const sections=g.api.reachableSeats(),right=sections.find(s=>s.key==="21,8");
+ assert.ok(right);
+ for(const slot of right.slots) {
+   const ids=slot.route.map(p=>p.node);
+   assert.ok(ids.includes("c:21,7"),"walk along the deck before entering the far aisle");
+   assert.ok(ids.some(id=>id.startsWith("t:21,8:")));
+   assert.ok(!ids.some(id=>id.startsWith("r:19,8:")||id.startsWith("r:20,8:")),"avoid shuffling across other seating sections");
+ }
+});
+
+test("100 fans queue without overlap and all exit without a second ticket charge",()=>{
+ const saved=modularPark({"21,8":{type:"stand",rot:4,baseFeet:0}});
+ const g=game(saved,seededRandom(27)),initial=g.api.state().money;
+ g.api.startFanTest();const fans=g.api.fanState().fans;
+ assert.equal(fans.length,100);
+ let queued=false,sawDeparture=false,sawReturned=false;
+ for(let frame=0;frame<1100&&g.api.fanState().fanActive;frame++) {
+   g.api.advanceFans(0.2);
+   const state=g.api.fanState();
+   queued ||= fans.some(f=>f.spawned&&!f.seated&&!f.exited&&state.fanElapsed>f.start+15);
+   sawDeparture ||= state.fanPhase==="exiting";
+   sawReturned ||= fans.some(f=>f.exited);
+   const walking=fans.filter(f=>f.spawned&&!f.seated&&!f.exited);
+   for(let i=0;i<walking.length;i++)for(let j=i+1;j<walking.length;j++) {
+     assert.ok(g.api.fanDistance(walking[i],walking[j])>=g.api.FAN_SPACE-1e-7,"walking fans keep personal space, including at merges");
+   }
+   for(const f of fans.filter(f=>f.exited)) {
+     assert.equal(f.x,6.5);assert.equal(f.y,2.5);assert.equal(f.feet,0);
+   }
+   if(state.fanElapsed===120)assert.equal(g.api.state().money,initial+500);
+ }
+ assert.ok(queued);assert.ok(sawDeparture);assert.ok(sawReturned);
+ assert.equal(g.api.fanState().fanActive,false,"all 100 fans complete the full cycle");
+ assert.ok(fans.every(f=>f.exited));assert.equal(g.api.state().money,initial+500);
+ const reload=game(JSON.parse(g.storage.get("svs01")));
+ assert.equal(reload.api.state().money,initial+500);
+ assert.equal(JSON.stringify(reload.api.state().tiles),JSON.stringify(g.api.state().tiles));
+});
+
+test("all demo crowds finish arrivals and staggered exits across different random seeds",()=>{
+ for(const [demo,seed] of [["buildFanDemo",4],["buildStandDemo",33],["buildSideEntryDemo",71],["buildConcourseDemo",19]]) {
+   const g=game(undefined,seededRandom(seed));g.api[demo]();g.api.startFanTest();const fans=g.api.fanState().fans;
+   const geometry=JSON.stringify(g.api.state().tiles),balance=g.api.state().money;
+   g.api.advanceFans(100);assert.ok(fans.every(f=>f.seated),`${demo}: all arrivals seated`);
+   for(let i=0;i<4;i++)g.key("q");
+   g.api.advanceFans(20);assert.equal(g.api.fanState().fanPhase,"exiting");
+   assert.ok(fans.every(f=>!f.exited),"fans remain visible at the end of the game");
+   assert.ok(new Set(fans.map(f=>f.exitStart)).size>1,"departures are staggered");
+   g.api.advanceFans(100);assert.ok(fans.every(f=>f.exited),`${demo}: all fans return to spawn`);
+   assert.equal(g.api.fanState().fanActive,false);
+   assert.equal(g.api.state().money,balance+fans.length*5);
+   assert.equal(JSON.stringify(g.api.state().tiles),geometry);
+ }
+});
+
+test("seat approaches do not overshoot nearer seats and turn into following fans",()=>{
+ const g=game();g.api.buildSideEntryDemo();g.api.startFanTest();
+ for(const f of g.api.fanState().fans) {
+   const target=f.route.at(-1),previous=f.route.at(target.aisle?-3:-2);
+   if(target.x<18.5&&f.sectionKey.startsWith("18,"))assert.ok(previous.x<target.x,"approach the near seat directly from the stair side");
+ }
+});
+
+test("100-fan crowd cycles remain live across several arrival and departure patterns",()=>{
+ for(const seed of [1,7,42,2026]) {
+   const g=game(modularPark({"21,8":{type:"stand",rot:4,baseFeet:0}}),seededRandom(seed));
+   g.api.startFanTest();const fans=g.api.fanState().fans;
+   g.api.advanceFans(100);assert.ok(fans.every(f=>f.seated),`seed ${seed}: arrivals complete`);
+   g.api.advanceFans(120);assert.ok(fans.every(f=>f.exited),`seed ${seed}: exit queues drain`);
+   assert.equal(g.api.fanState().fanActive,false);
+ }
 });

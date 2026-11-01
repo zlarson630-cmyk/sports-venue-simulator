@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.16 includes the construction sandbox and a first fan arrival test. Full game-day simulation and review reports are future milestones.
+**Design → Build → Unfold → Review.** Version 0.27 includes construction, modular stands, concourses, up to 100 fans, grouped arrivals, queues and postgame exits. Detailed amenity needs and review reports remain future milestones.
 
 ## Play and develop
 
@@ -35,7 +35,7 @@ Rotation affects the **next item placed**. Remove and rebuild an existing item t
 - 60 × 60 world, 10 × 10 feet per tile.
 - Fixed baseball playing surface, protected from construction: 90-foot basepaths, rounded infield dirt, a 15-foot warning track, a diagonal backstop, 300-foot foul lines and about 304 feet to center. Earlier saves receive full refunds for construction overlapped by the expanded field.
 - Walkways, bleachers (24 seats), walls, gates, concessions, restrooms, removal.
-- $100,000 starting budget; 70% removal refunds; undo.
+- $500,000 starting budget for new/reset parks; 70% removal refunds; undo.
 - Existing `svs01` browser saves remain compatible.
 
 Saves belong to the current browser and website address. Export a backup before changing addresses or devices; an old file preview's save will not automatically transfer to a hosted site.
@@ -80,4 +80,6 @@ No credentials belong in the repository. This game is a static website with no b
 
 ## First fan test
 
-Use **Build demo route** (up to $2,000) then **Open gates** to watch 24 fans arrive from the street and sit. The demo preserves existing objects and reports any conflicts. **End test** clears the fans so you can build again. You can also connect your own walkways from the marked entrance tile (14,10) to bleachers. Paths must touch edge-to-edge; walls block crossings. The test uses up to 25 fans and reports unreachable seats. Detailed aisle/stair movement, amenities, departures, money earned, and congestion are not implemented yet.
+Use **Build demo route** (up to $2,000) then **Open gates** to watch 24 fans arrive from the street and sit. The demo preserves existing objects and reports any conflicts. **End test** clears the fans so you can build again. You can also connect your own walkways from the marked entrance tile (14,10) to bleachers. Walkways can connect diagonally when both adjoining orthogonal corridors are clear; walls block crossings. Games use up to 100 fans, limited by reachable seats, and charge $5 when each fan crosses the main gate. Arrivals have groups and gaps; fans prefer walkways/concourses over long seating-row crossings and queue with personal spacing. After the two-minute game, staggered departures return to the street spawn point. Let everyone leave before opening gates again. End game remains a manual early stop. Existing save balances are preserved.
+
+See [the design backlog](docs/DESIGN-BACKLOG.md) and [Chunk 2.5 gameplay checks](docs/CHUNK-2.5-TESTING.md).

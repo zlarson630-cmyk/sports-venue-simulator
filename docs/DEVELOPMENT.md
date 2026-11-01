@@ -85,3 +85,14 @@ Build concourse demo creates a side stair at 17,8, five rear platforms at 17–2
 `halfPath` stores a triangular paver in one cell, with rotations 0/2/4/6. Each costs $50; adding the opposite triangle or using Walkway to complete a half costs the remaining $50 and changes it to `path`. Refunds use its actual type price. Entrance terrain is now drawn as the `entrancePaving` set of square cells; user path paving overrides a cell's terrain paving.
 
 Ground graph nodes for triangles sit at their centroid and connect only along the two fully paved edges. Shared-edge midpoint waypoints keep segments within each convex triangle. Stair, end landing, concourse and standalone bleacher connections also check the paved edge. The entrance approach samples pavement coverage as well as building footprints.
+
+
+## Intelligent fan movement (v0.27 / Chunk 2.5)
+
+The existing access graph is unchanged. Dijkstra route costs use physical distance, with row links ×6 and stairs ×1.8. Each arrival group uses a cached tree informed by previously assigned route traffic (a lightweight expected-wait estimate, not live replanning). Exit routes use a common tree to keep narrow shared aisles flowing toward the gate. Individual seats have a short perpendicular connection to a row walking aisle; final row anchors are trimmed when they would overshoot a nearer seat.
+
+Random schedules contain 1–5 people per group, short within-group intervals and larger gaps. A fan is not visible until the spawn point is clear. Movement integrates at no more than 1/60 second per step, maintaining 0.16-tile walking separation and reserving a 0.35-tile corridor ahead of leaders. Exact point-to-segment clearance prevents deadlocks at tight turns. Seated modular fans occupy seats beside the walking aisle (0.03-tile clearance), not standing-person queue space. Legacy standalone bleacher access stays compatible with its simpler geometry.
+
+Phases are game → finishing arrivals (only if queues outlast the clock) → exiting → idle. Fans nearest an exit route release first with randomized 0.10–0.22-second gaps before seeking space to stand; exiting fans disappear only at the original spawn coordinate. No admission is collected during exit. Simulation state is transient; the existing browser save schema/key, construction geometry and economy remain unchanged. End game/import/reset retain explicit early-stop behavior.
+
+The Node harness uses deterministic randomness and checks full cycles with varied seeds, 100-fan spacing, exact spawn return, access geometry, accounting and save reload. See CHUNK-2.5-TESTING.md for the remaining player acceptance checks. This is a lightweight reservation/queue model, not continuous crowd physics or live congestion rerouting.
