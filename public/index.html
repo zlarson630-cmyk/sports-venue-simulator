@@ -6,15 +6,15 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Sports Venue Simulator — Sandbox 0.33</title>
-    <link rel="stylesheet" href="styles.css?v=0.33.0" />
+    <title>Sports Venue Simulator — Sandbox 0.34</title>
+    <link rel="stylesheet" href="styles.css?v=0.34.0" />
   </head>
   <body>
     <header>
       <div class="logo">🏟️</div>
       <div>
         <h1>SPORTS VENUE<br />SIMULATOR</h1>
-        <small>BUILD SANDBOX · v0.33</small>
+        <small>BUILD SANDBOX · v0.34</small>
       </div>
       <div class="topstats">
         <div class="stat">💵 <strong id="money">$500,000</strong></div>
@@ -38,6 +38,8 @@
           <p class="foot">Linked items update together. Custom items keep their colors. Undo restores colors too.</p>
         </details>
         <div class="section">CONSTRUCTION TOOLS</div>
+        <button class="tool" data-tool="inspect"><span class="emoji">🔎</span><span>Inspect access (I)</span></button>
+        <div id="accessPanel" hidden style="padding:10px;background:#fff4d6;border:1px solid #d3b36a;border-radius:8px;margin:8px 0"><strong>SEATING ACCESS</strong><p id="accessMessage" style="font-size:12px;line-height:1.45"></p><button class="smallbtn" id="accessSuggestion" hidden style="width:100%">Show suggested piece</button></div>
         <button class="tool sel" data-tool="path">
           <span class="emoji">⬜</span><span>Walkway (W)</span
           ><span class="price">$100</span></button
@@ -92,7 +94,7 @@
         <p id="standHelp" class="standhelp" role="status" hidden></p>
         <div class="sidebarbottom">
           <div class="section">GAME DAY · 2 MINUTES</div>
-          <button class="smallbtn" id="demoCorners" style="width:100%;margin-bottom:6px">Build corner bowl demo · up to $25,800</button>
+          <button class="smallbtn" id="demoCorners" style="width:100%;margin-bottom:6px">Build corner bowl demo · up to $27,600</button>
           <button class="smallbtn" id="demoBackstop" style="width:100%;margin-bottom:6px">Build backstop demo · up to $11,700</button>
           <button class="smallbtn" id="demoDiagonal" style="width:100%;margin-bottom:6px">Build diagonal demo · up to $20,300</button>
           <button class="smallbtn" id="demoConcourse" style="width:100%;margin-bottom:6px">Build concourse demo · up to $11,400</button>
@@ -163,6 +165,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=0.33.0" defer></script>
+    <script src="game.js?v=0.34.0" defer></script>
   </body>
 </html>

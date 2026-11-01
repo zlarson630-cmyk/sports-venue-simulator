@@ -1,9 +1,11 @@
-# Release status — v0.33
+# Release status — v0.34
 
-Continuous seating corners and partial concourses are implemented. Regular mirrored corners join straight and 45° banks; dedicated fence corners align the deeper backstop pieces with the first/third-base straight banks. Half-width and triangular concourses use shared walking surfaces and partial rail openings. Tile completion preserves height and palette and checks the completed footprint.
+Implemented the authorized crowd/access/layout pass. Stairs, concourses and walkways use opposing keep-right lanes. Shared arrival routing avoids opposing entry into narrow seating rows. The exact player park now seats all 100 fans and completes departures; the browser run confirmed 100 admissions, $500 revenue and all fans returned to parking. Automated runs cover the saved park under three seeds and opposing pedestrian traffic.
 
-The new $25,800 corner bowl demo has 132 reachable seats. Browser review confirmed the physical seating joins and a complete browser game: all 100 fans seated, then returned to parking, with exactly $500 admission revenue; docs/review-v0.33.jpg records that view. Regression coverage includes all regular rotations/mirrors, raised placement, refund/undo/reload, fence alignment, cross-bank access, partial ports/rails, completion/collision/import guards and full 100-fan cycles under multiple seeds.
+Inspect access (I) identifies missing paths/stairs, blocked walls, height mismatches and disconnected gate routes. Suggested pieces are checked against placement and the walking graph; a green ghost shows the location and orientation before normal construction. Multi-piece repairs are labeled as next steps.
 
-Publication remains authorized for zlarson630-cmyk/sports-venue-simulator. Merge only after GitHub CI succeeds; verify the Publish game workflow and live version afterward. Corners do not automatically stack uphill. Needs/amenity visits, mascots, accompanied children, stretch and wave remain in DESIGN-BACKLOG.md.
+The main gate now occupies the opening in the outer fence. Nine automatic paved cells participate in routing. Older parks receive a free, removable one-cell-wide path connection to their former entrance once; existing construction and balance are preserved. Player-built paving is retained.
 
-The full local suite passed 95 tests before the final partial-edge snapping guard; focused snapping/access checks pass afterward. GitHub CI runs the final 96-test suite before merge.
+Corner seat rows are straight and parallel with consistent facing. Their footprints and joining ports remain compatible. Actual capacity is now 7 seats for a regular corner and 13 for a fence corner; the updated corner demo offers 102 reachable seats for $27,600. Straight/backstop sections retain their existing capacity. Maximum zoom is 6× with cursor anchoring; four camera angles remain.
+
+Local npm run check passed 103 tests. Focused inspector, corner and zoom checks passed again after final interface polish. GitHub CI verifies the final tree before merge; Publish game and the live version must be verified afterward. Amenity visits, mascots, accompanied children, stretch and wave remain future work.

@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.33 includes diagonal modular stands, clear stair feedback, visible concourses, 100 fans in seated parties, team identity and overrides, fence finishes, shops, four scoreboard models, and parking/neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
+**Design → Build → Unfold → Review.** Version 0.34 adds two-way walking lanes, an access inspector with suggested repairs, a fence-aligned main gate with minimal automatic paving, straight corner rows, and 6× zoom. It includes diagonal modular stands, clear stair feedback, visible concourses, 100 fans in seated parties, team identity and overrides, fence finishes, shops, four scoreboard models, and parking/neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
 
 ## Play and develop
 
@@ -23,6 +23,8 @@ Open http://localhost:4173. Run `npm run check` before committing changes.
 | Mouse wheel or Zoom buttons | Zoom |
 | R / Item button | Rotate the next item by 45°; walls cycle tile edges |
 | Q / Camera button | Rotate the camera by 90° |
+| I / Inspect access | Explain a disconnected section and preview a suggested repair |
+| W / G | Walkway / remove tool |
 | Z / Undo | Undo construction or removal |
 | Escape / Remove tool | Select removal |
 | Center | Return to the baseball field |
