@@ -1,3 +1,19 @@
+## v0.29 — Remaining agreed batches (approved release)
+
+- Parties reserve adjacent seats, prefer proximity to the action and leave room from strangers when possible.
+- Stadium-wide three-color identity, per-object overrides, color undo/save/reload, chain-link and padded fences.
+- Staffed food/drinks/ice-cream/souvenir models and four distinct placeable scoreboard designs.
+- Functional parking spawn/exit route, decorative neighborhood and team-banner street lamps.
+- Future mascot, accompanied children, seventh-inning stretch and wave preserved in backlog.
+
+## v0.28 — Diagonal seating and clearer access
+
+- Modular stands and both types of stairs rotate in 45° steps, with grid-aligned diamond footprints, matching height snapping and collision protection. Cardinal saves remain unchanged.
+- Added a 128-seat diagonal demo for 100-fan arrival and exit testing.
+- Marked stair entrance tiles show connectivity; hovering explains missing paths, blocked walls and height mismatches. NO STAIRS becomes NO SEAT ROUTE.
+- Elevated concourse deck patches and perimeter rails now interleave with seating and fans in depth order.
+- Recorded future mascot fun boosts and children accompanied by adults, plus the separate gate-approach crossing issue.
+
 # Changelog
 
 ## 0.27.0 — Chunk 2.5: intelligent fan movement

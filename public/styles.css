@@ -327,3 +327,5 @@ button:focus-visible {
 }
 
 .standhelp {font-size:12px;line-height:1.5;background:#fff3c9;border:1px solid #ddc473;border-radius:7px;padding:10px;margin:10px 0;color:#31465a;}
+
+.identity{margin:0 0 16px;padding:10px;background:#edf2ef;border:1px solid #c6d3ce;border-radius:10px;color:#254358;font-size:12px}.identity summary{cursor:pointer;font-weight:800;line-height:1.5}.identity label{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0}.identity input[type=color]{width:42px;height:28px;padding:2px;border:1px solid #b6c7c5;border-radius:4px}.identity select{max-width:125px;padding:5px;font:inherit}.identity .smallbtn{width:100%}

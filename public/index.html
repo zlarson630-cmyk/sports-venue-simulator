@@ -6,15 +6,15 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Sports Venue Simulator — Sandbox 0.27</title>
-    <link rel="stylesheet" href="styles.css?v=0.27.0" />
+    <title>Sports Venue Simulator — Sandbox 0.29</title>
+    <link rel="stylesheet" href="styles.css?v=0.29.0" />
   </head>
   <body>
     <header>
       <div class="logo">🏟️</div>
       <div>
         <h1>SPORTS VENUE<br />SIMULATOR</h1>
-        <small>BUILD SANDBOX · v0.27</small>
+        <small>BUILD SANDBOX · v0.29</small>
       </div>
       <div class="topstats">
         <div class="stat">💵 <strong id="money">$500,000</strong></div>
@@ -24,6 +24,19 @@
     </header>
     <main id="app">
       <aside>
+        <details class="identity"><summary>TEAM COLORS &amp; FINISHES</summary>
+          <div class="palette">
+            <label>Primary <input id="teamprimary" type="color" value="#31566b"></label>
+            <label>Secondary <input id="teamsecondary" type="color" value="#edc75b"></label>
+            <label>Accent <input id="teamaccent" type="color" value="#fff0c9"></label>
+          </div>
+          <label>Outfield fence <select id="fieldMaterial"><option value="chain">Chain link</option><option value="padded">Team-color padding</option></select></label>
+          <label>Built wall finish <select id="wallMaterial"><option value="chain">Chain link</option><option value="padded">Padded</option><option value="wood">Wood</option></select></label>
+          <hr><label>Custom item color <input id="customPrimary" type="color" value="#c62832"></label>
+          <label><input id="paintLinked" type="checkbox"> Follow team colors</label>
+          <button id="paintTool" class="smallbtn">Apply to an item → click it</button>
+          <p class="foot">Linked items update together. Custom items keep their colors. Undo restores colors too.</p>
+        </details>
         <div class="section">CONSTRUCTION TOOLS</div>
         <button class="tool sel" data-tool="path">
           <span class="emoji">⬜</span><span>Walkway</span
@@ -33,7 +46,7 @@
         ><button class="tool" data-tool="bleacher">
           <span class="emoji">🪑</span><span>Standalone bleachers</span
           ><span class="price">$1,500</span></button
-        ><button class="tool" data-tool="stand" title="20 seats · 4 rows · 10 × 10 ft · 5 ft rise">
+        ><button class="tool" data-tool="stand" title="20 seats · 4 rows · 5 ft rise · R rotates 45°; diagonal footprint 14.1 × 14.1 ft">
           <span class="emoji">🏟️</span><span>Seating section</span><span class="price">$1,800</span></button
         ><button class="tool" data-tool="stairStand" title="8 seats · 6 ft stairs · 4 rows · 5 ft rise">
           <span class="emoji">🪜</span><span>Stair section</span><span class="price">$1,600</span></button
@@ -57,9 +70,19 @@
           <span class="emoji">🗑️</span><span>Remove</span
           ><span class="price">70% refund</span>
         </button>
+        <div class="section">SHOPS &amp; SCOREBOARDS</div>
+        <button class="tool" data-tool="drinks"><span class="emoji">🥤</span><span>Drinks</span><span class="price">$2,200</span></button>
+        <button class="tool" data-tool="iceCream"><span class="emoji">🍦</span><span>Ice cream</span><span class="price">$2,300</span></button>
+        <button class="tool" data-tool="souvenir"><span class="emoji">🧢</span><span>Souvenirs</span><span class="price">$3,000</span></button>
+        <button class="tool" data-tool="basicScoreboard"><span class="emoji">▣</span><span>Basic scoreboard</span><span class="price">$5,000</span></button>
+        <button class="tool" data-tool="deluxeScoreboard"><span class="emoji">▤</span><span>Deluxe scoreboard</span><span class="price">$12,000</span></button>
+        <button class="tool" data-tool="videoScoreboard"><span class="emoji">▰</span><span>Video board</span><span class="price">$25,000</span></button>
+        <button class="tool" data-tool="vintageScoreboard"><span class="emoji">▥</span><span>Vintage scoreboard</span><span class="price">$8,000</span></button>
+        <p class="foot">Shops are staffed decorative models for now. Boards show placeholder displays; amenity purchases and game scores come later.</p>
         <p id="standHelp" class="standhelp" role="status" hidden></p>
         <div class="sidebarbottom">
           <div class="section">GAME DAY · 2 MINUTES</div>
+          <button class="smallbtn" id="demoDiagonal" style="width:100%;margin-bottom:6px">Build diagonal demo · up to $20,300</button>
           <button class="smallbtn" id="demoConcourse" style="width:100%;margin-bottom:6px">Build concourse demo · up to $11,400</button>
           <button class="smallbtn" id="demoSideEntry" style="width:100%;margin-bottom:6px">Build side-entry demo · up to $10,100</button>
           <button class="smallbtn" id="demoStands" style="width:100%;margin-bottom:6px">Build stand demo · up to $11,100</button>
@@ -128,6 +151,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=0.27.0" defer></script>
+    <script src="game.js?v=0.29.0" defer></script>
   </body>
 </html>
