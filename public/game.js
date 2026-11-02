@@ -53,7 +53,7 @@
     tiles = {},
     edges = {},
     history = [];
-  const defaultTeam={primary:"#31566b",secondary:"#edc75b",accent:"#fff0c9",fenceMaterial:"chain"};
+  const defaultTeam={primary:"#31566b",secondary:"#edc75b",accent:"#fff0c9",fenceMaterial:"green"};
   let team={...defaultTeam};
   const colors=item=>item?.customColors||team;
   const validColor=value=>typeof value==="string"&&/^#[0-9a-f]{6}$/i.test(value);
@@ -875,14 +875,27 @@
       // One 10-foot opening on each foul fence aligns with the dugout steps.
       if ((start[1]===10 && end[1]===10 && Math.min(start[0],end[0])===24) ||
           (start[0]===14 && end[0]===14 && Math.min(start[1],end[1])===20)) continue;
-      fieldFence.push({a:at(i/count),b:at((i+1)/count),feet:(a[0]+(b[0]-a[0])*(i+0.5)/count<18 || a[1]+(b[1]-a[1])*(i+0.5)/count<14)?3:8});
+      fieldFence.push({fieldWall:true,a:at(i/count),b:at((i+1)/count),feet:(a[0]+(b[0]-a[0])*(i+0.5)/count<18 || a[1]+(b[1]-a[1])*(i+0.5)/count<14)?3:8});
     }
   });
   function drawFieldFence(panel) {
     const height = panel.feet * TW / 20 * zoom;
     const a = project(...panel.a), b = project(...panel.b);
     const up = (p, fraction = 1) => ({x:p.x, y:p.y - height * fraction});
-    if(panel.feet===8&&team.fenceMaterial==="padded") {
+    const mx=(panel.a[0]+panel.b[0])/2,my=(panel.a[1]+panel.b[1])/2;
+    const brick=panel.fieldWall&&panel.feet===3&&mx<24&&my<20;
+    if(brick){
+      polygon([a,b,up(b),up(a)],"#925f49","#664738",0.6);
+      const at=(t,h)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t-height*h});
+      for(let row=1;row<4;row++)line(at(0,row/4),at(1,row/4),"#c2ac94",0.6);
+      for(let row=0;row<4;row++)for(let n=0;n<5;n++){const t=(n+(row%2?0.5:0))/5;if(t>0&&t<1)line(at(t,row/4),at(t,(row+1)/4),"#c2ac94",0.5);}
+      line(up(a),up(b),"#b39a7c",2);return;
+    }
+    if(panel.fieldWall&&team.fenceMaterial==="green"){
+      polygon([a,b,up(b),up(a)],"#174f36","#103c29",0.6);
+      line(up(a),up(b),"#286548",2);line(a,up(a),"#103c29",0.7);return;
+    }
+    if(panel.fieldWall&&panel.feet===8&&team.fenceMaterial==="padded") {
       polygon([a,b,up(b),up(a)],team.primary,"#294a51",0.5);
       line(up(a),up(b),team.secondary,2);line(a,up(a),team.accent,0.45);return;
     }
@@ -1081,12 +1094,17 @@
     ctx.fillStyle="#fff0ba";ctx.fillText("MAIN GATE",p.x,p.y-h-5*zoom);
   }
   const entranceTile = "14,10";
-  const GAME_SECONDS=240, TICKET_PRICE=5;
+  let GAME_SECONDS=300;
+  const TICKET_PRICE=5;
   let gateAdmissions=0, gateRevenue=0;
-  let requestedFans=100;
+  const attendanceChoice=n=>[100,250,500,1000].includes(n)?n:({200:250,400:500,800:1000}[n]||100);
+  let requestedFans=100, gameMinutes=5;
+  const gameMinutesControl=document.getElementById("gameMinutes");
+  gameMinutesControl.value=String(gameMinutes);
+  gameMinutesControl.onchange=()=>{const n=Number(gameMinutesControl.value);if(![1,2,5,10].includes(n))return;gameMinutes=n;store();toast(fanActive?`${n} minutes selected for the next game`:`Next game: ${n} minutes`);};
   const fanCountControl=document.getElementById("fanCount");
   fanCountControl.value=String(requestedFans);
-  fanCountControl.onchange=()=>{const n=Number(fanCountControl.value);if(![100,200,400,800].includes(n))return;requestedFans=n;store();toast(fanActive?`${n} fans selected for the next game`:`Up to ${n} fans at the next game`);};
+  fanCountControl.onchange=()=>{const n=Number(fanCountControl.value);if(![100,250,500,1000].includes(n))return;requestedFans=n;store();toast(fanActive?`${n} fans selected for the next game`:`Up to ${n} fans at the next game`);};
   let fans=[], fanActive=false, fanElapsed=0, arrivalElapsed=0, fanPlanned=0, fanUnreachable=0, fanFrame=0, reachableCapacity=0, disconnectedSections=new Set(), fanPhase="idle", departureElapsed=0;
   function fanStatus(message) { const e=document.getElementById("fanStatus");if(e.textContent!==message)e.textContent=message; }
   function insideStadium(x,y) {return x>=6&&x<53&&y>=2&&y<49&&x+y>=13&&x+y<=81;}
@@ -1382,7 +1400,7 @@
     disconnectedSections=new Set(Object.entries(tiles).filter(([k,v])=>seatCapacity(v)&&!sections.some(s=>s.key===k)).map(([k])=>k));
     fanUnreachable=total-reachableCapacity;
     if(!sections.length) {draw();fanStatus("No gate-to-seat route. Hover a stair to see the cause; highlighted entrance tiles need connected walkways. Raised entrances need matching-height landings.");return;}
-    fanPlanned=Math.min(requestedFans,reachableCapacity);fanElapsed=0;arrivalElapsed=0;departureElapsed=0;fanPhase="game";gateAdmissions=0;gateRevenue=0;fans=[];
+    GAME_SECONDS=gameMinutes*60;fanPlanned=Math.min(requestedFans,reachableCapacity);fanElapsed=0;arrivalElapsed=0;departureElapsed=0;fanPhase="game";gateAdmissions=0;gateRevenue=0;fans=[];
     const plan=partySeatPlan(sections,fanPlanned),traffic=new Map();let routeTraffic=new Map();
     for(let i=0;i<plan.length;i++) {
       const {section,slot,partyId,start}=plan[i];
@@ -1404,7 +1422,7 @@
       const route=laneRoute(seatRoute(arrival,walkingRoute,target));
       fans.push({route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
     }
-    fanActive=true;fanStatus("Game on · 4:00 remaining · $5 admission. Fans are walking to their seats.");
+    fanActive=true;fanStatus(`Game on · ${GAME_SECONDS/60}:00 remaining · $5 admission. Fans are walking to their seats.`);
     let last=null;const run=++fanFrame;
     const frame=now=>{
       if(!fanActive||run!==fanFrame)return;
@@ -1584,7 +1602,7 @@
       // Late/queued arrivals finish before reversing flow on narrow stairs.
       if(fanPhase==="finishing arrivals"&&fans.every(f=>f.seated))beginDepartures();
       if(fanPhase==="exiting"&&fans.every(f=>f.exited)) {
-        endFanTest(`Game complete! 4:00 played · ${gateAdmissions} admissions · $${gateRevenue} gate revenue. All fans returned to the spawn point. Ready to build or open gates for another game.`);
+        endFanTest(`Game complete! ${GAME_SECONDS/60}:00 played · ${gateAdmissions} admissions · $${gateRevenue} gate revenue. All fans returned to the spawn point. Ready to build or open gates for another game.`);
       }
     }
     if(collected) {
@@ -1931,7 +1949,7 @@
     try {
       localStorage.setItem(
         "svs01",
-        JSON.stringify({ version: 2, fieldRevision: 6, entranceRevision:1, seatingRevision:2, requestedFans, tiles, edges, money, team }),
+        JSON.stringify({ version: 2, fieldRevision: 6, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, money, team }),
       );
       return true;
     } catch (e) {
@@ -2058,7 +2076,7 @@
     history.push(snapshot());team={...team,[role]:e.target.value};store();update();draw();
   };
   document.getElementById("fieldMaterial").onchange=e=>{
-    if(!["chain","padded"].includes(e.target.value))return;
+    if(!["chain","padded","green"].includes(e.target.value))return;
     history.push(snapshot());team={...team,fenceMaterial:e.target.value};store();update();draw();
   };
   document.getElementById("paintTool").onclick=()=>select("paint");
@@ -2187,7 +2205,8 @@
     const clean = {}, cleanEdges = {};
     let cash = saved.money;
     const cleanTeam=saved.team?{...cleanColors(saved.team),fenceMaterial:saved.team.fenceMaterial||"chain"}:{...defaultTeam};
-    if(!["chain","padded"].includes(cleanTeam.fenceMaterial))throw Error("Invalid field fence material");
+    if(!["chain","padded","green"].includes(cleanTeam.fenceMaterial))throw Error("Invalid field fence material");
+    if(!saved.wallFinishRevision)cleanTeam.fenceMaterial="green";
     const metadata=v=>{
       const out={};for(const prop of ["shift","bankShift","straightShift"]){if(v[prop]!==undefined){if(!Number.isFinite(v[prop])||Math.abs(v[prop])>2)throw Error("Invalid seating offset");out[prop]=v[prop];}}if(v.ring!==undefined){if(!Number.isInteger(v.ring)||v.ring<0||v.ring>20)throw Error("Invalid wedge band");out.ring=v.ring;}if(v.legacyCorner===true)out.legacyCorner=true;if(v.customColors!==undefined)out.customColors=cleanColors(v.customColors);
       if(v.material!==undefined){if(!["wood","chain","padded"].includes(v.material))throw Error("Invalid fence material");out.material=v.material;}
@@ -2238,11 +2257,11 @@
       const [x,y]=k.split(",").map(Number),error=footprintError(x,y,v,clean,cleanEdges);
       if(error)throw Error(error);
     }
-    return { requestedFans:[100,200,400,800].includes(saved.requestedFans)?saved.requestedFans:100, tiles: clean, edges: cleanEdges, money: cash, team:cleanTeam,entranceRevision:saved.entranceRevision||0 };
+    return { gameMinutes:[1,2,5,10].includes(saved.gameMinutes)?saved.gameMinutes:5, requestedFans:attendanceChoice(saved.requestedFans), tiles: clean, edges: cleanEdges, money: cash, team:cleanTeam,entranceRevision:saved.entranceRevision||0 };
   }
   document.getElementById("export").onclick = () => {
     const blob = new Blob(
-        [JSON.stringify({ version: 2, fieldRevision: 6, entranceRevision:1, seatingRevision:2, requestedFans, tiles, edges, money, team }, null, 2)],
+        [JSON.stringify({ version: 2, fieldRevision: 6, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, money, team }, null, 2)],
         { type: "application/json" },
       ),
       url = URL.createObjectURL(blob),
@@ -2266,7 +2285,7 @@
         tiles = park.tiles;
         edges = park.edges;
         money = park.money;
-        team=park.team;requestedFans=park.requestedFans;fanCountControl.value=String(requestedFans);
+        team=park.team;gameMinutes=park.gameMinutes;gameMinutesControl.value=String(gameMinutes);requestedFans=park.requestedFans;fanCountControl.value=String(requestedFans);
         if(!park.entranceRevision&&Object.values(tiles).some(isPath))connectLegacyGate();
         store();
         update();
@@ -2286,7 +2305,7 @@
       tiles = saved.tiles;
       edges = saved.edges;
       money = saved.money;
-      team=saved.team;requestedFans=saved.requestedFans;fanCountControl.value=String(requestedFans);
+      team=saved.team;gameMinutes=saved.gameMinutes;gameMinutesControl.value=String(gameMinutes);requestedFans=saved.requestedFans;fanCountControl.value=String(requestedFans);
       if(!saved.entranceRevision&&Object.values(tiles).some(isPath))connectLegacyGate();
       store();
     }
