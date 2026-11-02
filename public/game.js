@@ -65,15 +65,19 @@
   const snapshot=()=>({tiles:{...tiles},edges:{...edges},infillDecks:{...infillDecks},money,team:{...team}});
   const homeWorld = [18,14], baseSpacing = 9;
   const basesWorld = [homeWorld,[27,14],[27,23],[18,23]];
-  const fenceCorners = [[14,14],[18,10],[48,10],[48,27],[31,44],[14,44]];
-  const warningTrackWidth = 1.5; // 15 feet, measured perpendicular to the fence.
+  // Center-field wall is exactly 400 ft along the 45-degree home-to-center ray.
+  const centerFieldLine = homeWorld[0]+homeWorld[1]+40*Math.SQRT2;
+  const fenceCorners = [[14,14],[18,10],[35,10],[38,13],[48,13],[48,14],
+    [48,centerFieldLine-48],[centerFieldLine-44,44],[18,44],[17,44],[17,34],[14,31]];
+  const warningTrackWidth = 1.5;
   const diagonalInset = warningTrackWidth * Math.SQRT2;
-  const warningTrack = [[48,14],[48,27],[31,44],[18,44],
-    [18,44-warningTrackWidth],[31-diagonalInset+warningTrackWidth,44-warningTrackWidth],
-    [48-warningTrackWidth,27-diagonalInset+warningTrackWidth],[48-warningTrackWidth,14]];
+  const warningTrack = [[48,14],[48,centerFieldLine-48],[centerFieldLine-44,44],[18,44],
+    [18,44-warningTrackWidth],[centerFieldLine-44-diagonalInset+warningTrackWidth,44-warningTrackWidth],
+    [48-warningTrackWidth,centerFieldLine-48-diagonalInset+warningTrackWidth],[48-warningTrackWidth,14]];
+  const fieldTriangles=triangulatePolygon(fenceCorners);
   const field = new Set();
   for(let x=14;x<48;x++) for(let y=10;y<44;y++)
-    if(x+y>=27 && x+y<=74) field.add(`${x},${y}`);
+    if(polygonsOverlap([[x,y],[x+1,y],[x+1,y+1],[x,y+1]],fenceCorners))field.add(`${x},${y}`);
   const dugoutTiles = new Set();
   for(let x=22;x<25;x++) for(let y=9;y<10;y++) dugoutTiles.add(`${x},${y}`);
   for(let x=13;x<14;x++) for(let y=18;y<21;y++) dugoutTiles.add(`${x},${y}`);
@@ -330,7 +334,32 @@
     if(isStand(item))return [[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]].map(([a,b])=>{const p=standPoint(x,y,item,a,b);return [p.x,p.y];});
     return (item?.type==="halfPath"?halfCorners(item.rot):[[0,0],[1,0],[1,1],[0,1]]).map(([a,b])=>[x+a,y+b]);
   }
-  function pointInPolygon(x,y,poly) {let sign=0;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],cross=(b[0]-a[0])*(y-a[1])-(b[1]-a[1])*(x-a[0]);if(Math.abs(cross)<1e-8)continue;const side=Math.sign(cross);if(sign&&side!==sign)return false;sign=side;}return true;}
+  function pointInPolygon(x,y,poly) {
+    let inside=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const [ax,ay]=poly[j],[bx,by]=poly[i],cross=(bx-ax)*(y-ay)-(by-ay)*(x-ax);
+      if(Math.abs(cross)<1e-8&&x>=Math.min(ax,bx)-1e-8&&x<=Math.max(ax,bx)+1e-8&&y>=Math.min(ay,by)-1e-8&&y<=Math.max(ay,by)+1e-8)return true;
+      if((ay>y)!==(by>y)&&x<(bx-ax)*(y-ay)/(by-ay)+ax)inside=!inside;
+    }
+    return inside;
+  }
+  function triangulatePolygon(b){
+    // Ear clipping supports the concave foul-line cut-ins without blocking empty corners.
+    const poly=b.map(p=>p.slice()),triangles=[];let area=0;
+    for(let i=0;i<poly.length;i++){const q=poly[i],r=poly[(i+1)%poly.length];area+=q[0]*r[1]-r[0]*q[1];}
+    const sign=Math.sign(area)||1;
+    while(poly.length>3){let found=false;
+      for(let i=0;i<poly.length;i++){
+        const prev=poly[(i+poly.length-1)%poly.length],p=poly[i],next=poly[(i+1)%poly.length];
+        if(sign*((p[0]-prev[0])*(next[1]-p[1])-(p[1]-prev[1])*(next[0]-p[0]))<=1e-8)continue;
+        const tri=[prev,p,next];if(poly.some(q=>q!==prev&&q!==p&&q!==next&&pointInPolygon(q[0],q[1],tri)))continue;
+        triangles.push(tri);poly.splice(i,1);found=true;break;
+      }
+      if(!found)break;
+    }
+    if(poly.length===3)triangles.push(poly);return triangles;
+  }
+  function polygonsOverlap(a,b){return (b===fenceCorners?fieldTriangles:triangulatePolygon(b)).some(t=>overlaps(a,t));}
   function overlaps(a,b) {
     for(const poly of [a,b])for(let i=0;i<poly.length;i++) {
       const q=poly[i],r=poly[(i+1)%poly.length],axis=[q[1]-r[1],r[0]-q[0]];
@@ -343,7 +372,7 @@
     const shape=footprint(x,y,item);
     for(const [k,v] of Object.entries(extras)){if(v===item||(key(x,y)===k&&layout[k]===item))continue;const [a,b]=k.split(",").map(Number);if(overlaps(shape,footprint(a,b,v)))return "Section overlaps a concourse triangle. Remove it first.";}
     if([...neighborhood,{...parkingLot,w:parkingLot.width,d:parkingLot.depth}].some(b=>overlaps(shape,[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.d],[b.x,b.y+b.d]])))return "Neighborhood scenery is outside the construction area.";
-    if((isStand(item))&&overlaps(shape,fenceCorners))return "Seating must remain outside the backstop fence.";
+    if((isStand(item))&&polygonsOverlap(shape,fenceCorners))return "Seating must remain outside the backstop fence.";
     if(shape.some(([a,b])=>a<0||a>W||b<0||b>H))return "Section extends outside the map.";
     // Diagonal sections and six-cell ramps extend outside their anchor cell. Check both directions
     // so later paths/buildings cannot be placed inside their triangular corners.
@@ -942,16 +971,16 @@
     }
     line(project(hx,hy),project(hx+30,hy),"#ffffff",1.3);
     line(project(hx,hy),project(hx,hy+30),"#ffffff",1.3);
-    for(const [x,y,label] of [[46.5,14.7,"300 ft"],[18.7,42.5,"300 ft"],[38.8,34.8,"304 ft"]]) {
+    for(const [x,y,label] of [[46.5,14.7,"300 ft"],[18.7,42.5,"300 ft"],[46.2842712475,42.2842712475,"400 ft"]]) {
       const p=project(x,y);ctx.font=`bold ${10*zoom}px sans-serif`;ctx.textAlign="center";
       ctx.fillStyle="#fff4c4";ctx.fillText(label,p.x,p.y-4*zoom);
     }
   }
-  // Grid-aligned outfield: 300 feet down the lines, about 304 at center.
+  // Foul poles stay 300 ft; the center wall moves outward to 400 ft.
   const fieldFence = [];
   fenceCorners.forEach((a,edge)=>{
     const b=fenceCorners[(edge+1)%fenceCorners.length];
-    const count=Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
+    const count=Math.ceil(Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1])));
     for(let i=0;i<count;i++) {
       const at=t=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
       const start=at(i/count), end=at((i+1)/count);
@@ -1028,7 +1057,7 @@
     ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#f6e8bd";
     ctx.fillText("DUGOUT · 30 ft",p.x,p.y);
   }
-  const stadiumBoundary = [[6,7],[11,2],[53,2],[53,29],[33,49],[6,49]];
+  const stadiumBoundary = [[6,7],[11,2],[53,2],[53,centerFieldLine+7-53],[centerFieldLine+7-49,49],[6,49]];
   const siteTemplates = {
     smallStadium: {
       id:"small-stadium",name:"Small Stadium",roadLayout:"hashtag",
@@ -1105,7 +1134,7 @@
   const mainGate = {a:[8,5],b:[9,4],intersection:siteTemplate.arrivalIntersection};
   const outerFence=[];
   stadiumBoundary.forEach((a,edge)=>{
-    const b=stadiumBoundary[(edge+1)%stadiumBoundary.length],n=Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
+    const b=stadiumBoundary[(edge+1)%stadiumBoundary.length],n=Math.ceil(Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1])));
     for(let i=0;i<n;i++) {
       if(edge===0&&i===2) continue; // Main entry behind home plate.
       const at=t=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
@@ -1190,7 +1219,7 @@
   fanCountControl.onchange=()=>{const n=Number(fanCountControl.value);if(![100,250,500,1000].includes(n))return;requestedFans=n;store();toast(fanActive?`${n} fans selected for the next game`:`Up to ${n} fans at the next game`);};
   let fans=[], fanActive=false, fanElapsed=0, arrivalElapsed=0, fanPlanned=0, fanUnreachable=0, fanFrame=0, reachableCapacity=0, disconnectedSections=new Set(), fanPhase="idle", departureElapsed=0;
   function fanStatus(message) { const e=document.getElementById("fanStatus");if(e.textContent!==message)e.textContent=message; }
-  function insideStadium(x,y) {return x>=6&&x<53&&y>=2&&y<49&&x+y>=13&&x+y<=81;}
+  function insideStadium(x,y) {return x>=6&&x<53&&y>=2&&y<49&&x+y>=13&&x+y<centerFieldLine+7-1;}
   function wallBlocks(a,b) {
     const [x,y]=a.split(",").map(Number), [nx,ny]=b.split(",").map(Number);
     if(nx!==x&&ny!==y) {
@@ -1280,7 +1309,7 @@
     if(!parents.has(goal))return;
     for(let at=goal;at!==null;at=parents.get(at)){const [x,y]=at.split(",").map(Number);if(!tiles[at]&&!automaticPath(x,y))tiles[at]={type:"path",rot:0};}
   }
-  let accessibleNodes=new Set();
+  let accessibleNodes=new Set(), walkingGraph=null;
   function reachableSeats() {
     surfaceFrame=null;seamFrame=null;
     accessibleNodes.clear();
@@ -1401,7 +1430,8 @@
       }
       return parents;
     };
-    const parents=searchRoutes();
+    walkingGraph={nodes,links,routeCost};
+    const parents=searchRoutes();walkingGraph.parents=parents;
     accessibleNodes=new Set(parents.keys());
     const routeTo=(id,tree=parents)=>{const ids=[];for(let at=id;at!==null;at=tree.get(at))ids.unshift(at);
       return ids.map(id=>({...nodes.get(id),node:id}));};
@@ -1423,7 +1453,7 @@
         let seat=0;
         for(let r=0;r<4;r++){const cols=isCorner(item)?cornerCols(item,r):rowSeats(item).length;for(let col=0;col<cols;col++){if(parents.has(rowId(k,r)))slots.push({seat:seat,row:r,col,route:routeTo(rowId(k,r)),routeFor:traffic=>routeFor(rowId(k,r),traffic)});seat++;}}
       }
-      if(slots.length)result.push({key:k,x,y,rot:item.rot,type:item.type,baseFeet:item.baseFeet||0,route:slots[0].route,capacity:slots.length,slots});
+      if(slots.length)result.push({...item,key:k,x,y,baseFeet:item.baseFeet||0,route:slots[0].route,capacity:slots.length,slots});
     }
     return result;
   }
@@ -1476,8 +1506,80 @@
       if(!suggestion.fixes&&!plan.length)cause+=" Its entrance will still need a connected route to the gate.";}
     const report={connected:false,message:cause,block,suggestion,plan};accessCache={key:k,revision:accessRevision,report};return report;
   }
+  // Restrooms use the same height-aware, bidirectional graph as seating access.
+  let restroomServices=[], selectedFan=null, completedBathroomTrips=0, bathroomReturning=false;
+  const BATHROOM_THRESHOLD=75, RESTROOM_STALLS=2, RESTROOM_SECONDS=6;
+  function prepareRestrooms(){
+    restroomServices=[];if(!walkingGraph)return;
+    const {nodes,links,routeCost}=walkingGraph;
+    for(const [k,item] of Object.entries(tiles))if(item.type==="restroom"){
+      const [x,y]=k.split(",").map(Number),entries=[];
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const other=key(x+dx,y+dy),id="g:"+other;
+        if(accessibleNodes.has(id)&&pathOpens(groundItem(x+dx,y+dy),-dx,-dy)&&!wallBlocks(k,other))entries.push(id);
+      }
+      if(!entries.length)continue;
+      const parents=new Map(entries.map(id=>[id,null])),costs=new Map(entries.map(id=>[id,0])),open=entries.map(id=>[0,id]);
+      while(open.length){open.sort((a,b)=>b[0]-a[0]);const [cost,id]=open.pop();if(cost!==costs.get(id))continue;
+        for(const next of links.get(id)||[]){if(!next.startsWith("g:"))continue;const n=cost+routeCost(id,next);if(n<(costs.get(next)??Infinity)-1e-9){costs.set(next,n);parents.set(next,id);open.push([n,next]);}}
+      }
+      restroomServices.push({key:k,parents,costs,queue:[],using:new Set(),active:0});
+    }
+  }
+  function restroomTrip(fan){
+    if(bathroomReturning){fan.bathroomRetry=0.5;return false;}
+    const groundIndex=fan.walkingRoute.findLastIndex(p=>p.node?.startsWith("g:")),groundNode=fan.walkingRoute[groundIndex]?.node;
+    const reachable=restroomServices.filter(r=>r.parents.has(groundNode));
+    if(reachable.length&&reachable.every(r=>r.active>=4)){fan.bathroomRetry=1;return false;}
+    const choices=reachable.filter(r=>r.active<4).map(room=>({room,cost:room.costs.get(groundNode)+(room.queue.length+room.using.size)*2})).sort((a,b)=>a.cost-b.cost);
+    if(!choices.length){fan.bathroomBlocked=true;fan.bathroomRetry=10;return false;}
+    const rowNodes=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:)/.test(p.node)).map(p=>p.node));
+    if(fans.some(f=>f!==fan&&f.walkingRoute&&f.walkingRoute.some(p=>rowNodes.has(p.node))&&(f.activity==="returning to seat"||f.activity==="to restroom"&&!f.route.slice(0,f.index+1).some(p=>/^(t:|g:|c:|i:)/.test(p.node))))){fan.bathroomRetry=0.5;return false;}
+    const room=choices[0].room;room.active++;
+    const ids=[];for(let at=groundNode;at!==null;at=room.parents.get(at))ids.unshift(at);
+    const path=ids.map(id=>({...walkingGraph.nodes.get(id),node:id}));
+    const returning=seatRoute([path[0]],[...path,...fan.walkingRoute.slice(groundIndex+1)],fan.seatTarget);
+    fan.returnRoute=returning;fan.restroom=room;fan.activity="to restroom";fan.bathroomBlocked=false;
+    fan.route=laneRoute(returning.slice().reverse());fan.index=0;fan.seated=false;return true;
+  }
+  function finishFanRoute(fan){
+    if(fanPhase==="exiting"){fan.exited=true;return;}
+    if(fan.activity==="to restroom"){
+      fan.activity="waiting restroom";fan.hiddenRestroom=true;fan.restroom.queue.push(fan);return;
+    }
+    if(fan.activity==="returning to seat"){fan.bathroomVisits++;completedBathroomTrips++;fan.restroom.active--;}
+    fan.activity="watching game";fan.seated=true;
+  }
+  function advanceBathroomNeeds(step){
+    for(const room of restroomServices){
+      for(const fan of [...room.using]){fan.restroomSeconds-=step;if(fan.restroomSeconds>0)continue;
+        bathroomReturning=true;if(fans.some(f=>f.activity==="to restroom"))continue;
+        room.using.delete(fan);fan.bathroomNeed=0;fan.activity="returning to seat";fan.hiddenRestroom=false;
+        fan.route=laneRoute(fan.returnRoute);fan.index=0;
+        Object.assign(fan,fan.route[0]);fan.spawned=false;
+      }
+      while(room.using.size<RESTROOM_STALLS&&room.queue.length){const fan=room.queue.shift();fan.activity="using restroom";fan.restroomSeconds=RESTROOM_SECONDS;room.using.add(fan);}
+    }
+    if(bathroomReturning&&restroomServices.every(r=>r.active===0))bathroomReturning=false;
+    const arrivalsDone=fans.every(f=>f.activity!=="arriving");
+    for(const fan of fans){
+      if(!Number.isFinite(fan.bathroomNeed)||fan.exited||fan.hiddenRestroom)continue;
+      if(fanPhase==="game"&&fan.spawned)fan.bathroomNeed=Math.min(100,fan.bathroomNeed+step*0.8);
+      fan.bathroomRetry=Math.max(0,(fan.bathroomRetry||0)-step);
+      if(fanPhase==="game"&&arrivalsDone&&fan.seated&&fan.bathroomNeed>=BATHROOM_THRESHOLD&&!fan.bathroomRetry)restroomTrip(fan);
+    }
+  }
+  function updateFanPanel(){
+    const panel=document.getElementById("fanPanel"),fan=selectedFan;panel.hidden=!fanActive||!fan;
+    document.getElementById("fanPicker").hidden=!fanActive;
+    if(!fanActive||!fan)return;
+    const need=Math.round(fan.bathroomNeed);document.getElementById("bathroomMeter").value=need;
+    document.getElementById("bathroomValue").textContent=need+"%";
+    document.getElementById("fanDetails").textContent=`Fan ${fans.indexOf(fan)+1} · Party ${fan.partyId+1} · ${fan.exited?"Left the park":fanPhase==="exiting"?"Leaving the park":fan.seated&&need>=BATHROOM_THRESHOLD&&!fan.bathroomBlocked?"waiting for a restroom trip":fan.activity}. `+(fan.bathroomBlocked?"No reachable restroom. Connect a ground walkway beside a restroom.":`Restroom visits: ${fan.bathroomVisits}. Returns to the same reserved seat.`);
+  }
+  document.getElementById("fanPicker").onchange=e=>{selectedFan=fans[Number(e.target.value)]||null;updateFanPanel();};
   function endFanTest(message) {
-    fanActive=false;fanPhase="idle";fans=[];disconnectedSections.clear();fanFrame++;
+    fanActive=false;fanPhase="idle";fans=[];selectedFan=null;restroomServices=[];disconnectedSections.clear();fanFrame++;
     fanStatus(message||`Game ended early. ${gateAdmissions} admissions · $${gateRevenue} gate revenue. Adjust your park, then open gates again.`);draw();
   }
   function startFanTest() {
@@ -1509,8 +1611,11 @@
       const walkingRoute=slot.routeFor(routeTraffic);
       for(const p of walkingRoute)traffic.set(p.node,(traffic.get(p.node)||0)+1);
       const route=laneRoute(seatRoute(arrival,walkingRoute,target));
-      fans.push({route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
+      fans.push({walkingRoute,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:20+Math.random()*40,bathroomVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
     }
+    prepareRestrooms();completedBathroomTrips=0;bathroomReturning=false;selectedFan=fans[0]||null;
+    document.getElementById("fanPicker").innerHTML=fans.map((f,i)=>`<option value="${i}">Fan ${i+1} · Party ${f.partyId+1}</option>`).join("");
+    document.getElementById("fanPicker").value="0";
     fanActive=true;fanStatus(`Game on · ${GAME_SECONDS/60}:00 remaining · $5 admission. Fans are walking to their seats.`);
     let last=null;const run=++fanFrame;
     const frame=now=>{
@@ -1570,11 +1675,11 @@
   // Two directed lanes share a walking surface. Seating-row aisles stay centered.
   const TRAFFIC_LANE=0.11;
   function laneRoute(route) {
-    const terminal=new Set(route.slice(-2));
-    const lanePoint=p=>!terminal.has(p)&&(!p.node||/^(g:|c:|i:|t:|l:|ramp:)/.test(p.node));
+    const terminal=new Set(route.at(-1)?.node?.startsWith("g:")?[]:route.slice(-2));
+    const lanePoint=p=>p&&!terminal.has(p)&&(!p.node||/^(g:|c:|i:|t:|l:|ramp:)/.test(p.node));
     const normal=(a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);return len>1e-6?{x:-dy/len,y:dx/len}:null;};
     return route.map((p,i)=>{
-      if(i===0||i===route.length-1||!lanePoint(p))return {...p};
+      if(i===0&&!p.node?.startsWith("g:")||i===route.length-1&&!p.node?.startsWith("g:")||!lanePoint(p))return {...p};
       const before=lanePoint(route[i-1])?normal(route[i-1],p):null,after=lanePoint(route[i+1])?normal(p,route[i+1]):null;
       const n=before&&after?{x:before.x+after.x,y:before.y+after.y}:before||after;
       if(!n)return {...p};const len=Math.hypot(n.x,n.y);if(len<0.1)return {...p};
@@ -1600,8 +1705,17 @@
     for(const fan of fans) {
 
       const slot=sections.find(s=>s.key===fan.sectionKey)?.slots.find(s=>s.seat===fan.seat);
-      const route=slot&&arrival?seatRoute(arrival,slot.route,fan.route[fan.route.length-1]):fan.route;
-      fan.route=laneRoute(route.slice().reverse());fan.index=0;
+      const route=slot&&arrival?seatRoute(arrival,slot.route,fan.seatTarget||fan.route.at(-1)):fan.route;
+      let exit=route.slice().reverse();
+      if(!fan.seated&&fan.activity!=="arriving"){
+        const current={x:fan.x,y:fan.y,feet:fan.feet},from=fan.hiddenRestroom?fan.returnRoute[0]:fan.route.slice(fan.index+1).find(p=>p.node&&walkingGraph.parents.has(p.node))||fan.route.slice(0,fan.index+1).reverse().find(p=>p.node&&walkingGraph.parents.has(p.node));
+        if(from){const path=[];for(let at=from.node;at!==null;at=walkingGraph.parents.get(at))path.push({...walkingGraph.nodes.get(at),node:at});
+          if(fan.hiddenRestroom){Object.assign(fan,from);fan.spawned=false;}
+          exit=[fan.hiddenRestroom?{...from}:current,...path,...arrival.slice().reverse().slice(1)];
+        }
+      }
+      fan.hiddenRestroom=false;fan.activity="leaving park";
+      fan.route=laneRoute(exit);fan.index=0;
       fan.remaining=fan.route.map(()=>0);
       for(let i=fan.route.length-2;i>=0;i--)fan.remaining[i]=fan.remaining[i+1]+fanDistance(fan.route[i],fan.route[i+1]);
     }
@@ -1610,7 +1724,7 @@
     // from standing directly in the way of an already moving neighbor.
     let release=0;
     for(const fan of fans.slice().sort((a,b)=>a.remaining[0]-b.remaining[0])) {
-      fan.exitStart=release;release+=0.1+Math.random()*0.12;
+      fan.exitStart=fan.seated?release:0;release+=0.1+Math.random()*0.12;
     }
   }
   function advanceFans(dt) {
@@ -1623,8 +1737,9 @@
       const previousElapsed=arrivalElapsed;arrivalElapsed+=step;
       fanElapsed=fanElapsed+step>=GAME_SECONDS-1e-8?GAME_SECONDS:fanElapsed+step;
       if(fanPhase==="exiting")departureElapsed+=step;
+      else advanceBathroomNeeds(step);
       // Leaders move first; followers can use the space they just vacated.
-      const moving=fans.filter(f=>!f.exited).sort((a,b)=>fanPhase==="exiting"?
+      const moving=fans.filter(f=>!f.exited&&!f.hiddenRestroom).sort((a,b)=>fanPhase==="exiting"?
         (a.remaining[a.index+1]||0)+fanDistance(a,a.route[a.index+1]||a)-
         (b.remaining[b.index+1]||0)-fanDistance(b,b.route[b.index+1]||b)||a.exitStart-b.exitStart:a.start-b.start);
       const priority=new Map(moving.map((f,i)=>[f,i]));
@@ -1650,15 +1765,18 @@
       const corridors=new Map(),cells=new Map(),cellOf=new Map();
       const cellKey=(x,y)=>`${Math.floor(x/0.6)},${Math.floor(y/0.6)}`;
       const indexFan=fan=>{const k=cellKey(fan.x,fan.y),old=cellOf.get(fan);if(old===k)return;if(old)cells.get(old)?.delete(fan);if(!cells.has(k))cells.set(k,new Set());cells.get(k).add(fan);cellOf.set(fan,k);};
-      for(const fan of fans)if(fan.spawned&&!fan.exited)indexFan(fan);
+      for(const fan of fans)if(fan.spawned&&!fan.exited&&!fan.hiddenRestroom)indexFan(fan);
       const nearby=p=>{const result=[],x=Math.floor(p.x/0.6),y=Math.floor(p.y/0.6);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const fan of cells.get(`${x+dx},${y+dy}`)||[])result.push(fan);return result;};
       for(const fan of moving) {
         if(fanPhase==="exiting"?departureElapsed<fan.exitStart:arrivalElapsed<fan.start||fan.seated)continue;
-        const occupied=p=>nearby(p).some(other=>other!==fan&&other.spawned&&!other.exited&&(!other.seated||other.standSeat)&&
+        // The final doorway is an interior queue portal, not a standing position
+        // that blocks a returning visitor on the same walkway.
+        if(fan.activity==="to restroom"&&fan.index>=fan.route.length-2&&fanDistance(fan,fan.route.at(-1))<0.35){finishFanRoute(fan);continue;}
+        const occupied=p=>nearby(p).some(other=>other!==fan&&other.spawned&&!other.exited&&!other.hiddenRestroom&&(!other.seated||other.standSeat)&&
           // Fans still sitting during their staggered release occupy seats,
           // not the walking aisle in front of that row.
           !(fanPhase==="exiting"&&departureElapsed<other.exitStart)&&(fanDistance(p,other)<(other.seated?0.03:FAN_SPACE)-1e-8||
-            (!other.seated&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
+            (!other.seated&&!["to restroom","returning to seat"].includes(fan.activity)&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
               corridorDistance(p,corridors.get(other)||lookAhead(other))<FAN_SPACE-1e-8)));
         if(fanPhase==="exiting"&&fan.seated) {
           if(occupied(fan))continue;
@@ -1671,7 +1789,7 @@
         let distance=FAN_SPEED*(fanPhase==="exiting"?step:(fanPhase==="finishing arrivals"?step:Math.max(0,arrivalElapsed-Math.max(previousElapsed,fan.start))));
         while(distance>1e-8) {
           const next=fan.route[fan.index+1];
-          if(!next){if(fanPhase==="exiting")fan.exited=true;else fan.seated=true;break;}
+          if(!next){finishFanRoute(fan);break;}
           const length=fanDistance(fan,next),travel=Math.min(distance,length);
           const ratio=length>1e-9?travel/length:1;
           const proposed={x:fan.x+(next.x-fan.x)*ratio,y:fan.y+(next.y-fan.y)*ratio,feet:fan.feet+((next.feet||0)-fan.feet)*ratio};
@@ -1682,16 +1800,16 @@
             if(fanPhase!=="exiting"&&!fan.paid&&fan.index>=fan.gateIndex) {
               fan.paid=true;gateAdmissions++;gateRevenue+=TICKET_PRICE;collected+=TICKET_PRICE;
             }
-            if(fan.index===fan.route.length-1){if(fanPhase==="exiting")fan.exited=true;else fan.seated=true;break;}
+            if(fan.index===fan.route.length-1){finishFanRoute(fan);break;}
           } else break;
         }
         corridors.set(fan,lookAhead(fan));
       }
       if(fanElapsed>=GAME_SECONDS&&fanPhase==="game")fanPhase="finishing arrivals";
       // Late/queued arrivals finish before reversing flow on narrow stairs.
-      if(fanPhase==="finishing arrivals"&&fans.every(f=>f.seated))beginDepartures();
+      if(fanPhase==="finishing arrivals"&&fans.every(f=>f.seated||f.activity&&f.activity!=="arriving"))beginDepartures();
       if(fanPhase==="exiting"&&fans.every(f=>f.exited)) {
-        endFanTest(`Game complete! ${GAME_SECONDS/60}:00 played · ${gateAdmissions} admissions · $${gateRevenue} gate revenue. All fans returned to the spawn point. Ready to build or open gates for another game.`);
+        endFanTest(`Game complete! ${GAME_SECONDS/60}:00 played · ${gateAdmissions} admissions · $${gateRevenue} gate revenue. All fans returned to the spawn point. ${completedBathroomTrips} restroom round trips completed. Ready to build or open gates for another game.`);
       }
     }
     if(collected) {
@@ -1710,7 +1828,7 @@
     const seated=fans.filter(f=>f.seated).length,arrived=fans.filter(f=>f.spawned).length;
     const access=fanUnreachable ? `${disconnectedSections.size} disconnected section${disconnectedSections.size===1?"":"s"} (${fanUnreachable} seats), marked red. Connect walkways to use them.` : "All seating sections have a route from the gate.";
     fanStatus(`Game on · ${clock} remaining · ${gateAdmissions} admissions · $${gateRevenue} gate revenue. `+(seated===fanPlanned?`All ${seated} arriving fans are seated. ${reachableCapacity-seated} reachable seats remain empty. ${access}`:
-      `Fans arriving: ${arrived}/${fanPlanned} · Fans seated: ${seated}. ${access}`));
+      `Fans arriving: ${arrived}/${fanPlanned} · Fans seated: ${seated}. ${access}`)+` Restrooms: ${restroomServices.length} reachable · ${fans.filter(f=>f.hiddenRestroom||f.activity==="to restroom"||f.activity==="returning to seat").length} visiting · ${completedBathroomTrips} round trips.`);
   }
   const defensivePlayers = [
     {position:"P",x:18+6.05/Math.SQRT2,y:14+6.05/Math.SQRT2},
@@ -1812,18 +1930,17 @@
     if(fanActive){toast("End the game before building");return;}
     const planned={};
     // A diagonal outfield stand parallel to the stadium's northeast boundary.
-    for(let n=0;n<7;n++)planned[key(42+n,36-n)]={type:n===0?"stairStand":"stand",rot:1,baseFeet:0};
+    for(let n=0;n<7;n++)planned[key(44+n,47-n)]={type:n===0?"stairStand":"stand",rot:1,baseFeet:0};
     const walk=[[14,10],[14,9],[13,9],[13,10],[13,11],[12,11]];
-    for(let y=12;y<=45;y++)walk.push([12,y]);
-    for(let x=13;x<=31;x++)walk.push([x,45]);
-    for(let n=0;n<10;n++){walk.push([31+n,44-n]);walk.push([32+n,44-n]);}
+    for(let y=12;y<=46;y++)walk.push([12,y]);
+    for(let x=13;x<=43;x++)walk.push([x,46]);
     for(const [x,y] of walk)planned[key(x,y)]={type:"path",rot:0};
     const merged={...tiles,...planned};
     const conflict=Object.entries(planned).some(([k,v])=>{
       const [x,y]=k.split(",").map(Number),existing=tiles[k];
       return existing&&(existing.type!==v.type||existing.rot!==v.rot||existing.baseFeet!==v.baseFeet)||footprintError(x,y,v,merged)||edges[k+":a"]||edges[k+":d"];
     });
-    if(conflict||Object.keys(planned).some(k=>{const [x,y]=k.split(",").map(Number);return neighborOffsets.some(([dx,dy])=>planned[key(x+dx,y+dy)]&&wallBlocks(k,key(x+dx,y+dy)));})){fanStatus("Diagonal demo area is occupied or blocked. Your park was kept. Clear the outfield strip near tiles 42,36–48,30 and its left-field approach, or build your own diagonal sections.");return;}
+    if(conflict||Object.keys(planned).some(k=>{const [x,y]=k.split(",").map(Number);return neighborOffsets.some(([dx,dy])=>planned[key(x+dx,y+dy)]&&wallBlocks(k,key(x+dx,y+dy)));})){fanStatus("Diagonal demo area is occupied or blocked. Your park was kept. Clear the outfield strip near tiles 44,47–50,41 and its left-field approach, or build your own diagonal sections.");return;}
     const additions=Object.entries(planned).filter(([k])=>!tiles[k]),cost=additions.reduce((n,[,v])=>n+prices[v.type],0);
     if(money<cost){toast("Not enough money for diagonal demo");return;}
     history.push(snapshot());
@@ -1837,7 +1954,7 @@
     for(const k of ["11,7","11,8","11,9","10,9","10,10","10,11","10,12","10,13"])planned[k]={type:"path",rot:0};
     for(const k of ["10,15","11,15","11,14","11,13","11,12","11,11","12,11"])planned[k]={type:"concourse",rot:0,baseFeet:5};
     for(const [k,v] of Object.entries(planned))if(tiles[k]&&JSON.stringify(tiles[k])!==JSON.stringify(v)){fanStatus("Backstop demo area occupied. Your layout was kept; try it in a clear park or build the pieces yourself.");return;}
-    try{validatePark({version:2,fieldRevision:6,seatingRevision:1,money,team,tiles:{...tiles,...planned},edges});}catch(e){fanStatus("Backstop demo cannot fit: "+e.message);return;}
+    try{validatePark({version:2,fieldRevision:7,seatingRevision:1,money,team,tiles:{...tiles,...planned},edges});}catch(e){fanStatus("Backstop demo cannot fit: "+e.message);return;}
     if(Object.keys(planned).some(k=>{const [x,y]=k.split(",").map(Number);return neighborOffsets.some(([dx,dy])=>planned[key(x+dx,y+dy)]&&wallBlocks(k,key(x+dx,y+dy)));})){fanStatus("A wall blocks the demo. Your park was kept.");return;}
     const additions=Object.entries(planned).filter(([k])=>!tiles[k]),cost=additions.reduce((n,[,v])=>n+prices[v.type],0);
     if(money<cost){toast("Not enough money for demo");return;}
@@ -1853,7 +1970,7 @@
     for(let y=11;y<=13;y++)add(10,y,"halfConcourse",6,5);add(10,14,"cornerLanding",2,5);
     add(19,9,"stand",4);add(18,9,"stairStand",4);add(17,9,"backstopCornerFirst",4);for(const [x,y] of [[16,9],[15,10],[14,11],[13,12]])add(x,y,"backstopStand",5);add(13,13,"backstopCornerThird",6);add(13,14,"stairStand",6);
     for(const [k,v] of Object.entries(planned))if(tiles[k]&&JSON.stringify(tiles[k])!==JSON.stringify(v)){fanStatus("Corner demo area is occupied. Use an empty park or Undo first.");return;}
-    try{validatePark({version:2,fieldRevision:6,seatingRevision:1,money,team,tiles:{...tiles,...planned},edges});}catch(e){fanStatus("Corner demo cannot fit: "+e.message);return;}
+    try{validatePark({version:2,fieldRevision:7,seatingRevision:1,money,team,tiles:{...tiles,...planned},edges});}catch(e){fanStatus("Corner demo cannot fit: "+e.message);return;}
     const additions=Object.entries(planned).filter(([k])=>!tiles[k]),cost=additions.reduce((n,[,v])=>n+prices[v.type],0);if(money<cost){fanStatus("Not enough money for the corner demo.");return;}
     if(additions.length){history.push(snapshot());for(const [k,v] of additions)tiles[k]=v;money-=cost;connectLegacyGate();store();update();draw();}
     fanStatus(`Corner bowl ready ($${cost.toLocaleString()}). Continuous straight–corner–backstop rows, both stair entrances, half-width rear concourses and a triangular turn. Open gates to test the bowl.`);
@@ -1966,7 +2083,8 @@
       else drawObject(e.x, e.y, e.v);
     }
     captureFaces=false;surfaceFrame=null;seamFrame=null;
-    for(const fan of fans.filter(f=>f.spawned&&!f.exited).sort((a,b)=>{const p=rotated(a.x,a.y),q=rotated(b.x,b.y);return p.x+p.y-q.x-q.y||a.start-b.start;}))drawVisibleFan(fan);
+    updateFanPanel();
+    for(const fan of fans.filter(f=>f.spawned&&!f.exited&&!f.hiddenRestroom).sort((a,b)=>{const p=rotated(a.x,a.y),q=rotated(b.x,b.y);return p.x+p.y-q.x-q.y||a.start-b.start;}))drawVisibleFan(fan);
     if(!fanActive)for(const [k,v] of Object.entries(tiles))if(hasStairs(v)&&(isPlatform({type:tool})||isPath({type:tool})||hover&&k===key(hover.x,hover.y))) {
       const [x,y]=k.split(",").map(Number);drawStairEntrance(x,y,v);
     }
@@ -1993,7 +2111,7 @@
       const infill=tool==="cornerLanding"&&isStand(existing)?infillPlacement(hover.x,hover.y,rot):null;
       const standSnap=infill|| (completingDeck?{baseFeet:existing.baseFeet}:isPlatform({type:tool})?standPlacement(hover.x,hover.y,rot):null);
       const occupied = tool === "wall" ? edges[edge] || !edgeAllowed(edge) || diagonalWallCollision(edge) || sceneryBlocksEdge(edge) || (/[ad]$/.test(edge) && tiles[key(hover.x,hover.y)])
-        : standSnap?.error || footprintError(hover.x,hover.y,{...candidate,...standSnap}) || blockedTile(key(hover.x, hover.y)) || (tiles[key(hover.x, hover.y)]&&!(completingDeck||tiles[key(hover.x,hover.y)].type==="halfPath"&&(tool==="path"||(tool==="halfPath"&&(rot+4)%8===tiles[key(hover.x,hover.y)].rot)))) || edges[key(hover.x,hover.y)+":a"] || edges[key(hover.x,hover.y)+":d"];
+        : standSnap?.error || (!infill&&footprintError(hover.x,hover.y,{...candidate,...standSnap})) || blockedTile(key(hover.x, hover.y)) || (tiles[key(hover.x, hover.y)]&&!(infill&&!infill.error||completingDeck||tiles[key(hover.x,hover.y)].type==="halfPath"&&(tool==="path"||(tool==="halfPath"&&(rot+4)%8===tiles[key(hover.x,hover.y)].rot)))) || edges[key(hover.x,hover.y)+":a"] || edges[key(hover.x,hover.y)+":d"];
       if (tool === "wall") {
         drawWall(edge, occupied ? "#d35b65aa" : "#f5d554bb");
         const panel = edgePanel(edge);
@@ -2044,7 +2162,7 @@
     try {
       localStorage.setItem(
         "svs01",
-        JSON.stringify({ version: 2, fieldRevision: 6, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, money, team }),
+        JSON.stringify({ version: 2, fieldRevision: 7, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, money, team }),
       );
       return true;
     } catch (e) {
@@ -2053,7 +2171,10 @@
     }
   }
   function action() {
-    if(fanActive) {toast("End the fan test before building");return;}
+    if(fanActive) {
+      if(pointer){let closest=null,best=14*zoom;for(const f of fans)if(f.spawned&&!f.exited&&!f.hiddenRestroom){const p=project(f.x,f.y),height=f.standSeat?f.feet*FT:(f.seated?4+f.row*3:0),d=Math.hypot(pointer.x-p.x,pointer.y-(p.y-height*zoom-6*zoom));if(d<best){best=d;closest=f;}}if(closest){selectedFan=closest;document.getElementById("fanPicker").value=String(fans.indexOf(closest));updateFanPanel();return;}}
+      toast("Choose a fan or end the game before building");return;
+    }
     disconnectedSections.clear();
     if(tool!=="inspect")suggestedGhost=null;
     if (!hover) return;
@@ -2313,7 +2434,7 @@
       if(v.material!==undefined){if(!["wood","chain","padded"].includes(v.material))throw Error("Invalid fence material");out.material=v.material;}
       return out;
     };
-    const migrateField = (saved.version === 1 || saved.version === 2) && (!saved.fieldRevision || saved.fieldRevision < 6);
+    const migrateField = (saved.version === 1 || saved.version === 2) && (!saved.fieldRevision || saved.fieldRevision < 7);
     if (saved.edges !== undefined && (!saved.edges || typeof saved.edges !== "object" || Array.isArray(saved.edges))) throw Error("Invalid walls");
     for (const [edge,v] of Object.entries(saved.edges || {})) {
       if (!/^\d+,\d+:[hvad]$/.test(edge) || !v || v.type !== "wall") throw Error("Invalid wall edge");
@@ -2351,12 +2472,17 @@
         clean[k]={type:v.type,rot:v.rot,...(isPlatform(v)?{baseFeet:v.baseFeet}:{}),...metadata(v)};
       }
     }
+    if(migrateField)for(const [k,v] of Object.entries(clean)){
+      const [x,y]=k.split(",").map(Number);
+      if(polygonsOverlap(footprint(x,y,v),fenceCorners)){cash+=prices[v.type];delete clean[k];}
+    }
     for(const v of Object.values(clean))if(isFenceCorner(v)&&!saved.seatingRevision)v.legacyCorner=true;
     for (const k of Object.keys(clean))
       if (cleanEdges[k+":a"] || cleanEdges[k+":d"]) throw Error("Diagonal crosses an occupied tile");
     const cleanInfills={};
     if(saved.infillDecks!==undefined&&(!saved.infillDecks||typeof saved.infillDecks!=="object"||Array.isArray(saved.infillDecks)))throw Error("Invalid concourse triangles");
     for(const [k,v] of Object.entries(saved.infillDecks||{})){
+      if(migrateField&&!clean[k]){cash+=prices.cornerLanding;continue;}
       if(!/^\d+,\d+$/.test(k)||!v||v.type!=="cornerLanding"||![0,2,4,6].includes(v.rot)||!Number.isInteger(v.baseFeet)||v.baseFeet<0||v.baseFeet>300||v.baseFeet%5)throw Error("Invalid concourse triangle");
       const [x,y]=k.split(",").map(Number);if(!isStand(clean[k])||overlaps(footprint(x,y,v),footprint(x,y,clean[k])))throw Error("Concourse triangle overlaps its seating host");cleanInfills[k]={type:v.type,rot:v.rot,baseFeet:v.baseFeet};
     }
@@ -2369,7 +2495,7 @@
   }
   document.getElementById("export").onclick = () => {
     const blob = new Blob(
-        [JSON.stringify({ version: 2, fieldRevision: 6, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, money, team }, null, 2)],
+        [JSON.stringify({ version: 2, fieldRevision: 7, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, money, team }, null, 2)],
         { type: "application/json" },
       ),
       url = URL.createObjectURL(blob),
