@@ -893,7 +893,7 @@
     }
     if(panel.fieldWall&&team.fenceMaterial==="green"){
       polygon([a,b,up(b),up(a)],"#174f36","#103c29",0.6);
-      line(up(a),up(b),"#286548",2);line(a,up(a),"#103c29",0.7);return;
+      line(up(a),up(b),"#edc75b",2);line(a,up(a),"#103c29",0.7);return;
     }
     if(panel.fieldWall&&panel.feet===8&&team.fenceMaterial==="padded") {
       polygon([a,b,up(b),up(a)],team.primary,"#294a51",0.5);
