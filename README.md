@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.34 adds two-way walking lanes, an access inspector with suggested repairs, a fence-aligned main gate with minimal automatic paving, straight corner rows, and 6× zoom. It includes diagonal modular stands, clear stair feedback, visible concourses, 100 fans in seated parties, team identity and overrides, fence finishes, shops, four scoreboard models, and parking/neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
+**Design → Build → Unfold → Review.** Version 0.35 adds a saved 100 / 200 / 400 attendance selector, ten-foot-deep backstop seating rows with a level rear landing, front-apex fence wedges, solid stair/concourse foundations and connection-aware guards. Existing features include two-way walking lanes, access inspection, partial concourses, four camera views, 6× zoom, seated parties, team colors, shops, scoreboards and neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
 
 ## Play and develop
 

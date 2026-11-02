@@ -100,7 +100,7 @@ function game(saved, random=()=>0.5) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={simulateTraffic:routes=>{fanActive=true;fanPhase=\"game\";fanElapsed=0;departureElapsed=0;fans=routes.map((r,i)=>({route:laneRoute(r),index:0,...r[0],start:0,spawned:true,seated:false,exited:false,paid:true,standSeat:false,gateIndex:0,exitStart:0}));return fans;},cornerRowSpan,cornerSeatPoint,accessReport,validAccessPiece,connectLegacyGate,groundItem,automaticPath,laneRoute,TRAFFIC_LANE,cornerPoint,cornerPorts,cornerCols,rowNeighbor,deckShape,deckCenter,deckOpening,deckRailSegments,pointInPolygon,buildCornerDemo,drawPartialDeck,drawNeighborhood,buildBackstopDemo,parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot,team,zoom}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={simulateTraffic:routes=>{fanActive=true;fanPhase=\"game\";fanElapsed=0;departureElapsed=0;fans=routes.map((r,i)=>({route:laneRoute(r),index:0,...r[0],start:0,spawned:true,seated:false,exited:false,paid:true,standSeat:false,gateIndex:0,exitStart:0}));return fans;},drawBackstopLanding,drawStairApron,stairRearConnected,cornerRowSpan,cornerSeatPoint,accessReport,validAccessPiece,connectLegacyGate,groundItem,automaticPath,laneRoute,TRAFFIC_LANE,cornerPoint,cornerPorts,cornerCols,rowNeighbor,deckShape,deckCenter,deckOpening,deckRailSegments,pointInPolygon,buildCornerDemo,drawPartialDeck,drawNeighborhood,buildBackstopDemo,parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot,team,zoom}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -1131,10 +1131,10 @@ test("corner bowl demo fits the home-plate fence and connects every seating row"
  const g=game();g.api.buildCornerDemo();const tiles=g.api.state().tiles;
  assert.equal(tiles["17,9"]?.type,"backstopCornerFirst",g.element("fanStatus").textContent);
  assert.equal(tiles["13,13"].type,"backstopCornerThird");
- const all=g.api.reachableSeats();assert.equal(all.length,7);assert.equal(all.reduce((n,s)=>n+s.capacity,0),102);
+ const all=g.api.reachableSeats();assert.equal(all.length,9);assert.equal(all.reduce((n,s)=>n+s.capacity,0),122);
  for(const [k,side] of [["17,9",1],["13,13",-1]]){const [x,y]=k.split(",").map(Number),v=tiles[k];for(const a of [-0.5,0,0.5]){const p=g.api.standPoint(x,y,v,a,-0.5);assert.equal(p.x+p.y,28);}assert.ok(g.api.rowNeighbor(x,y,v,-1));assert.ok(g.api.rowNeighbor(x,y,v,1));}
- assert.equal(g.api.state().money,472400);
- const saved=JSON.parse(g.storage.get("svs01"));assert.equal(game(saved).api.reachableSeats().reduce((n,s)=>n+s.capacity,0),102);
+ assert.equal(g.api.state().money,468800);
+ const saved=JSON.parse(g.storage.get("svs01"));assert.equal(game(saved).api.reachableSeats().reduce((n,s)=>n+s.capacity,0),122);
  const before=JSON.stringify(g.api.state());g.api.buildCornerDemo();assert.equal(JSON.stringify(g.api.state()),before);
  g.element("undo").click();assert.equal(Object.keys(g.api.state().tiles).length,0);assert.equal(g.api.state().money,500000);
 });
@@ -1253,11 +1253,45 @@ test("access inspector explains blocked entrances and offers stairs for an aisle
 });
 test("corner seat rows are parallel, rigid and remain inside their tier footprint",()=>{
  const g=game();for(const type of ["cornerStandLeft","cornerStandRight","backstopCornerFirst","backstopCornerThird"]){const item={type,rot:type==="backstopCornerFirst"?4:type==="backstopCornerThird"?6:0,baseFeet:0};let direction;
-  for(let row=0;row<4;row++){const cols=g.api.cornerCols(item,row),a=g.api.cornerSeatPoint(20,20,item,row,0),b=g.api.cornerSeatPoint(20,20,item,row,cols-1);assert.ok(g.api.pointInPolygon(a.x,a.y,g.api.footprint(20,20,item)));if(cols>1){const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);if(direction)assert.ok(Math.abs(direction.x*dy-direction.y*dx)<1e-8);else direction={x:dx/len,y:dy/len};}}
+  for(let row=0;row<4;row++){const cols=g.api.cornerCols(item,row);if(!cols)continue;const a=g.api.cornerSeatPoint(20,20,item,row,0),b=g.api.cornerSeatPoint(20,20,item,row,cols-1);assert.ok(g.api.pointInPolygon(a.x,a.y,g.api.footprint(20,20,item)));if(cols>1){const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);if(direction)assert.ok(Math.abs(direction.x*dy-direction.y*dx)<1e-8);else direction={x:dx/len,y:dy/len};}}
  }
 });
 test("zoom reaches six times and keeps picking aligned at every camera angle",()=>{
  const g=game();for(let i=0;i<30;i++)g.element("zoomIn").click();assert.equal(g.api.state().zoom,6);
  for(let camera=0;camera<4;camera++){const p=g.api.project(11.5,30.5),q=g.api.inverse(p.x,p.y);assert.equal(q.x,11);assert.equal(q.y,30);g.key("q");}
  g.key("i");g.api.setHover(11,30);g.api.action();assert.equal(Object.keys(g.api.state().tiles).length,0);
+});
+
+test("attendance selection persists and changes only the next game, capped by accessible seats",()=>{
+ const g=game();g.api.buildCornerDemo();const select=g.element("fanCount");select.value="200";select.onchange();
+ assert.equal(JSON.parse(g.storage.get("svs01")).requestedFans,200);g.api.startFanTest();assert.equal(g.api.fanState().fans.length,122);
+ select.value="100";select.onchange();assert.equal(g.api.fanState().fans.length,122);g.element("stopFans").click();g.api.startFanTest();assert.equal(g.api.fanState().fans.length,100);
+ const again=game({...JSON.parse(g.storage.get("svs01")),requestedFans:400});assert.equal(again.element("fanCount").value,"400");
+ assert.equal(g.api.validatePark({...JSON.parse(g.storage.get("svs01")),requestedFans:999999}).requestedFans,100);
+});
+test("fence wedges share a front apex, widen outward and meet matching-height rows",()=>{
+ const g=game();for(const type of ["backstopCornerFirst","backstopCornerThird"]){const item={type,rot:type==="backstopCornerFirst"?4:6,baseFeet:15},x=type==="backstopCornerFirst"?17:13,y=type==="backstopCornerFirst"?9:13;
+ const a=g.api.standPoint(x,y,item,-0.5,-0.5),b=g.api.standPoint(x,y,item,0.5,-0.5);assert.ok(Math.hypot(a.x-b.x,a.y-b.y)<1e-8);assert.equal(g.api.cornerCols(item,0),0);
+ let last=0;for(let r=0;r<4;r++){const n=g.api.cornerCols(item,r);assert.ok(n>=last);last=n;for(let c=0;c<n;c++){const p=g.api.cornerSeatPoint(x,y,item,r,c);assert.equal(p.feet,15+(r+1)*1.25);assert.ok(g.api.pointInPolygon(p.x,p.y,g.api.footprint(x,y,item)));}}
+ for(const [n,port] of g.api.cornerPorts(x,y,item).entries())for(let r=0;r<4;r++){const t=-0.5+(r+1)/4,p=g.api.standPoint(x,y,item,n?0.5:-0.5,t,15+(r+1)*1.25),q=g.api.standPoint(port.x,port.y,{type:port.backstop?"backstopStand":"stand",rot:port.rot,baseFeet:15},port.side*0.5,t,15+(r+1)*1.25);assert.ok(Math.hypot(p.x-q.x,p.y-q.y)<1e-8);assert.equal(p.feet,q.feet);}
+ }
+});
+test("backstop has ten feet of raked rows and a solid level landing to existing rear concourses",()=>{
+ const g=game(),item={type:"backstopStair",rot:5,baseFeet:10},a=g.api.standPoint(13,12,item,0,-0.5),b=g.api.standPoint(13,12,item,0,0.5);assert.ok(Math.abs(Math.hypot(b.x-a.x,b.y-a.y)-1)<1e-8);
+ g.commands.length=0;g.api.drawBackstopLanding(13,12,item);assert.ok(g.commands.some(c=>c[0]==="style"&&c[2]==="#8e9898"));
+ const tiles=g.api.state().tiles;tiles["13,12"]=item;tiles["12,11"]={type:"concourse",rot:0,baseFeet:15};assert.ok(g.api.stairRearConnected(13,12,item));
+ for(const edge of [1,2]){const rails=g.api.deckRailSegments(12,11,tiles["12,11"],edge);assert.equal(rails.length,1);assert.ok(Math.hypot(rails[0][1][0]-rails[0][0][0],rails[0][1][1]-rails[0][0][1])<1);}
+ tiles["12,11"].baseFeet=10;assert.equal(g.api.stairRearConnected(13,12,item),false);assert.equal(g.api.deckRailSegments(12,11,tiles["12,11"],1).length,1);
+});
+test("400 fans can enter a multi-tier diagonal stand and finish their exits",()=>{
+ const g=game(undefined,seededRandom(35));g.api.buildDiagonalDemo();const tiles=g.api.state().tiles;
+ for(let tier=0;tier<=1;tier++)for(let n=0;n<11-tier;n++)tiles[`${42+n+tier},${36-n+tier}`]={type:n===0?"stairStand":"stand",rot:1,baseFeet:tier*5};
+ tiles["41,37"]={type:"stand",rot:1,baseFeet:0};g.api.validatePark({version:2,fieldRevision:6,seatingRevision:1,money:50000,tiles,edges:{}});assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),416);
+ const select=g.element("fanCount");select.value="400";select.onchange();g.api.startFanTest();assert.equal(g.api.fanState().fans.length,400);
+ g.api.advanceFans(170);assert.ok(g.api.fanState().fans.every(f=>f.seated)||g.api.fanState().fanPhase==="exiting"||!g.api.fanState().fanActive,`${g.api.fanState().fans.filter(f=>f.seated).length}/400 seated`);
+ g.api.advanceFans(250);assert.equal(g.api.fanState().fanActive,false,`${g.api.fanState().fans.filter(f=>f.exited).length}/400 exited`);assert.ok(g.api.fanState().fans.every(f=>f.exited));
+});
+
+test("older fence connectors retain their original bank ports on reload",()=>{
+ const g=game();g.api.buildCornerDemo();const saved=JSON.parse(g.storage.get("svs01"));delete saved.seatingRevision;delete saved.tiles["16,9"];delete saved.tiles["13,12"];const old=game(saved);assert.equal(old.api.state().money,saved.money);assert.equal(old.api.state().tiles["17,9"].legacyCorner,true);assert.equal(old.api.rowNeighbor(17,9,old.api.state().tiles["17,9"],1),"15,10");assert.equal(old.api.rowNeighbor(13,13,old.api.state().tiles["13,13"],1),"14,11");assert.equal(old.api.reachableSeats().length,7);
 });
