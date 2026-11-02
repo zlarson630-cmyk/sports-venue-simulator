@@ -18,8 +18,12 @@ function game(saved, random=()=>0.5) {
     {
       get:
         (_, name) =>
-        (...args) =>
-          commands.push([name, ...args]),
+        (...args) => {
+          // A cleared canvas begins a new frame. Keep that frame for assertions,
+          // rather than retaining every prior frame across crowd simulations.
+          if(name==="clearRect")commands.length=0;
+          commands.push([name, ...args]);
+        },
       set: (_,name,value) => {commands.push(["style",name,value]);return true;},
     },
   );
