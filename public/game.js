@@ -244,24 +244,27 @@
   }
   const cornerSide=item=>item.type==="cornerStandLeft"||item.type==="backstopCornerThird"?-1:1;
   function cornerPoint(x,y,item,a,b,feet=item.baseFeet||0) {
-    const side=cornerSide(item),deep=isFenceCorner(item),t=a+0.5;
-    const u=-side*0.5+(side*(deep?1.25+1.5*b:0.5+b)+side*0.5)*t;
-    const v=b+((deep?-0.75+1.5*b:-0.5+b)-b)*t,{ax,ay,bx,by}=standAxes(item.rot);
-    return {x:x+0.5+ax*u+bx*v,y:y+0.5+ay*u+by*v,feet};
+    const ports=cornerPorts(x,y,item),t=a+0.5;
+    const ends=ports.map(port=>standPoint(port.x,port.y,{type:port.backstop?"backstopStand":"stand",rot:port.rot,baseFeet:item.baseFeet},port.side*0.5,b,feet));
+    return {x:ends[0].x+(ends[1].x-ends[0].x)*t,y:ends[0].y+(ends[1].y-ends[0].y)*t,feet};
   }
   function cornerRowSpan(x,y,item,row,aisle=false) {
+    if(!isFenceCorner(item)||item.legacyCorner){
     const b=-0.5+row/4,side=cornerSide(item),rotation=(item.rot+side+8)%8,{ax,ay,bx,by}=standAxes(rotation),length=Math.hypot(ax,ay),dir={x:ax*side/length,y:ay*side/length};
     const center=cornerPoint(x,y,item,0,b+0.155);if(aisle){center.x+=bx/length*0.09;center.y+=by/length*0.09;}
     const poly=[cornerPoint(x,y,item,-0.5,b),cornerPoint(x,y,item,0.5,b),cornerPoint(x,y,item,0.5,b+0.25),cornerPoint(x,y,item,-0.5,b+0.25)];
     const area=poly.reduce((n,a,i)=>{const q=poly[(i+1)%4];return n+a.x*q.y-q.x*a.y;},0),sign=Math.sign(area);let low=-100,high=100;
     for(let i=0;i<4;i++){const a=poly[i],q=poly[(i+1)%4],dx=q.x-a.x,dy=q.y-a.y,c=sign*(dx*(center.y-a.y)-dy*(center.x-a.x))-(i===2&&!aisle?0.07*Math.hypot(dx,dy):0),slope=sign*(dx*dir.y-dy*dir.x);if(slope>1e-8)low=Math.max(low,-c/slope);else if(slope< -1e-8)high=Math.min(high,-c/slope);}
     return {center,dir,low:low+0.06,high:high-0.06};
+    }
+    const b=-0.5+row/4+(aisle?0.2375:0.14),left=cornerPoint(x,y,item,-0.5,b),right=cornerPoint(x,y,item,0.5,b),length=Math.hypot(right.x-left.x,right.y-left.y);
+    return {center:{x:(left.x+right.x)/2,y:(left.y+right.y)/2},dir:{x:(right.x-left.x)/(length||1),y:(right.y-left.y)/(length||1)},low:-length/2+0.055,high:length/2-0.055};
   }
-  function cornerCols(item,row){const span=cornerRowSpan(0,0,item,row);return Math.max(1,Math.floor((span.high-span.low)/0.2));}
+  function cornerCols(item,row){const span=cornerRowSpan(0,0,item,row);return Math.max(0,Math.floor((span.high-span.low)/0.2));}
   function cornerSeatPoint(x,y,item,row,col,aisle=false){if(aisle){const seat=cornerSeatPoint(x,y,item,row,col),a=cornerPoint(x,y,item,-0.5,-0.2625+row/4),b=cornerPoint(x,y,item,0.5,-0.2625+row/4),{bx,by}=standAxes((item.rot+cornerSide(item)+8)%8),len=Math.hypot(bx,by),nx=bx/len,ny=by/len,dx=b.x-a.x,dy=b.y-a.y,t=((a.x-seat.x)*dy-(a.y-seat.y)*dx)/(nx*dy-ny*dx);return {x:seat.x+nx*t,y:seat.y+ny*t,feet:seat.feet};}const {center,dir,low,high}=cornerRowSpan(x,y,item,row,aisle),t=low+(high-low)*(col+0.5)/cornerCols(item,row);return {x:center.x+dir.x*t,y:center.y+dir.y*t,feet:(item.baseFeet||0)+(row+1)*1.25};}
   function cornerPorts(x,y,item) {
-    const side=cornerSide(item),{ax,ay,bx,by}=standAxes(item.rot),out=(item.rot+side+8)%8,span=isFenceCorner(item)?2:1;
-    return [{x:x-ax*side,y:y-ay*side,rot:item.rot,side,backstop:false},{x:x+ax*side*span-bx,y:y+ay*side*span-by,rot:out,side:-side,backstop:isFenceCorner(item)}];
+    const side=cornerSide(item),{ax,ay,bx,by}=standAxes(item.rot),out=(item.rot+side+8)%8,legacy=isFenceCorner(item)&&item.legacyCorner,span=legacy?2:1,shift=isFenceCorner(item)&&!legacy?0:1;
+    return [{x:x-ax*side,y:y-ay*side,rot:item.rot,side,backstop:false},{x:x+ax*side*span-bx*shift,y:y+ay*side*span-by*shift,rot:out,side:-side,backstop:isFenceCorner(item)}];
   }
   function rowNeighbor(x,y,item,side) {
     if(isCorner(item)) {
@@ -277,7 +280,7 @@
   function standPoint(x,y,item,a,b,feet=item.baseFeet||0) {
     if(isCorner(item))return cornerPoint(x,y,item,a,b,feet);
     const {ax,ay,bx,by}=standAxes(item.rot);
-    const depth=isBackstop(item)?b*1.5-0.25:b;
+    const depth=isBackstop(item)?(b+0.5)/Math.SQRT2-1:b;
     return {x:x+0.5+ax*a+bx*depth,y:y+0.5+ay*a+by*depth,feet};
   }
   function matchingStand(x,y,item,da,db) {
@@ -291,6 +294,7 @@
   function footprint(x,y,item) {
     if(isRamp(item)){const [dx,dy]=directions[item.rot];return [[0,-0.5],[6,-0.5],[6,0.5],[0,0.5]].map(([t,a])=>{const p=rampPoint(x,y,item,t);return [p.x-dy*a,p.y+dx*a];});}
     if(isDeck(item))return deckShape(item).map(([a,b])=>[x+a,y+b]);
+    if(isBackstop(item)){const {ax,ay,bx,by}=standAxes(item.rot);return [[-0.5,-1],[0.5,-1],[0.5,0.5],[-0.5,0.5]].map(([a,b])=>[x+0.5+ax*a+bx*b,y+0.5+ay*a+by*b]);}
     if(isStand(item))return [[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]].map(([a,b])=>{const p=standPoint(x,y,item,a,b);return [p.x,p.y];});
     return (item?.type==="halfPath"?halfCorners(item.rot):[[0,0],[1,0],[1,1],[0,1]]).map(([a,b])=>[x+a,y+b]);
   }
@@ -379,6 +383,34 @@
     if((heights[0]??0)>300)return {error:"Concourse height exceeds the supported range."};
     return {baseFeet:heights[0]??0};
   }
+  function stairRearConnected(x,y,item) {
+    const {bx,by}=standAxes(item.rot),deck=tiles[key(x+bx,y+by)];
+    return matchingStand(x,y,item,0,1)||(isDeck(deck)&&!!concourseConnection(x+bx,y+by,deck,-bx,-by));
+  }
+  function guardStandRear(screen,top,from=-0.5,to=0.5) {
+    for(const a of [from,to])line(screen(a,0.5,top),screen(a,0.5,top+3),"#627986",1);
+    line(screen(from,0.5,top+3),screen(to,0.5,top+3),"#a4b5b9",1.2);
+  }
+  const raisedWorld=p=>{const q=project(p.x,p.y);q.y-=(p.feet||0)*FT*zoom;return q;};
+  function drawBackstopLanding(x,y,item) {
+    const {ax,ay,bx,by}=standAxes(item.rot),feet=item.baseFeet+5,point=(a,b)=>({x:x+0.5+ax*a+bx*b,y:y+0.5+ay*a+by*b,feet}),near=1/Math.SQRT2-1;
+    const ps=[point(-0.5,near),point(0.5,near),point(0.5,0.5),point(-0.5,0.5)];
+    for(let i=0;i<4;i++){const a=ps[i],b=ps[(i+1)%4],center=project(x+0.5,y+0.5).y;if((project(a.x,a.y).y+project(b.x,b.y).y)/2>=center)polygon([raisedWorld({...a,feet:0}),raisedWorld({...b,feet:0}),raisedWorld(b),raisedWorld(a)],"#8e9898",null);}
+    polygon(ps.map(raisedWorld),PAVEMENT,null);
+    // Guard the rear landing except for a genuinely connected stair entrance.
+    const cuts=hasStairs(item)&&stairRearConnected(x,y,item)?[[-0.5,-0.3],[0.3,0.5]]:[[-0.5,0.5]];
+    for(const side of [-1,1]){const next=rowNeighbor(x,y,item,side);if(!next||isCorner(tiles[next])){const a=point(side*0.5,near),b=point(side*0.5,0.5);line(raisedWorld(a),raisedWorld({...a,feet:feet+3}),"#627986",1);line(raisedWorld({...a,feet:feet+3}),raisedWorld({...b,feet:feet+3}),"#a4b5b9",1.2);}}
+    for(const [a,b] of cuts){const p=point(a,0.5),q=point(b,0.5);line(raisedWorld(p),raisedWorld({...p,feet:feet+3}),"#627986",1);line(raisedWorld({...p,feet:feet+3}),raisedWorld({...q,feet:feet+3}),"#a4b5b9",1.2);}
+  }
+  function drawStairApron(x,y,item) {
+    const {ax,ay,bx,by}=standAxes(item.rot),deck=tiles[key(x+bx,y+by)];
+    if(!(bx&&by)||!isDeck(deck)||!concourseConnection(x+bx,y+by,deck,-bx,-by))return;
+    const feet=item.baseFeet+5,depth=0.5,a=stairCenter(item),width=isEndStair(item)?0.25:item.type==="stairs"?0.5:0.3;
+    const p=t=>({x:x+0.5+ax*(a+t)+bx*depth,y:y+0.5+ay*(a+t)+by*depth,feet}),q=deckCenter(x+bx,y+by,deck),ps=[p(-width),p(width),{x:q.x+ax*width,y:q.y+ay*width,feet},{x:q.x-ax*width,y:q.y-ay*width,feet}];
+    for(let i=0;i<4;i++){const a=ps[i],b=ps[(i+1)%4];polygon([raisedWorld({...a,feet:0}),raisedWorld({...b,feet:0}),raisedWorld(b),raisedWorld(a)],"#9baba9",null);}
+    polygon(ps.map(raisedWorld),PAVEMENT,null);
+    for(const [a,b] of [[ps[0],ps[3]],[ps[1],ps[2]]]){line(raisedWorld(a),raisedWorld({...a,feet:feet+3}),"#627986",1);line(raisedWorld({...a,feet:feet+3}),raisedWorld({...b,feet:feet+3}),"#a4b5b9",1.2);}
+  }
   function drawConcourse(x,y,item,rails=false,patch=null,railIndex=null) {
     const h=item.baseFeet*FT,p=(a,b,z=h)=>{const q=project(x+a,y+b);q.y-=z*zoom;return q;};
     const corners=patch?[[patch[0],patch[1]],[patch[0]+0.25,patch[1]],[patch[0]+0.25,patch[1]+0.25],[patch[0],patch[1]+0.25]]:[[0,0],[1,0],[1,1],[0,1]];
@@ -386,8 +418,8 @@
       for(let i=0;i<4;i++) {
         const a=corners[i],b=corners[(i+1)%4];
         if(patch&&!((a[0]===0&&b[0]===0)||(a[0]===1&&b[0]===1)||(a[1]===0&&b[1]===0)||(a[1]===1&&b[1]===1)))continue;
-        polygon([p(...a,h-0.8),p(...b,h-0.8),p(...b),p(...a)],"#9baba9","#7d9293",0.5);
-        if(h>0&&a.every(n=>n===0||n===1))line(p(...a,0),p(...a,h),"#839798",2);
+        polygon([p(...a,0),p(...b,0),p(...b),p(...a)],"#9baba9","#7d9293",0.5);
+
       }
       polygon(corners.map(c=>p(...c)),PAVEMENT,patch?null:"#a9b7b1",0.6);
     } else if(h>0) {
@@ -408,16 +440,26 @@
   }
   function deckRailSegments(x,y,item,i) {
     const cs=deckShape(item),a=cs[i],b=cs[(i+1)%cs.length],dx=a[0]===b[0]?(a[0]===0?-1:a[0]===1?1:0):0,dy=a[1]===b[1]?(a[1]===0?-1:a[1]===1?1:0):0;
-    const connection=(dx||dy)&&concourseConnection(x,y,item,dx,dy);if(!connection)return [[a,b]];
-    if(!connection.opening)return [];
-    const axis=dx?1:0,lo=Math.min(a[axis],b[axis]),hi=Math.max(a[axis],b[axis]),[start,end]=connection.opening,at=t=>dx?[a[0],t]:[t,a[1]],segments=[];
-    if(start>lo+1e-8)segments.push([at(lo),at(Math.min(start,hi))]);if(end<hi-1e-8)segments.push([at(Math.max(end,lo)),at(hi)]);return segments;
+    const connection=(dx||dy)&&concourseConnection(x,y,item,dx,dy),axis=dx?1:0,lo=Math.min(a[axis],b[axis]),hi=Math.max(a[axis],b[axis]);
+    if(!dx&&!dy)return [[a,b]];
+    const cuts=[];
+    if(connection){if(connection.opening)cuts.push(connection.opening);else cuts.push([lo,hi]);}
+    for(const sx of [-1,1])for(const sy of [-1,1]){
+      if(!concourseConnection(x,y,item,sx,sy))continue;
+      const corner=[sx>0?1:0,sy>0?1:0];if((dx&&corner[0]!==a[0])||(dy&&corner[1]!==a[1]))continue;
+      const t=corner[axis];cuts.push(t===0?[0,0.45]:[0.55,1]);
+    }
+    let spans=[[lo,hi]];for(const [start,end] of cuts)spans=spans.flatMap(([l,h])=>end<=l||start>=h?[[l,h]]:[[l,Math.min(h,start)],[Math.max(l,end),h]].filter(([l,h])=>h-l>1e-8));
+    const at=t=>dx?[a[0],t]:[t,a[1]];return spans.map(([l,h])=>[at(l),at(h)]);
   }
   function drawPartialDeck(x,y,item,patch=null,rail=null) {
     const at=(p,h=item.baseFeet)=>{const q=project(x+p[0],y+p[1]);q.y-=h*FT*zoom;return q;};
     if(rail!==null){if(item.baseFeet<=0)return;for(const [a,b] of deckRailSegments(x,y,item,rail)){line(at(a),at(a,item.baseFeet+3),"#607c88",1);line(at(b),at(b,item.baseFeet+3),"#607c88",1);line(at(a,item.baseFeet+3),at(b,item.baseFeet+3),"#a9c3c5",1.2);}return;}
     let cs=deckShape(item);if(patch)for(const [axis,value,greater] of [[0,patch[0],true],[0,patch[0]+0.25,false],[1,patch[1],true],[1,patch[1]+0.25,false]])cs=clipDeck(cs,axis,value,greater);
-    if(cs.length<3)return;polygon(cs.map(p=>at(p)),PAVEMENT,null);
+    if(cs.length<3)return;
+    const center=deckCenter(x,y,item),depth=project(center.x,center.y).y;
+    for(let i=0;i<cs.length;i++){const a=cs[i],b=cs[(i+1)%cs.length];if(patch&&!deckShape(item).some((v,n)=>{const w=deckShape(item)[(n+1)%deckShape(item).length],cross=p=>(w[0]-v[0])*(p[1]-v[1])-(w[1]-v[1])*(p[0]-v[0]);return Math.abs(cross(a))<1e-8&&Math.abs(cross(b))<1e-8;}))continue;if((at(a,0).y+at(b,0).y)/2>=depth-1e-8)polygon([at(a,0),at(b,0),at(b),at(a)],"#9baba9",null);}
+    polygon(cs.map(p=>at(p)),PAVEMENT,null);
   }
   // Each row is a separate painter entry, so fans and neighboring sections share depth order.
   function drawRampPatch(x,y,item,n) {
@@ -425,8 +467,8 @@
     polygon([at(t,-0.5),at(t+0.25,-0.5),at(t+0.25,0.5),at(t,0.5)],PAVEMENT,null);
     for(const a of [-0.48,0.48]){line(at(t,a,3),at(t+0.25,a,3),"#a4b5b9",1.2);if(n%4===0)line(at(t,a),at(t,a,3),"#627986",1);if(n===23)line(at(6,a),at(6,a,3),"#627986",1);}
   }
-  function drawRigidCornerSeat(center,rotation,palette) {
-    const {ax,ay,bx,by}=standAxes(rotation),len=Math.hypot(ax,ay),at=(u,v,z)=>{const p=project(center.x+(ax*u+bx*v)/len,center.y+(ay*u+by*v)/len);p.y-=(center.feet+z)*FT*zoom;return p;};
+  function drawRigidCornerSeat(center,rotation,palette,axes) {
+    const {ax,ay,bx,by}=axes||standAxes(rotation),len=Math.hypot(ax,ay),at=(u,v,z)=>{const p=project(center.x+(ax*u+bx*v)/len,center.y+(ay*u+by*v)/len);p.y-=(center.feet+z)*FT*zoom;return p;};
     const box=(u,v,w,d,low,high,top)=>{const cs=[[u,v],[u+w,v],[u+w,v+d],[u,v+d]],cy=at(u+w/2,v+d/2,0).y;for(let i=0;i<4;i++){const a=cs[i],b=cs[(i+1)%4];if((at(...a,0).y+at(...b,0).y)/2<cy-1e-8)continue;polygon([at(...a,low),at(...b,low),at(...b,high),at(...a,high)],palette.primary,null);}polygon(cs.map(c=>at(...c,high)),top,null);};
     box(-0.075,-0.055,0.15,0.11,0,1.4,palette.secondary);box(-0.075,0.05,0.15,0.025,1.4,2.8,palette.primary);
   }
@@ -447,10 +489,12 @@
     if(item.type==="stairs") {
       const steps=[0,1].sort((a,c)=>screen(0,b+a*0.125,0).y-screen(0,b+c*0.125,0).y);
       for(const n of steps){const h=base+row*1.25+(n+1)*0.625,sb=b+n*0.125;
+        prism(-0.5,sb,1,0.125,0,h-0.625,"#9baba9","#9baba9");
         prism(-0.5,sb,1,0.125,h-0.625,h,"#8e9898","#e1e0d4");
         line(screen(-0.5,sb,h+0.01),screen(0.5,sb,h+0.01),"#edc75b",0.8);
       }
-      for(const a of [-0.48,0.48]){line(screen(a,b,top-1.25),screen(a,b,top+1.75),"#627986",1);line(screen(a,b,top+1.75),screen(a,b+0.25,top+3),"#a4b5b9",1);}
+      for(const a of [-0.48,0.48]){const end=matchingStand(x,y,item,a<0?-1:1,0)?b+0.09:b+0.25;line(screen(a,b,top-1.25),screen(a,b,top+1.75),"#627986",1);line(screen(a,b,top+1.75),screen(a,end,top+1.75+(end-b)*5),"#a4b5b9",1);}
+      if(row===3){drawStairApron(x,y,item);if(!stairRearConnected(x,y,item))guardStandRear(screen,top);}
       return;
     }
     if(isEndStair(item)) {
@@ -460,6 +504,7 @@
       prism(la,b,0.5,0.25,0,base+0.04,"#8e9898","#dedbc9",[0,2]);
       for(const n of [0,1].sort((a,c)=>screen(0,b+a*0.125,0).y-screen(0,b+c*0.125,0).y)) {
         const h=base+row*1.25+(n+1)*0.625,sb=b+n*0.125;
+        prism(sa,sb,0.5,0.125,0,h-0.625,"#9baba9","#9baba9");
         prism(sa,sb,0.5,0.125,h-0.625,h,"#8e9898","#e1e0d4",[2]);
         line(screen(sa,sb,h+0.01),screen(sa+0.5,sb,h+0.01),"#edc75b",0.8);
       }
@@ -469,11 +514,12 @@
       line(screen(0,railStart,top),screen(0,railStart,top+3),"#627986",0.8);
       if(!matchingStand(x,y,item,inner,0))along(inner*0.5,b,b+0.25,top);
       // Leave the middle five feet open for the walkway side entrance.
-      if(row===0||row===3)along(side*0.5,b,b+0.25,base);
+      if(row===0||row===3||!stairEntrance(x,y,item).connected)along(side*0.5,b,b+0.25,base);
       if(row===0&&!fanActive) {
         line(screen(side*0.78,0,base+0.1),screen(side*0.48,0,base+0.1),"#78d5bd",2);
         polygon([screen(side*0.37,0,base+0.1),screen(side*0.51,-0.09,base+0.1),screen(side*0.51,0.09,base+0.1)],"#78d5bd","#2f705e",0.5);
       }
+      if(row===3){drawStairApron(x,y,item);if(!stairRearConnected(x,y,item))guardStandRear(screen,top,sa,sa+0.5);guardStandRear(screen,base,la,la+0.5);}
       return;
     }
     const left=matchingStand(x,y,item,-1,0),right=matchingStand(x,y,item,1,0);
@@ -486,14 +532,17 @@
       prism(0.3,b,0.2,0.25,0,top,"#8e9898","#c9ceca",[0,2,3,...(right?[1]:[])]);
       for(const step of [0,1].sort((a,c)=>screen(0,b+a*0.125,0).y-screen(0,b+c*0.125,0).y)) {
         const h=base+row*1.25+(step+1)*0.625,sb=b+step*0.125;
+        prism(-0.3,sb,0.6,0.125,0,h-0.625,"#9baba9","#9baba9");
         prism(-0.3,sb,0.6,0.125,h-0.625,h,"#8e9898","#e1e0d4",[1,2,3,...(step===0&&front?[0]:[])]);
         line(screen(-0.3,sb,h+0.01),screen(0.3,sb,h+0.01),"#edc75b",0.8);
       }
     }
+    if(row===3&&isBackstop(item))drawBackstopLanding(x,y,item);
+    if(row===3&&hasStairs(item))drawStairApron(x,y,item);
     const seats=isCorner(item)?Array.from({length:cornerCols(item,row)},(_,n)=>-0.5+(n+0.5)/cornerCols(item,row)):isSeatSection(item)?[-0.4,-0.2,0,0.2,0.4]:[-0.4,0.4];
-    const seatWidth=isCorner(item)?0.75/cornerCols(item,row):0.15;
+    const seatWidth=isCorner(item)?0.75/(cornerCols(item,row)||1):0.15;
     for(const a of seats) {
-      if(isCorner(item)){drawRigidCornerSeat(cornerSeatPoint(x,y,item,row,seats.indexOf(a)),(item.rot+cornerSide(item)+8)%8,palette);continue;}
+      if(isCorner(item)){const d=cornerRowSpan(x,y,item,row).dir,up=standAxes(item.rot),sign=Math.sign((-d.y)*up.bx+d.x*up.by)||1;drawRigidCornerSeat(cornerSeatPoint(x,y,item,row,seats.indexOf(a)),item.rot,palette,{ax:d.x,ay:d.y,bx:-d.y*sign,by:d.x*sign});continue;}
       // Five 2-foot seat bays, or one bay on either side of the 6-foot stair aisle.
       prism(a-seatWidth/2,b+0.10,seatWidth,0.11,top,top+1.4,palette.primary,palette.secondary);
       prism(a-seatWidth/2,b+0.205,seatWidth,0.025,top+1.4,top+2.8,palette.primary,palette.primary);
@@ -504,9 +553,8 @@
     };
     if(!left)rail(-0.5,b,-0.5,b+0.25,top);
     if(!right)rail(0.5,b,0.5,b+0.25,top);
-    if(row===3&&!back) {
-      if(isSeatSection(item))rail(-0.5,0.5,0.5,0.5,top);
-      else {rail(-0.5,0.5,-0.3,0.5,top);rail(0.3,0.5,0.5,0.5,top);}
+    if(row===3&&!back&&!isBackstop(item)) {
+      rail(-0.5,0.5,0.5,0.5,top);
     }
     if(!fanActive) {
       line(screen(-0.5,b,top+0.02),screen(0.5,b,top+0.02),"#95a4a3",0.4);
@@ -1025,6 +1073,10 @@
   const entranceTile = "14,10";
   const GAME_SECONDS=120, TICKET_PRICE=5;
   let gateAdmissions=0, gateRevenue=0;
+  let requestedFans=100;
+  const fanCountControl=document.getElementById("fanCount");
+  fanCountControl.value=String(requestedFans);
+  fanCountControl.onchange=()=>{const n=Number(fanCountControl.value);if(![100,200,400].includes(n))return;requestedFans=n;store();toast(fanActive?`${n} fans selected for the next game`:`Up to ${n} fans at the next game`);};
   let fans=[], fanActive=false, fanElapsed=0, fanPlanned=0, fanUnreachable=0, fanFrame=0, reachableCapacity=0, disconnectedSections=new Set(), fanPhase="idle", departureElapsed=0;
   function fanStatus(message) { const e=document.getElementById("fanStatus");if(e.textContent!==message)e.textContent=message; }
   function insideStadium(x,y) {return x>=6&&x<53&&y>=2&&y<49&&x+y>=13&&x+y<=81;}
@@ -1320,7 +1372,7 @@
     disconnectedSections=new Set(Object.entries(tiles).filter(([k,v])=>seatCapacity(v)&&!sections.some(s=>s.key===k)).map(([k])=>k));
     fanUnreachable=total-reachableCapacity;
     if(!sections.length) {draw();fanStatus("No gate-to-seat route. Hover a stair to see the cause; highlighted entrance tiles need connected walkways. Raised entrances need matching-height landings.");return;}
-    fanPlanned=Math.min(100,reachableCapacity);fanElapsed=0;departureElapsed=0;fanPhase="game";gateAdmissions=0;gateRevenue=0;fans=[];
+    fanPlanned=Math.min(requestedFans,reachableCapacity);fanElapsed=0;departureElapsed=0;fanPhase="game";gateAdmissions=0;gateRevenue=0;fans=[];
     const plan=partySeatPlan(sections,fanPlanned),traffic=new Map();let routeTraffic=new Map();
     for(let i=0;i<plan.length;i++) {
       const {section,slot,partyId,start}=plan[i];
@@ -1333,7 +1385,7 @@
       } else target=isCorner(section)?cornerSeatPoint(section.x,section.y,section,row,col):standPoint(section.x,section.y,section,isSeatSection(section)?-0.4+col*0.2:(col?0.4:-0.4),-0.3125+row/4,section.baseFeet+(row+1)*1.25);
       if(section.type!=="bleacher") {
         const {bx,by}=standAxes(section.rot);
-        const aisleOffset=isBackstop(section)?0.075:0.05;
+        const aisleOffset=isBackstop(section)?0.05/Math.SQRT2:0.05;
         target.aisle=isCorner(section)?cornerSeatPoint(section.x,section.y,section,row,col,true):{x:target.x+bx*aisleOffset,y:target.y+by*aisleOffset,feet:target.feet};
       }
       if(i===0||partyId!==plan[i-1].partyId)routeTraffic=new Map(traffic);
@@ -1655,7 +1707,7 @@
     history.push(snapshot());
     for(const [k,v] of additions)tiles[k]=v;
     money-=cost;connectLegacyGate();store();update();draw();
-    fanStatus(`Diagonal demo ready ($${cost.toLocaleString()}). 128 seats beyond the outfield; 100 fans can use the central stairs. R rotates sections 45°.`);
+    fanStatus(`Diagonal demo ready ($${cost.toLocaleString()}). 128 seats beyond the outfield; choose attendance below to test the central stairs. R rotates sections 45°.`);
   }
   function buildBackstopDemo() {
     if(fanActive){toast("End the game before building");return;}
@@ -1663,7 +1715,7 @@
     for(const k of ["11,7","11,8","11,9","10,9","10,10","10,11","10,12","10,13"])planned[k]={type:"path",rot:0};
     for(const k of ["10,15","11,15","11,14","11,13","11,12","11,11","12,11"])planned[k]={type:"concourse",rot:0,baseFeet:5};
     for(const [k,v] of Object.entries(planned))if(tiles[k]&&JSON.stringify(tiles[k])!==JSON.stringify(v)){fanStatus("Backstop demo area occupied. Your layout was kept; try it in a clear park or build the pieces yourself.");return;}
-    try{validatePark({version:2,fieldRevision:6,money,team,tiles:{...tiles,...planned},edges});}catch(e){fanStatus("Backstop demo cannot fit: "+e.message);return;}
+    try{validatePark({version:2,fieldRevision:6,seatingRevision:1,money,team,tiles:{...tiles,...planned},edges});}catch(e){fanStatus("Backstop demo cannot fit: "+e.message);return;}
     if(Object.keys(planned).some(k=>{const [x,y]=k.split(",").map(Number);return neighborOffsets.some(([dx,dy])=>planned[key(x+dx,y+dy)]&&wallBlocks(k,key(x+dx,y+dy)));})){fanStatus("A wall blocks the demo. Your park was kept.");return;}
     const additions=Object.entries(planned).filter(([k])=>!tiles[k]),cost=additions.reduce((n,[,v])=>n+prices[v.type],0);
     if(money<cost){toast("Not enough money for demo");return;}
@@ -1677,9 +1729,9 @@
     for(const [x,y] of [[10,10],[11,10],[12,10],[12,9],[12,8],[18,8],[11,14],[12,14]])add(x,y,"concourse",0,5);
     for(let x=13;x<=17;x++)add(x,8,"halfConcourse",0,5);
     for(let y=11;y<=13;y++)add(10,y,"halfConcourse",6,5);add(10,14,"cornerLanding",2,5);
-    add(19,9,"stand",4);add(18,9,"stairStand",4);add(17,9,"backstopCornerFirst",4);add(15,10,"backstopStand",5);add(14,11,"backstopStand",5);add(13,13,"backstopCornerThird",6);add(13,14,"stairStand",6);
+    add(19,9,"stand",4);add(18,9,"stairStand",4);add(17,9,"backstopCornerFirst",4);for(const [x,y] of [[16,9],[15,10],[14,11],[13,12]])add(x,y,"backstopStand",5);add(13,13,"backstopCornerThird",6);add(13,14,"stairStand",6);
     for(const [k,v] of Object.entries(planned))if(tiles[k]&&JSON.stringify(tiles[k])!==JSON.stringify(v)){fanStatus("Corner demo area is occupied. Use an empty park or Undo first.");return;}
-    try{validatePark({version:2,fieldRevision:6,money,team,tiles:{...tiles,...planned},edges});}catch(e){fanStatus("Corner demo cannot fit: "+e.message);return;}
+    try{validatePark({version:2,fieldRevision:6,seatingRevision:1,money,team,tiles:{...tiles,...planned},edges});}catch(e){fanStatus("Corner demo cannot fit: "+e.message);return;}
     const additions=Object.entries(planned).filter(([k])=>!tiles[k]),cost=additions.reduce((n,[,v])=>n+prices[v.type],0);if(money<cost){fanStatus("Not enough money for the corner demo.");return;}
     if(additions.length){history.push(snapshot());for(const [k,v] of additions)tiles[k]=v;money-=cost;connectLegacyGate();store();update();draw();}
     fanStatus(`Corner bowl ready ($${cost.toLocaleString()}). Continuous straight–corner–backstop rows, both stair entrances, half-width rear concourses and a triangular turn. Open gates to test the bowl.`);
@@ -1805,7 +1857,7 @@
     help.hidden=!isPlatform({type:tool})&&!hasStairs(hovered);
     if(!help.hidden) {
       const snap=hover&&completableDeck(hovered,tool,rot)?{baseFeet:hovered.baseFeet}:hover?standPlacement(hover.x,hover.y,rot):{baseFeet:0};
-      help.textContent=isFenceCorner({type:tool})?`Fence corner · ${tool==="backstopCornerFirst"?"first-base at 17,9 (straight 18,9; backstop 15,10)":"third-base at 13,13 (straight 13,14; backstop 14,11)"}. Four continuous rows; match base heights. Connect stairs in an adjoining seating bank.`:isCorner({type:tool})?`Corner seating · joins a straight bank to a 45° bank · four continuous rows · ${seatCapacity({type:tool,rot})} seats · base ${snap.baseFeet} ft. R turns 90°; choose L/R to mirror. Both banks need matching base heights; access comes through their stairs.`:tool==="halfConcourse"?`Half concourse · 5 × 10 ft · level at ${snap.baseFeet} ft. R turns 90°; add its opposite half or a full concourse to complete the tile. Rails guard exposed edges.`:tool==="ramp"?`Ramp · 10 × 60 ft · six cells · 1:12 slope · ${snap.baseFeet}–${snap.baseFeet+5} ft. Connect only at its low and high ends.`:tool==="cornerLanding"?`Triangular corner landing · ${snap.baseFeet} ft · R turns 90°. Triangular concourse connects matching-height walking surfaces. Add the opposite triangle or full concourse to complete the tile.`:tool==="stairs"?`Standalone stairs · no seats · ${snap.baseFeet}–${snap.baseFeet+5} ft. Path at bottom; matching-height concourse at top. R rotates 45°.`:isBackstop({type:tool})?`Backstop section · field-facing · front edge aligns with the diagonal fence. Place at 15,10 / 14,11 / 13,12 / 12,13. Use a rear concourse and backstop stair section for access; these deeper front sections do not stack uphill.`:hasStairs(hovered)?stairEntrance(hover.x,hover.y,hovered).message:snap.error||(tool==="concourse"?`Level concourse · 10 × 10 ft · ${snap.baseFeet} ft high. Snaps to stair tops and adjoining platforms. Only matching walking heights connect.`:(isEndStair({type:tool})?`End stairs · no seats · ${rot%2?"14.1 ft diagonal footprint; stairs + side landing":"5 ft stairs + 5 ft level landing"} · +5 ft rise. Base: ${snap.baseFeet} ft. Green arrow marks the side walkway entrance. Connect the highlighted entry walkway continuously to the gate. R rotates 45°; choose the other end piece to mirror.`:`${tool==="stand"?"20 seats · 5 per row":"8 seats · 6 ft central stairs"} · 4 rows · ${rot%2?"14.1 × 14.1 ft diagonal":"10 × 10 ft"} · +5 ft rise. Base: ${snap.baseFeet} ft. Match facing; build behind to rise. Connect a path to the front of a stair section.`));
+      help.textContent=isFenceCorner({type:tool})?`Fence corner · ${tool==="backstopCornerFirst"?"first-base at 17,9 (straight 18,9; backstop 16,9)":"third-base at 13,13 (straight 13,14; backstop 13,12)"}. Four continuous rows; match base heights. Connect stairs in an adjoining seating bank.`:isCorner({type:tool})?`Corner seating · joins a straight bank to a 45° bank · four continuous rows · ${seatCapacity({type:tool,rot})} seats · base ${snap.baseFeet} ft. R turns 90°; choose L/R to mirror. Both banks need matching base heights; access comes through their stairs.`:tool==="halfConcourse"?`Half concourse · 5 × 10 ft · level at ${snap.baseFeet} ft. R turns 90°; add its opposite half or a full concourse to complete the tile. Rails guard exposed edges.`:tool==="ramp"?`Ramp · 10 × 60 ft · six cells · 1:12 slope · ${snap.baseFeet}–${snap.baseFeet+5} ft. Connect only at its low and high ends.`:tool==="cornerLanding"?`Triangular corner landing · ${snap.baseFeet} ft · R turns 90°. Triangular concourse connects matching-height walking surfaces. Add the opposite triangle or full concourse to complete the tile.`:tool==="stairs"?`Standalone stairs · no seats · ${snap.baseFeet}–${snap.baseFeet+5} ft. Path at bottom; matching-height concourse at top. R rotates 45°.`:isBackstop({type:tool})?`Backstop section · field-facing · front edge aligns with the diagonal fence. Place at 15,10 / 14,11 / 13,12 / 12,13. Use a rear concourse and backstop stair section for access; four rows rise 5 ft over 10 ft, followed by a level rear landing; these front sections do not stack uphill.`:hasStairs(hovered)?stairEntrance(hover.x,hover.y,hovered).message:snap.error||(tool==="concourse"?`Level concourse · 10 × 10 ft · ${snap.baseFeet} ft high. Snaps to stair tops and adjoining platforms. Only matching walking heights connect.`:(isEndStair({type:tool})?`End stairs · no seats · ${rot%2?"14.1 ft diagonal footprint; stairs + side landing":"5 ft stairs + 5 ft level landing"} · +5 ft rise. Base: ${snap.baseFeet} ft. Green arrow marks the side walkway entrance. Connect the highlighted entry walkway continuously to the gate. R rotates 45°; choose the other end piece to mirror.`:`${tool==="stand"?"20 seats · 5 per row":"8 seats · 6 ft central stairs"} · 4 rows · ${rot%2?"14.1 × 14.1 ft diagonal":"10 × 10 ft"} · +5 ft rise. Base: ${snap.baseFeet} ft. Match facing; build behind to rise. Connect a path to the front of a stair section.`));
       if(snap.error&&!hasStairs(hovered))help.textContent=snap.error;
     }
     if (hover && hover.x >= 0 && hover.x < W && hover.y >= 0 && hover.y < H) {
@@ -1864,7 +1916,7 @@
     try {
       localStorage.setItem(
         "svs01",
-        JSON.stringify({ version: 2, fieldRevision: 6, entranceRevision:1, tiles, edges, money, team }),
+        JSON.stringify({ version: 2, fieldRevision: 6, entranceRevision:1, seatingRevision:1, requestedFans, tiles, edges, money, team }),
       );
       return true;
     } catch (e) {
@@ -2123,7 +2175,7 @@
     const cleanTeam=saved.team?{...cleanColors(saved.team),fenceMaterial:saved.team.fenceMaterial||"chain"}:{...defaultTeam};
     if(!["chain","padded"].includes(cleanTeam.fenceMaterial))throw Error("Invalid field fence material");
     const metadata=v=>{
-      const out={};if(v.customColors!==undefined)out.customColors=cleanColors(v.customColors);
+      const out={};if(v.legacyCorner===true)out.legacyCorner=true;if(v.customColors!==undefined)out.customColors=cleanColors(v.customColors);
       if(v.material!==undefined){if(!["wood","chain","padded"].includes(v.material))throw Error("Invalid fence material");out.material=v.material;}
       return out;
     };
@@ -2165,17 +2217,18 @@
         clean[k]={type:v.type,rot:v.rot,...(isPlatform(v)?{baseFeet:v.baseFeet}:{}),...metadata(v)};
       }
     }
+    for(const v of Object.values(clean))if(isFenceCorner(v)&&!saved.seatingRevision)v.legacyCorner=true;
     for (const k of Object.keys(clean))
       if (cleanEdges[k+":a"] || cleanEdges[k+":d"]) throw Error("Diagonal crosses an occupied tile");
     for(const [k,v] of Object.entries(clean))if((isStand(v)&&v.rot%2)||isRamp(v)||isCorner(v)||isDeck(v)) {
       const [x,y]=k.split(",").map(Number),error=footprintError(x,y,v,clean,cleanEdges);
       if(error)throw Error(error);
     }
-    return { tiles: clean, edges: cleanEdges, money: cash, team:cleanTeam,entranceRevision:saved.entranceRevision||0 };
+    return { requestedFans:[100,200,400].includes(saved.requestedFans)?saved.requestedFans:100, tiles: clean, edges: cleanEdges, money: cash, team:cleanTeam,entranceRevision:saved.entranceRevision||0 };
   }
   document.getElementById("export").onclick = () => {
     const blob = new Blob(
-        [JSON.stringify({ version: 2, fieldRevision: 6, entranceRevision:1, tiles, edges, money, team }, null, 2)],
+        [JSON.stringify({ version: 2, fieldRevision: 6, entranceRevision:1, seatingRevision:1, requestedFans, tiles, edges, money, team }, null, 2)],
         { type: "application/json" },
       ),
       url = URL.createObjectURL(blob),
@@ -2199,7 +2252,7 @@
         tiles = park.tiles;
         edges = park.edges;
         money = park.money;
-        team=park.team;
+        team=park.team;requestedFans=park.requestedFans;fanCountControl.value=String(requestedFans);
         if(!park.entranceRevision&&Object.values(tiles).some(isPath))connectLegacyGate();
         store();
         update();
@@ -2219,7 +2272,7 @@
       tiles = saved.tiles;
       edges = saved.edges;
       money = saved.money;
-      team=saved.team;
+      team=saved.team;requestedFans=saved.requestedFans;fanCountControl.value=String(requestedFans);
       if(!saved.entranceRevision&&Object.values(tiles).some(isPath))connectLegacyGate();
       store();
     }

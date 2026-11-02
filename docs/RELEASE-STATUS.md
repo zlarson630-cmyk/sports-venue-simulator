@@ -1,11 +1,11 @@
-# Release status — v0.34
+# Release status — v0.35
 
-Implemented the authorized crowd/access/layout pass. Stairs, concourses and walkways use opposing keep-right lanes. Shared arrival routing avoids opposing entry into narrow seating rows. The exact player park now seats all 100 fans and completes departures; the browser run confirmed 100 admissions, $500 revenue and all fans returned to parking. Automated runs cover the saved park under three seeds and opposing pedestrian traffic.
+Player-authorized infrastructure pass plus a saved 100 / 200 / 400 fan dropdown. Midgame selection affects the next game; reachable seats cap attendance. A legal 416-seat, two-tier diagonal park completed all 400 arrivals and exits in the regression simulation.
 
-Inspect access (I) identifies missing paths/stairs, blocked walls, height mismatches and disconnected gate routes. Suggested pieces are checked against placement and the walking graph; a green ghost shows the location and orientation before normal construction. Multi-piece repairs are labeled as next steps.
+Backstop height was already five feet; exaggerated depth caused the apparent mismatch. Its four raked rows now cover ten feet, with a level rear landing filling the remaining original footprint. New fence wedges share a front apex, have empty narrow front rows and widen into one/two-seat rear rows. Their row endpoints exactly match adjacent stands. The revised demo has 122 reachable seats and costs $31,200. Existing fence connectors retain legacy bank ports on reload instead of silently moving neighboring construction.
 
-The main gate now occupies the opening in the outer fence. Nine automatic paved cells participate in routing. Older parks receive a free, removable one-cell-wide path connection to their former entrance once; existing construction and balance are preserved. Player-built paving is retained.
+Solid concrete supports stairs and full/partial concourses. Rear and exposed-edge guards close unless a usable connection exists. Diagonal stair-to-deck joins include a solid apron and local railing openings. A browser backstop-demo game admitted/seated all 28 reachable fans, earned $140 and completed exits with 400 selected.
 
-Corner seat rows are straight and parallel with consistent facing. Their footprints and joining ports remain compatible. Actual capacity is now 7 seats for a regular corner and 13 for a fence corner; the updated corner demo offers 102 reachable seats for $27,600. Straight/backstop sections retain their existing capacity. Maximum zoom is 6× with cursor anchoring; four camera angles remain.
+The final regression suite contains 108 checks, including the exact previous crowd-stall park, corner geometry, partial rails, save compatibility, fan settings and a complete 400-fan game. See CHUNK-3.5-TESTING.md for validation details and player checks. Publication remains authorized to the existing GitHub Pages game; merge after CI, then verify Publish game and the live version.
 
-Local npm run check passed 103 tests. Focused inspector, corner and zoom checks passed again after final interface polish. GitHub CI verifies the final tree before merge; Publish game and the live version must be verified afterward. Amenity visits, mascots, accompanied children, stretch and wave remain future work.
+Food/restroom simulation, mascot, accompanied children, stretch/wave and automatic expanding upper-bowl wedges remain future work.

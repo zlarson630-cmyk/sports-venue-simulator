@@ -6,15 +6,15 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Sports Venue Simulator — Sandbox 0.34</title>
-    <link rel="stylesheet" href="styles.css?v=0.34.0" />
+    <title>Sports Venue Simulator — Sandbox 0.35</title>
+    <link rel="stylesheet" href="styles.css?v=0.35.0" />
   </head>
   <body>
     <header>
       <div class="logo">🏟️</div>
       <div>
         <h1>SPORTS VENUE<br />SIMULATOR</h1>
-        <small>BUILD SANDBOX · v0.34</small>
+        <small>BUILD SANDBOX · v0.35</small>
       </div>
       <div class="topstats">
         <div class="stat">💵 <strong id="money">$500,000</strong></div>
@@ -94,13 +94,16 @@
         <p id="standHelp" class="standhelp" role="status" hidden></p>
         <div class="sidebarbottom">
           <div class="section">GAME DAY · 2 MINUTES</div>
-          <button class="smallbtn" id="demoCorners" style="width:100%;margin-bottom:6px">Build corner bowl demo · up to $27,600</button>
+          <button class="smallbtn" id="demoCorners" style="width:100%;margin-bottom:6px">Build corner bowl demo · up to $31,200</button>
           <button class="smallbtn" id="demoBackstop" style="width:100%;margin-bottom:6px">Build backstop demo · up to $11,700</button>
           <button class="smallbtn" id="demoDiagonal" style="width:100%;margin-bottom:6px">Build diagonal demo · up to $20,300</button>
           <button class="smallbtn" id="demoConcourse" style="width:100%;margin-bottom:6px">Build concourse demo · up to $11,400</button>
           <button class="smallbtn" id="demoSideEntry" style="width:100%;margin-bottom:6px">Build side-entry demo · up to $10,100</button>
           <button class="smallbtn" id="demoStands" style="width:100%;margin-bottom:6px">Build stand demo · up to $11,100</button>
           <button class="smallbtn" id="demoFans" style="width:100%">Build demo route · up to $2,000</button>
+          <label for="fanCount">Fans per game</label>
+          <select id="fanCount" style="width:100%;padding:10px;margin:8px 0" aria-describedby="fanCountHelp"><option value="100">100 fans</option><option value="200">200 fans</option><option value="400">400 fans</option></select>
+          <p id="fanCountHelp" class="foot">Limited by reachable seats. Changes during play apply to the next game.</p>
           <button class="smallbtn" id="openGates" style="width:100%;margin-top:6px">▶ Open gates · $5 admission</button>
           <button class="smallbtn" id="stopFans" style="width:100%;margin-top:6px">■ End game</button>
           <p id="fanStatus" class="foot" role="status" aria-live="polite">Connect walkways to stair entrances, then open gates. Fans arrive in groups, play two minutes, and queue to walk out afterward.</p>
@@ -165,6 +168,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=0.34.0" defer></script>
+    <script src="game.js?v=0.35.0" defer></script>
   </body>
 </html>
