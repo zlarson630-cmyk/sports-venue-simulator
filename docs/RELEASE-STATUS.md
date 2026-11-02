@@ -1,11 +1,9 @@
-# Release status — v0.35
+# Release status — v0.36
 
-Player-authorized infrastructure pass plus a saved 100 / 200 / 400 fan dropdown. Midgame selection affects the next game; reachable seats cap attendance. A legal 416-seat, two-tier diagonal park completed all 400 arrivals and exits in the regression simulation.
+Authorized seating-system pass: reusable fence-aligned seating with eight facings, physical 2 ft seat bays, stackable 5 ft seating bands, widening continuation wedges, +5 ft bases for newly placed outfield sections, separate concourses, matched concrete and collapsible construction groups. Attendance now offers 100 / 200 / 400 / 800, saved per park and capped by reachable seats.
 
-Backstop height was already five feet; exaggerated depth caused the apparent mismatch. Its four raked rows now cover ten feet, with a level rear landing filling the remaining original footprint. New fence wedges share a front apex, have empty narrow front rows and widen into one/two-seat rear rows. Their row endpoints exactly match adjacent stands. The revised demo has 122 reachable seats and costs $31,200. Existing fence connectors retain legacy bank ports on reload instead of silently moving neighboring construction.
+The supplied v0.35 park is preserved in tests/fixtures/backstop-jam-v035.json. It imports with its balance and elevations intact; its 976 reachable seats can support 800 fans. A deterministic 800-fan arrival/exit simulation completes without stranded fans. The larger test exposed late arrivals being frozen at the four-minute clock limit; arrival scheduling now uses a separate elapsed timer. Collision detection uses nearby spatial buckets while preserving the existing separation rules.
 
-Solid concrete supports stairs and full/partial concourses. Rear and exposed-edge guards close unless a usable connection exists. Diagonal stair-to-deck joins include a solid apron and local railing openings. A browser backstop-demo game admitted/seated all 28 reachable fans, earned $140 and completed exits with 400 selected.
+New diagonals have 7 seats per row instead of 5; straight rows retain 5. Central 6 ft stairs leave 2 seats per straight row and 4 per diagonal row. Each band rises 5 ft; diagonal band depth is 14.1 ft, matching its grid geometry and upper neighbors. Fence wedges auto-widen when placed one cell uphill from the same lower wedge. Existing rear concourses occupy their original cells; remove those pieces before stacking there. Existing outfield elevations are preserved; rebuild to use automatic +5 ft fence placement.
 
-The final regression suite contains 108 checks, including the exact previous crowd-stall park, corner geometry, partial rails, save compatibility, fan settings and a complete 400-fan game. See CHUNK-3.5-TESTING.md for validation details and player checks. Publication remains authorized to the existing GitHub Pages game; merge after CI, then verify Publish game and the live version.
-
-Food/restroom simulation, mascot, accompanied children, stretch/wave and automatic expanding upper-bowl wedges remain future work.
+See CHUNK-3.6-TESTING.md for checks. Publish to the existing GitHub Pages game after CI. Fan needs, purchases, mascots, accompanied children and crowd performances remain future work.

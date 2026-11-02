@@ -1,0 +1,529 @@
+{
+  "version": 2,
+  "fieldRevision": 6,
+  "entranceRevision": 1,
+  "seatingRevision": 1,
+  "requestedFans": 400,
+  "tiles": {
+    "9,5": {
+      "type": "path",
+      "rot": 0
+    },
+    "10,5": {
+      "type": "halfPath",
+      "rot": 6
+    },
+    "11,6": {
+      "type": "halfPath",
+      "rot": 6
+    },
+    "9,6": {
+      "type": "halfPath",
+      "rot": 2
+    },
+    "10,7": {
+      "type": "halfPath",
+      "rot": 2
+    },
+    "11,8": {
+      "type": "path",
+      "rot": 0
+    },
+    "10,6": {
+      "type": "path",
+      "rot": 6
+    },
+    "11,7": {
+      "type": "path",
+      "rot": 6
+    },
+    "13,15": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 0
+    },
+    "13,16": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 0
+    },
+    "12,16": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 5
+    },
+    "12,15": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 5
+    },
+    "13,17": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 0
+    },
+    "12,17": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 5
+    },
+    "13,21": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 0
+    },
+    "12,21": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 5
+    },
+    "12,20": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 5
+    },
+    "12,19": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 5
+    },
+    "12,18": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 5
+    },
+    "13,22": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 0
+    },
+    "12,22": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 5
+    },
+    "13,23": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 0
+    },
+    "12,23": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 5
+    },
+    "11,21": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "11,20": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "11,19": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "11,18": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "11,17": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "11,16": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "11,15": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "11,22": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "11,23": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "11,14": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "10,23": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "10,22": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "10,21": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "10,17": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "10,20": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "10,19": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "10,18": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "10,16": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "10,15": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 10
+    },
+    "11,13": {
+      "type": "stairs",
+      "rot": 0,
+      "baseFeet": 5
+    },
+    "11,12": {
+      "type": "stairs",
+      "rot": 0,
+      "baseFeet": 0
+    },
+    "11,11": {
+      "type": "path",
+      "rot": 0
+    },
+    "11,10": {
+      "type": "path",
+      "rot": 0
+    },
+    "11,9": {
+      "type": "path",
+      "rot": 0
+    },
+    "9,15": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 15
+    },
+    "9,16": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 15
+    },
+    "9,18": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 15
+    },
+    "9,19": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 15
+    },
+    "9,20": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 15
+    },
+    "9,22": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 15
+    },
+    "9,23": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 15
+    },
+    "9,17": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 15
+    },
+    "9,21": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 15
+    },
+    "8,17": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "8,18": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "8,19": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "8,20": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "8,21": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "8,22": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "8,23": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "8,16": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "8,15": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "8,14": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "9,14": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "9,13": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "8,13": {
+      "type": "concourse",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "7,21": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "7,17": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "7,16": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "7,18": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "7,19": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "7,20": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "7,22": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "7,23": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "7,15": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 20
+    },
+    "6,18": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 25
+    },
+    "6,19": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 25
+    },
+    "6,20": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 25
+    },
+    "6,22": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 25
+    },
+    "6,23": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 25
+    },
+    "6,17": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 25
+    },
+    "6,21": {
+      "type": "stairStand",
+      "rot": 6,
+      "baseFeet": 25
+    },
+    "10,10": {
+      "type": "restroom",
+      "rot": 6
+    },
+    "10,9": {
+      "type": "restroom",
+      "rot": 6
+    },
+    "13,14": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 0
+    },
+    "12,14": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 5
+    },
+    "13,13": {
+      "type": "backstopCornerThird",
+      "rot": 6,
+      "baseFeet": 0
+    },
+    "14,11": {
+      "type": "backstopStand",
+      "rot": 5,
+      "baseFeet": 0
+    },
+    "15,10": {
+      "type": "backstopStand",
+      "rot": 5,
+      "baseFeet": 0
+    },
+    "17,9": {
+      "type": "backstopCornerFirst",
+      "rot": 4,
+      "baseFeet": 0
+    },
+    "13,12": {
+      "type": "backstopStair",
+      "rot": 5,
+      "baseFeet": 0
+    },
+    "16,9": {
+      "type": "backstopStair",
+      "rot": 5,
+      "baseFeet": 0
+    },
+    "12,26": {
+      "type": "stand",
+      "rot": 6,
+      "baseFeet": 0
+    },
+    "10,26": {
+      "type": "stand",
+      "rot": 5,
+      "baseFeet": 0
+    },
+    "48,15": {
+      "type": "stand",
+      "rot": 2,
+      "baseFeet": 0
+    },
+    "48,14": {
+      "type": "stand",
+      "rot": 2,
+      "baseFeet": 0
+    },
+    "48,16": {
+      "type": "stand",
+      "rot": 2,
+      "baseFeet": 0
+    },
+    "49,14": {
+      "type": "stand",
+      "rot": 2,
+      "baseFeet": 5
+    },
+    "49,15": {
+      "type": "stand",
+      "rot": 2,
+      "baseFeet": 5
+    },
+    "49,16": {
+      "type": "stand",
+      "rot": 2,
+      "baseFeet": 5
+    },
+    "47,29": {
+      "type": "backstopStair",
+      "rot": 5,
+      "baseFeet": 0
+    },
+    "45,31": {
+      "type": "stand",
+      "rot": 1,
+      "baseFeet": 0
+    }
+  },
+  "edges": {},
+  "money": 339305,
+  "team": {
+    "primary": "#31566b",
+    "secondary": "#edc75b",
+    "accent": "#fff0c9",
+    "fenceMaterial": "chain"
+  }
+}

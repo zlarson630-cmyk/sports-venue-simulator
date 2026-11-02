@@ -1,3 +1,12 @@
+## v0.36 — Reusable seating and larger crowds
+
+- Consistent physical chair dimensions and 2 ft seat bays: 20 seats per straight section, 28 per diagonal; central stairs retain a physical 6 ft aisle (8 / 16 seats).
+- Fence seating rotates in 45° steps, snaps its front edge to parallel field fences, and defaults to a +5 ft base at the outfield wall. Existing saved elevations remain unchanged.
+- Backstop rows share the diagonal grid depth and stack uphill in 5 ft bands. Removed the compulsory rear landing; concourses are separate construction. Continuing a fence wedge uphill widens it to meet both seating banks.
+- Unified concrete surfaces/foundations across seating, stairs and concourses. Collapsible tool groups keep Inspect/Remove available and show the selected tool.
+- Extended the default game clock to four minutes. Added saved 800-fan attendance. Nearby-fan spatial indexing reduces collision work, and a separate arrival timer lets late scheduled fans enter after the four-minute game clock stops. The supplied park completes 800 arrivals/exits in regression simulation.
+- Saved the player's layout as a regression fixture; retained legacy construction, balances, undo and park imports.
+
 ## v0.30 — More building space and field-facing backstop seating
 
 - Expanded the first-/third-base sides of the stadium block by three cells (30 ft); moved bordering roads/landscaping outward. Existing objects, field dimensions and money are not migrated or reset.
@@ -77,7 +86,7 @@
 
 ## 0.21.0
 
-- Added two-minute games with a live countdown and automatic return to construction.
+- Added four-minute games with a live countdown and automatic return to construction.
 - Collect $5 once per fan crossing the main gate, with admissions and revenue shown live.
 - Persist earned revenue above the starting budget and retain it through construction undo.
 

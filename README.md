@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.35 adds a saved 100 / 200 / 400 attendance selector, ten-foot-deep backstop seating rows with a level rear landing, front-apex fence wedges, solid stair/concourse foundations and connection-aware guards. Existing features include two-way walking lanes, access inspection, partial concourses, four camera views, 6× zoom, seated parties, team colors, shops, scoreboards and neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
+**Design → Build → Unfold → Review.** Version 0.36 adds stackable fence seating and widening upper wedges, consistent 2-foot seat bays (5 seats per straight row, 7 per diagonal), rotatable fence-aligned sections, a 5-foot base for new outfield seating, matched concrete finishes, collapsible construction groups, and 800-fan attendance. A spatial crowd index and independent arrival timer support larger crowds. Concourses remain separate pieces. Existing features include two-way walking lanes, access inspection, partial concourses, four camera views, 6× zoom, seated parties, team colors, shops, scoreboards and neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
 
 ## Play and develop
 
@@ -82,7 +82,7 @@ No credentials belong in the repository. This game is a static website with no b
 
 ## First fan test
 
-Use **Build demo route** (up to $2,000) then **Open gates** to watch 24 fans arrive from parking and sit. The demo preserves existing objects and reports any conflicts. **End test** clears the fans so you can build again. You can also connect your own walkways from the marked entrance tile (14,10) to bleachers. Walkways can connect diagonally when both adjoining orthogonal corridors are clear; walls block crossings. Games use up to 100 fans, limited by reachable seats, and charge $5 when each fan crosses the main gate. Arrivals have groups and gaps; fans prefer walkways/concourses over long seating-row crossings and queue with personal spacing. After the two-minute game, staggered departures return to the parking-lot spawn point. Let everyone leave before opening gates again. End game remains a manual early stop. Existing save balances are preserved.
+Use **Build demo route** (up to $2,000) then **Open gates** to watch 24 fans arrive from parking and sit. The demo preserves existing objects and reports any conflicts. **End test** clears the fans so you can build again. You can also connect your own walkways from the marked entrance tile (14,10) to bleachers. Walkways can connect diagonally when both adjoining orthogonal corridors are clear; walls block crossings. Games use up to 100 fans, limited by reachable seats, and charge $5 when each fan crosses the main gate. Arrivals have groups and gaps; fans prefer walkways/concourses over long seating-row crossings and queue with personal spacing. After the four-minute game, staggered departures return to the parking-lot spawn point. Let everyone leave before opening gates again. End game remains a manual early stop. Existing save balances are preserved.
 
 See [the design backlog](docs/DESIGN-BACKLOG.md) and [Chunk 2.5 gameplay checks](docs/CHUNK-2.5-TESTING.md).
 
