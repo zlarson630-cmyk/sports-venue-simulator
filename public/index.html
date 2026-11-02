@@ -6,15 +6,15 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Sports Venue Simulator — Sandbox 0.36</title>
-    <link rel="stylesheet" href="styles.css?v=0.36.0" />
+    <title>Sports Venue Simulator — Sandbox 0.37</title>
+    <link rel="stylesheet" href="styles.css?v=0.37.0" />
   </head>
   <body>
     <header>
       <div class="logo">🏟️</div>
       <div>
         <h1>SPORTS VENUE<br />SIMULATOR</h1>
-        <small>BUILD SANDBOX · v0.36</small>
+        <small>BUILD SANDBOX · v0.37</small>
       </div>
       <div class="topstats">
         <div class="stat">💵 <strong id="money">$500,000</strong></div>
@@ -30,7 +30,7 @@
             <label>Secondary <input id="teamsecondary" type="color" value="#edc75b"></label>
             <label>Accent <input id="teamaccent" type="color" value="#fff0c9"></label>
           </div>
-          <label>Outfield fence <select id="fieldMaterial"><option value="chain">Chain link</option><option value="padded">Team-color padding</option></select></label>
+          <label>Field wall finish <select id="fieldMaterial"><option value="green">Dark green padding</option><option value="chain">Chain link</option><option value="padded">Team-color padding</option></select></label>
           <label>Built wall finish <select id="wallMaterial"><option value="chain">Chain link</option><option value="padded">Padded</option><option value="wood">Wood</option></select></label>
           <hr><label>Custom item color <input id="customPrimary" type="color" value="#c62832"></label>
           <label><input id="paintLinked" type="checkbox"> Follow team colors</label>
@@ -116,7 +116,7 @@
 </details>
         <p id="standHelp" class="standhelp" role="status" hidden></p>
         <div class="sidebarbottom">
-          <div class="section">GAME DAY · 4 MINUTES</div>
+          <div class="section">GAME DAY</div>
           <button class="smallbtn" id="demoCorners" style="width:100%;margin-bottom:6px">Build corner bowl demo · up to $31,200</button>
           <button class="smallbtn" id="demoBackstop" style="width:100%;margin-bottom:6px">Build backstop demo · up to $11,700</button>
           <button class="smallbtn" id="demoDiagonal" style="width:100%;margin-bottom:6px">Build diagonal demo · up to $20,300</button>
@@ -124,12 +124,14 @@
           <button class="smallbtn" id="demoSideEntry" style="width:100%;margin-bottom:6px">Build side-entry demo · up to $10,100</button>
           <button class="smallbtn" id="demoStands" style="width:100%;margin-bottom:6px">Build stand demo · up to $11,100</button>
           <button class="smallbtn" id="demoFans" style="width:100%">Build demo route · up to $2,000</button>
+          <label for="gameMinutes">Game length</label>
+          <select id="gameMinutes" style="width:100%;padding:10px;margin:8px 0" aria-describedby="fanCountHelp"><option value="1">1 minute</option><option value="2">2 minutes</option><option value="5" selected>5 minutes</option><option value="10">10 minutes</option></select>
           <label for="fanCount">Fans per game</label>
-          <select id="fanCount" style="width:100%;padding:10px;margin:8px 0" aria-describedby="fanCountHelp"><option value="100">100 fans</option><option value="200">200 fans</option><option value="400">400 fans</option><option value="800">800 fans</option></select>
-          <p id="fanCountHelp" class="foot">Limited by reachable seats. Changes during play apply to the next game.</p>
+          <select id="fanCount" style="width:100%;padding:10px;margin:8px 0" aria-describedby="fanCountHelp"><option value="100">100 fans</option><option value="250">250 fans</option><option value="500">500 fans</option><option value="1000">1,000 fans</option></select>
+          <p id="fanCountHelp" class="foot">Limited by reachable seats. Time and fan changes during play apply to the next game.</p>
           <button class="smallbtn" id="openGates" style="width:100%;margin-top:6px">▶ Open gates · $5 admission</button>
           <button class="smallbtn" id="stopFans" style="width:100%;margin-top:6px">■ End game</button>
-          <p id="fanStatus" class="foot" role="status" aria-live="polite">Connect walkways to stair entrances, then open gates. Fans arrive in groups, play four minutes, and queue to walk out afterward.</p>
+          <p id="fanStatus" class="foot" role="status" aria-live="polite">Connect walkways to stair entrances, then open gates. Fans arrive in groups, play for your selected duration, and queue to walk out afterward.</p>
           <div class="section">CONTROLS</div>
           <div class="inline">
             <button class="smallbtn" id="rotate">↻ Item 45° (R)</button
@@ -191,6 +193,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=0.36.0" defer></script>
+    <script src="game.js?v=0.37.0" defer></script>
   </body>
 </html>

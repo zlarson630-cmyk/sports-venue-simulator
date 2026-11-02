@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.36 adds stackable fence seating and widening upper wedges, consistent 2-foot seat bays (5 seats per straight row, 7 per diagonal), rotatable fence-aligned sections, a 5-foot base for new outfield seating, matched concrete finishes, collapsible construction groups, and 800-fan attendance. A spatial crowd index and independent arrival timer support larger crowds. Concourses remain separate pieces. Existing features include two-way walking lanes, access inspection, partial concourses, four camera views, 6× zoom, seated parties, team colors, shops, scoreboards and neighborhood scenery. Detailed amenity needs and review reports remain future milestones.
+**Design → Build → Unfold → Review.** Version 0.37 adds saved pregame choices: 1/2/5/10 minutes and 100/250/500/1,000 fans. Settings changed during play apply to the next game; reachable seats cap attendance. Field walls default to dark green padding, with short brick behind home plate between the dugouts; heights and openings stay unchanged. Existing features include stackable diagonal seating, widening wedges, separate concourses, access inspection, two-way fan traffic, team colors, shops and scoreboards. Diagonal concourse cleanup remains a separate planned pass.
 
 ## Play and develop
 

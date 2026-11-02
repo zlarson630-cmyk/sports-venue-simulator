@@ -1,3 +1,9 @@
+## v0.37 — Pregame choices and field wall finishes
+
+- Saved game length choices: 1, 2, 5 or 10 minutes (default 5); active games retain the duration they started with. Attendance choices: 100, 250, 500 or 1,000, capped by reachable seats. Older 200/400/800 choices migrate to 250/500/1,000.
+- Field walls default to dark green padding in foul territory and outfield, with short brick behind home plate between the dugouts. Heights, field boundaries and access openings stay unchanged. Existing parks receive the new default finish without moving construction or changing money; team-padding and chain-link options remain available.
+- Wall ads, larger outfield, eight camera angles, bulk paths, and diagonal concourse work remain queued.
+
 ## v0.36 — Reusable seating and larger crowds
 
 - Consistent physical chair dimensions and 2 ft seat bays: 20 seats per straight section, 28 per diagonal; central stairs retain a physical 6 ft aisle (8 / 16 seats).

@@ -1,9 +1,9 @@
-# Release status — v0.36
+# Release status — v0.37
 
-Authorized seating-system pass: reusable fence-aligned seating with eight facings, physical 2 ft seat bays, stackable 5 ft seating bands, widening continuation wedges, +5 ft bases for newly placed outfield sections, separate concourses, matched concrete and collapsible construction groups. Attendance now offers 100 / 200 / 400 / 800, saved per park and capped by reachable seats.
+Focused quick-win batch: pregame duration selector (1/2/5/10 minutes), attendance selector (100/250/500/1,000), and dark green padded field walls with short brick between the dugouts. Default game length is five minutes. Settings changed while playing apply to the next game. Reachable seating caps attendance; independent arrival time still permits late fans to finish arriving.
 
-The supplied v0.35 park is preserved in tests/fixtures/backstop-jam-v035.json. It imports with its balance and elevations intact; its 976 reachable seats can support 800 fans. A deterministic 800-fan arrival/exit simulation completes without stranded fans. The larger test exposed late arrivals being frozen at the four-minute clock limit; arrival scheduling now uses a separate elapsed timer. Collision detection uses nearby spatial buckets while preserving the existing separation rules.
+Existing parks retain layout, budget, heights and openings. Older attendance choices migrate upward to the new nearest choice. Old field finishes migrate to the new green default; subsequent explicit finish selections persist through wallFinishRevision.
 
-New diagonals have 7 seats per row instead of 5; straight rows retain 5. Central 6 ft stairs leave 2 seats per straight row and 4 per diagonal row. Each band rises 5 ft; diagonal band depth is 14.1 ft, matching its grid geometry and upper neighbors. Fence wedges auto-widen when placed one cell uphill from the same lower wedge. Existing rear concourses occupy their original cells; remove those pieces before stacking there. Existing outfield elevations are preserved; rebuild to use automatic +5 ft fence placement.
+Validate syntax, complete regression suite, duration save/reload and active-game isolation, attendance choices/caps, actual rendered wall colors on every fixed panel, plus browser controls and wall finishes. Publish to the existing GitHub Pages game after CI.
 
-See CHUNK-3.6-TESTING.md for checks. Publish to the existing GitHub Pages game after CI. Fan needs, purchases, mascots, accompanied children and crowd performances remain future work.
+Diagonal concourse connections/triangle fillers and rendering cleanup remain a separate pass. Eight camera views, CF 400 ft and outer boundary expansion, bulk path placement, and wall-ad revenue remain queued.
