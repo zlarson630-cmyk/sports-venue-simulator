@@ -1533,8 +1533,8 @@
     if(reachable.length&&reachable.every(r=>r.active>=4)){fan.bathroomRetry=1;return false;}
     const choices=reachable.filter(r=>r.active<4).map(room=>({room,cost:room.costs.get(groundNode)+(room.queue.length+room.using.size)*2})).sort((a,b)=>a.cost-b.cost);
     if(!choices.length){fan.bathroomBlocked=true;fan.bathroomRetry=10;return false;}
-    const rowNodes=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:)/.test(p.node)).map(p=>p.node));
-    if(fans.some(f=>f!==fan&&f.walkingRoute&&f.walkingRoute.some(p=>rowNodes.has(p.node))&&(f.activity==="returning to seat"||f.activity==="to restroom"&&!f.route.slice(0,f.index+1).some(p=>/^(t:|g:|c:|i:)/.test(p.node))))){fan.bathroomRetry=0.5;return false;}
+    const rowNodes=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
+    if(fans.some(f=>f!==fan&&f.walkingRoute&&f.walkingRoute.some(p=>rowNodes.has(p.node))&&(f.activity==="returning to seat"||f.activity==="to restroom"&&!f.route.slice(0,f.index+1).some(p=>p.node?.startsWith("g:"))))){fan.bathroomRetry=0.5;return false;}
     const room=choices[0].room;room.active++;
     const ids=[];for(let at=groundNode;at!==null;at=room.parents.get(at))ids.unshift(at);
     const path=ids.map(id=>({...walkingGraph.nodes.get(id),node:id}));
@@ -1554,6 +1554,8 @@
     for(const room of restroomServices){
       for(const fan of [...room.using]){fan.restroomSeconds-=step;if(fan.restroomSeconds>0)continue;
         bathroomReturning=true;if(fans.some(f=>f.activity==="to restroom"))continue;
+        const corridor=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
+        if(fans.some(f=>f!==fan&&f.activity==="returning to seat"&&f.walkingRoute.some(p=>corridor.has(p.node))))continue;
         room.using.delete(fan);fan.bathroomNeed=0;fan.activity="returning to seat";fan.hiddenRestroom=false;
         fan.route=laneRoute(fan.returnRoute);fan.index=0;
         Object.assign(fan,fan.route[0]);fan.spawned=false;

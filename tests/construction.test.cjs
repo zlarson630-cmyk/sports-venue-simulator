@@ -1437,10 +1437,10 @@ test('upper wedge metadata reaches reserved fan seats and all 100 visitors exit 
 test('bathroom meter grows, queues use at most two stalls, parties take independent trips and return before exiting',()=>{
  for(const seed of [39,51,71]){
  const saved=JSON.parse(fs.readFileSync(new URL('./fixtures/two-level-wedge-v038.json',`file://${__filename}`),'utf8'));
- saved.tiles['10,4']={type:'restroom',rot:0};
+ saved.tiles['10,4']={type:'restroom',rot:0};saved.gameMinutes=2;
  const g=game(saved,seededRandom(seed));g.api.startFanTest();const crowd=g.api.fanState().fans,targets=crowd.map(f=>({...f.seatTarget}));
  let used=false,returned=false,partySplit=false;
- for(let t=0;t<210&&g.api.fanState().fanActive;t++){
+ for(let t=0;t<300&&g.api.fanState().fanActive;t++){
   g.api.advanceFans(1);
   const using=crowd.filter(f=>f.activity==='using restroom');assert.ok(using.length<=2);used ||=using.length>0;
   returned ||=crowd.some(f=>f.bathroomVisits>0&&f.seated);
@@ -1448,7 +1448,7 @@ test('bathroom meter grows, queues use at most two stalls, parties take independ
   assert.ok(crowd.every(f=>Number.isFinite(f.x)&&Number.isFinite(f.y)));
   for(let i=0;i<crowd.length;i++)if(crowd[i].seated){assert.ok(g.api.fanDistance(crowd[i],targets[i])<1e-7);}
  }
- assert.ok(used);assert.ok(returned);assert.ok(partySplit);assert.ok(crowd.every(f=>f.exited));
+ assert.ok(used);assert.ok(returned,`seed ${seed}: at least one reserved-seat return before game end`);assert.ok(partySplit);assert.ok(crowd.every(f=>f.exited));
  assert.match(g.element('fanStatus').textContent,/restroom round trips completed/);
  }
 });
