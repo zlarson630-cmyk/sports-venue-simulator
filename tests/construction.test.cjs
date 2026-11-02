@@ -100,7 +100,7 @@ function game(saved, random=()=>0.5) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={delayArrivals:seconds=>fans.forEach(f=>f.start+=seconds),drawFieldFence,simulateTraffic:routes=>{fanActive=true;fanPhase=\"game\";fanElapsed=0;departureElapsed=0;fans=routes.map((r,i)=>({route:laneRoute(r),index:0,...r[0],start:0,spawned:true,seated:false,exited:false,paid:true,standSeat:false,gateIndex:0,exitStart:0}));return fans;},rowSeats,standShift,fenceSnap,drawStairApron,stairRearConnected,cornerRowSpan,cornerSeatPoint,accessReport,validAccessPiece,connectLegacyGate,groundItem,automaticPath,laneRoute,TRAFFIC_LANE,cornerPoint,cornerPorts,cornerCols,rowNeighbor,deckShape,deckCenter,deckOpening,deckRailSegments,pointInPolygon,buildCornerDemo,drawPartialDeck,drawNeighborhood,buildBackstopDemo,parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,money,rot,cameraRot,team,zoom}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={delayArrivals:seconds=>fans.forEach(f=>f.start+=seconds),drawFieldFence,sharedSegment,surfaceSeams,walkingSurfaces,stairEnds,infillPlacement,clipFaceDepth,occlusionCuts,captureFace,drawVisibleFan,simulateTraffic:routes=>{fanActive=true;fanPhase=\"game\";fanElapsed=0;departureElapsed=0;fans=routes.map((r,i)=>({route:laneRoute(r),index:0,...r[0],start:0,spawned:true,seated:false,exited:false,paid:true,standSeat:false,gateIndex:0,exitStart:0}));return fans;},rowSeats,standShift,fenceSnap,drawStairApron,stairRearConnected,cornerRowSpan,cornerSeatPoint,accessReport,validAccessPiece,connectLegacyGate,groundItem,automaticPath,laneRoute,TRAFFIC_LANE,cornerPoint,cornerPorts,cornerCols,rowNeighbor,deckShape,deckCenter,deckOpening,deckRailSegments,pointInPolygon,buildCornerDemo,drawPartialDeck,drawNeighborhood,buildBackstopDemo,parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,infillDecks,money,rot,cameraRot,team,zoom}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -1364,4 +1364,38 @@ test('field finishes use short brick between dugouts and dark green padding else
  for(const panel of panels){g.commands.length=0;g.api.drawFieldFence(panel);const fill=g.commands.find(c=>c[0]==='style'&&c[1]==='fillStyle');const mx=(panel.a[0]+panel.b[0])/2,my=(panel.a[1]+panel.b[1])/2;assert.equal(fill[2],panel.feet===3&&mx<24&&my<20?'#925f49':'#174f36');}
  assert.deepEqual(panels.map(p=>p.feet),height);assert.ok(height.includes(3));assert.ok(height.includes(8));
  const old=game({version:2,fieldRevision:6,money:12345,tiles:{},team:{primary:'#31566b',secondary:'#edc75b',accent:'#fff0c9',fenceMaterial:'chain'}});assert.equal(old.api.state().team.fenceMaterial,'green');assert.equal(old.api.state().money,12345);
+});
+
+test('independent concourse triangles fill reserved seating cells, undo, refund and reload',()=>{
+ const g=game();g.select('backstopStair');g.clickTile(13,12);g.select('cornerLanding');g.key('r');g.key('r');g.clickTile(13,12);
+ assert.equal(g.api.state().infillDecks['13,12'].baseFeet,5);assert.equal(g.api.state().tiles['13,12'].type,'backstopStair');
+ const saved=JSON.parse(g.storage.get('svs01')),again=game(saved);assert.equal(again.api.state().infillDecks['13,12'].rot,0);assert.equal(again.api.state().money,saved.money);
+ const seam=g.api.surfaceSeams(13,12,g.api.state().infillDecks['13,12']).find(s=>s.id==='t:13,12:8');assert.ok(seam);
+ assert.equal(g.api.deckRailSegments(13,12,g.api.state().infillDecks['13,12'],seam.edge).length,2,'only the usable stair width opens');
+ g.select('erase');g.clickTile(13,12);assert.equal(g.api.state().infillDecks['13,12'],undefined);assert.equal(g.api.state().tiles['13,12'].type,'backstopStair');assert.equal(g.api.state().money,saved.money+490);
+ g.element('undo').click();assert.ok(g.api.state().infillDecks['13,12']);
+ saved.infillDecks['13,12'].rot=4;assert.throws(()=>g.api.validatePark(saved),/overlaps/);
+});
+test('a user-built diagonal concourse connects lower and upper bands across real shared edges',()=>{
+ const g=game(),tiles=g.api.state().tiles;tiles['13,12']={type:'backstopStair',rot:5,baseFeet:0};
+ g.select('cornerLanding');g.clickTile(13,12);assert.ok(g.api.state().infillDecks['13,12']);
+ g.select('concourse');g.clickTile(12,12);assert.equal(tiles['12,12'].baseFeet,5);
+ g.select('cornerLanding');g.key('r');g.key('r');g.clickTile(12,11);assert.equal(tiles['12,11'].baseFeet,5);
+ g.select('backstopStair');g.key('r');g.clickTile(11,10);assert.equal(tiles['11,10']?.baseFeet,5,g.element('toast').textContent);
+ tiles['11,12']={type:'stairs',rot:2,baseFeet:0};for(const k of ['11,7','10,7','10,8','10,9','10,10','10,11','10,12'])tiles[k]={type:'path',rot:0};g.api.connectLegacyGate();
+ const reached=g.api.reachableSeats();assert.equal(reached.reduce((n,s)=>n+s.capacity,0),32);
+ assert.ok(reached.find(s=>s.key==='13,12').slots.every(slot=>slot.route.some(p=>p.node?.startsWith('i:13,12'))));
+ assert.ok(reached.find(s=>s.key==='11,10').slots.every(slot=>slot.route.some(p=>p.feet===5&&p.node?.startsWith('c:12,11'))));
+ g.api.draw();assert.ok(g.api.stairRearConnected(13,12,tiles['13,12']));g.commands.length=0;g.api.drawStairApron(13,12,tiles['13,12']);assert.equal(g.commands.length,0,'a matching triangle replaces the automatic bridge');
+ g.api.validatePark({...JSON.parse(g.storage.get('svs01')),tiles,infillDecks:g.api.state().infillDecks});
+ g.api.startFanTest();const crowd=g.api.fanState().fans;g.api.advanceFans(420);assert.ok(crowd.every(f=>f.exited));assert.equal(g.api.fanState().fanActive,false);
+});
+test('solid wall occlusion hides legs behind padding while leaving heads above the wall visible at every camera',()=>{
+ const g=game();for(let camera=0;camera<4;camera++){
+  const x=camera<2?47.8:48.2,y=18;const crowd=g.api.simulateTraffic([[{x,y,feet:5},{x,y,feet:5}]]),fan=crowd[0];fan.standSeat=true;fan.color='#df5853';g.api.draw();
+  const p=g.api.project(x,y),z=g.api.state().zoom,feetScale=Math.abs(g.api.project(x+1,y).x-p.x)/10;
+  const leg={x:p.x,y:p.y-5*feetScale-1*z},head={x:p.x,y:p.y-5*feetScale-9*z};
+  const cuts=g.api.occlusionCuts(fan).map(poly=>poly.map(p=>[p.x,p.y]));assert.ok(cuts.some(poly=>g.api.pointInPolygon(leg.x,leg.y,poly)),`camera ${camera}: wall covers legs`);assert.ok(!cuts.some(poly=>g.api.pointInPolygon(head.x,head.y,poly)),`camera ${camera}: head above wall remains visible`);
+  g.key('q');
+ }
 });

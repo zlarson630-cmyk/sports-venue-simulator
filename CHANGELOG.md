@@ -1,3 +1,12 @@
+## v0.38 — Diagonal concourse surfaces and fan visibility
+
+- Triangular concourses can occupy the unused part of a diagonal seating cell independently of the seating host. Separate cost, refund, Undo and export/import; invalid overlapping triangles are rejected.
+- A common shared-segment calculation joins level walking surfaces to each other and to real stair ends. Matching-height triangles snap concourses and upper stairs, and open only the usable portion of railings.
+- Player-built triangles replace fallback bridges where they meet a stair top. Remaining bridges stop at the concourse boundary; internal end walls are omitted and bridges render at their own location.
+- Fan sprites are clipped against opaque projected faces nearer to the camera, using retained world depth. This addresses fans drawing through padded walls and being overpainted by entire elevated pieces during entry. Screen-space buckets limit visibility checks to nearby faces.
+- Added regression coverage for lower/concourse/upper arrivals and exits, independent triangle save/undo/removal, and wall occlusion from every camera angle.
+- Later: full-piece red deletion preview, per-level visibility, eight camera views, CF/boundary and foul-territory changes, bulk paths, fan needs and ad revenue.
+
 ## v0.37 — Pregame choices and field wall finishes
 
 - Saved game length choices: 1, 2, 5 or 10 minutes (default 5); active games retain the duration they started with. Attendance choices: 100, 250, 500 or 1,000, capped by reachable seats. Older 200/400/800 choices migrate to 250/500/1,000.

@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.37 adds saved pregame choices: 1/2/5/10 minutes and 100/250/500/1,000 fans. Settings changed during play apply to the next game; reachable seats cap attendance. Field walls default to dark green padding, with short brick behind home plate between the dugouts; heights and openings stay unchanged. Existing features include stackable diagonal seating, widening wedges, separate concourses, access inspection, two-way fan traffic, team colors, shops and scoreboards. Diagonal concourse cleanup remains a separate planned pass.
+**Design → Build → Unfold → Review.** Version 0.38 lets triangular concourses fill unused parts of diagonal seating cells as independent pieces. Shared physical edges and matching heights connect concourses and stairs, open railings, and support another seating band beyond the concourse. Fallback bridges stop at deck boundaries. Fans use solid-face depth clipping so walls and elevated structures hide only the portions actually behind them. Existing layouts, game settings, green/brick finishes and the yellow wall stripe remain compatible.
 
 ## Play and develop
 
@@ -30,7 +30,7 @@ Open http://localhost:4173. Run `npm run check` before committing changes.
 | Center | Return to the baseball field |
 | Export park / Import park | Back up or transfer a layout |
 
-Rotation affects the **next item placed**. Remove and rebuild an existing item to change its orientation. Walkways have no directional orientation. Each tile holds one object, plus walls on its boundaries. With Wall selected, R cycles the four edges and two corner-to-corner diagonals; the preview shows the selected edge. Shared edges cannot be purchased twice. Paths and seats can occupy tiles beside walls. Diagonal walls cross the cell and block other objects there. The fixed field fence follows edges and corner-to-corner diagonals, with 3-foot foul-side and 8-foot outfield panels. Click each tile individually; dragging pans.
+Rotation affects the **next item placed**. Remove and rebuild an existing item to change its orientation. Walkways have no directional orientation. Each tile holds one primary object, plus walls on its boundaries. A triangular concourse may share the unused half of a diagonal seating cell; it has its own cost, height and removal. Remove in a shared cell deletes the triangle first, preserving seating. With Wall selected, R cycles the four edges and two corner-to-corner diagonals; the preview shows the selected edge. Shared edges cannot be purchased twice. Paths and seats can occupy tiles beside walls. Diagonal walls cross the cell and block other objects there. The fixed field fence follows edges and corner-to-corner diagonals, with 3-foot foul-side and 8-foot outfield panels. Click each tile individually; dragging pans.
 
 ## What is preserved
 
