@@ -6,15 +6,15 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Sports Venue Simulator — Sandbox 0.38.0</title>
-    <link rel="stylesheet" href="styles.css?v=0.38.0" />
+    <title>Sports Venue Simulator — Sandbox 0.39.0</title>
+    <link rel="stylesheet" href="styles.css?v=0.39.0" />
   </head>
   <body>
     <header>
       <div class="logo">🏟️</div>
       <div>
         <h1>SPORTS VENUE<br />SIMULATOR</h1>
-        <small>BUILD SANDBOX · v0.38</small>
+        <small>BUILD SANDBOX · v0.39</small>
       </div>
       <div class="topstats">
         <div class="stat">💵 <strong id="money">$500,000</strong></div>
@@ -119,7 +119,7 @@
           <div class="section">GAME DAY</div>
           <button class="smallbtn" id="demoCorners" style="width:100%;margin-bottom:6px">Build corner bowl demo · up to $31,200</button>
           <button class="smallbtn" id="demoBackstop" style="width:100%;margin-bottom:6px">Build backstop demo · up to $11,700</button>
-          <button class="smallbtn" id="demoDiagonal" style="width:100%;margin-bottom:6px">Build diagonal demo · up to $20,300</button>
+          <button class="smallbtn" id="demoDiagonal" style="width:100%;margin-bottom:6px">Build diagonal demo · up to $19,600</button>
           <button class="smallbtn" id="demoConcourse" style="width:100%;margin-bottom:6px">Build concourse demo · up to $11,400</button>
           <button class="smallbtn" id="demoSideEntry" style="width:100%;margin-bottom:6px">Build side-entry demo · up to $10,100</button>
           <button class="smallbtn" id="demoStands" style="width:100%;margin-bottom:6px">Build stand demo · up to $11,100</button>
@@ -132,6 +132,14 @@
           <button class="smallbtn" id="openGates" style="width:100%;margin-top:6px">▶ Open gates · $5 admission</button>
           <button class="smallbtn" id="stopFans" style="width:100%;margin-top:6px">■ End game</button>
           <p id="fanStatus" class="foot" role="status" aria-live="polite">Connect walkways to stair entrances, then open gates. Fans arrive in groups, play for your selected duration, and queue to walk out afterward.</p>
+          <label for="fanPicker">Inspect a fan</label>
+          <select id="fanPicker" hidden style="width:100%;padding:10px;margin:8px 0" aria-label="Inspect a fan"></select>
+          <div id="fanPanel" hidden style="padding:10px;background:#fff4d6;border-radius:8px;margin:8px 0">
+            <strong>🚻 Bathroom need</strong><br>
+            <meter id="bathroomMeter" min="0" max="100" low="40" high="75" optimum="0" value="0" aria-label="Bathroom need" style="width:75%"></meter> <span id="bathroomValue">0%</span>
+            <p id="fanDetails" style="font-size:12px;line-height:1.5"></p>
+            <p class="foot">Click a fan or choose one above. Each restroom has two stalls; waiting fans queue inside.</p>
+          </div>
           <div class="section">CONTROLS</div>
           <div class="inline">
             <button class="smallbtn" id="rotate">↻ Item 45° (R)</button
@@ -193,6 +201,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=0.38.0" defer></script>
+    <script src="game.js?v=0.39.0" defer></script>
   </body>
 </html>

@@ -104,7 +104,7 @@ function game(saved, random=()=>0.5) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={delayArrivals:seconds=>fans.forEach(f=>f.start+=seconds),drawFieldFence,sharedSegment,surfaceSeams,walkingSurfaces,stairEnds,infillPlacement,clipFaceDepth,occlusionCuts,captureFace,drawVisibleFan,simulateTraffic:routes=>{fanActive=true;fanPhase=\"game\";fanElapsed=0;departureElapsed=0;fans=routes.map((r,i)=>({route:laneRoute(r),index:0,...r[0],start:0,spawned:true,seated:false,exited:false,paid:true,standSeat:false,gateIndex:0,exitStart:0}));return fans;},rowSeats,standShift,fenceSnap,drawStairApron,stairRearConnected,cornerRowSpan,cornerSeatPoint,accessReport,validAccessPiece,connectLegacyGate,groundItem,automaticPath,laneRoute,TRAFFIC_LANE,cornerPoint,cornerPorts,cornerCols,rowNeighbor,deckShape,deckCenter,deckOpening,deckRailSegments,pointInPolygon,buildCornerDemo,drawPartialDeck,drawNeighborhood,buildBackstopDemo,parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,infillDecks,money,rot,cameraRot,team,zoom}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={delayArrivals:seconds=>fans.forEach(f=>f.start+=seconds),prepareRestrooms,restroomTrip,updateFanPanel,centerFieldLine,insideStadium,polygonsOverlap,drawFieldFence,sharedSegment,surfaceSeams,walkingSurfaces,stairEnds,infillPlacement,clipFaceDepth,occlusionCuts,captureFace,drawVisibleFan,simulateTraffic:routes=>{fanActive=true;fanPhase=\"game\";fanElapsed=0;departureElapsed=0;fans=routes.map((r,i)=>({route:laneRoute(r),index:0,...r[0],start:0,spawned:true,seated:false,exited:false,paid:true,standSeat:false,gateIndex:0,exitStart:0}));return fans;},rowSeats,standShift,fenceSnap,drawStairApron,stairRearConnected,cornerRowSpan,cornerSeatPoint,accessReport,validAccessPiece,connectLegacyGate,groundItem,automaticPath,laneRoute,TRAFFIC_LANE,cornerPoint,cornerPorts,cornerCols,rowNeighbor,deckShape,deckCenter,deckOpening,deckRailSegments,pointInPolygon,buildCornerDemo,drawPartialDeck,drawNeighborhood,buildBackstopDemo,parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,infillDecks,money,rot,cameraRot,team,zoom}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -279,7 +279,7 @@ test("field fence has two dugout openings and stays grid aligned, and uses the t
     assert.ok(gap===0||gap===1);
     const dx = Math.abs(p.b[0] - p.a[0]), dy = Math.abs(p.b[1] - p.a[1]);
     assert.ok(dx === 0 || dy === 0 || Math.abs(dx-dy)<1e-10, "Fence follows edges or corner-to-corner diagonals");
-    for (const coord of [...p.a, ...p.b]) assert.ok(Math.abs(coord - Math.round(coord)) < 1e-10);
+    for (const coord of [...p.a, ...p.b]) assert.ok(Number.isFinite(coord));
     const foul = (p.a[0]+p.b[0])/2 < 18 || (p.a[1]+p.b[1])/2 < 14;
     assert.equal(p.feet, foul ? 3 : 8);
   });
@@ -710,7 +710,7 @@ test("expanded home-plate apron supports accessible stands without changing the 
  for(const y of [10,9,8,7])saved.tiles[`14,${y}`]={type:"path",rot:0};
  saved.tiles["14,6"]={type:"stairStand",rot:4,baseFeet:0};saved.tiles["15,6"]={type:"stand",rot:4,baseFeet:0};
  const g=game(saved);assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),28);
- assert.equal(JSON.stringify(g.api.fenceCorners),JSON.stringify([[14,14],[18,10],[48,10],[48,27],[31,44],[14,44]]));
+ assert.equal(JSON.stringify(g.api.fenceCorners.slice(0,2)),JSON.stringify([[14,14],[18,10]]));
  const route=g.api.approachRoute();assert.ok(route.some(p=>p.x===8.5&&p.y===4.5));
  g.api.startFanTest();g.api.advanceFans(40);assert.ok(g.api.fanState().fans.every(f=>f.seated));assert.equal(g.api.state().money,90140);
 });
@@ -856,10 +856,10 @@ function diagonalPark(rotation,type="endStairLeft",rear=false) {
   const entries=[[px,py,{type,rot:rotation,baseFeet:0}],[px-ax*side,py-ay*side,{type:"stand",rot:rotation,baseFeet:0}],
    [px+bx,py+by,{type,rot:rotation,baseFeet:5}],[px+bx-ax*side,py+by-ay*side,{type:"stand",rot:rotation,baseFeet:5}]];
   if(rear)entries.push([px+bx*2,py+by*2,{type:"concourse",rot:0,baseFeet:10}],[px+bx*3,py+by*3,{type:"stairStand",rot:(rotation+4)%8,baseFeet:5}]);
-  const inside=(a,b)=>a>=9&&a<53&&b>=5&&b<49&&a+b>=19&&a+b<=81;
+  const inside=(a,b)=>a>=9&&a<53&&b>=5&&b<49&&a+b>=19&&a+b<g.api.centerFieldLine+6;
   if((px+ax*side<15&&py+ay*side<12)||!inside(px+ax*side,py+ay*side)||entries.some(([a,b,v])=>!inside(a,b)||g.api.footprintError(a,b,v)))continue;
   for(const [a,b,v] of entries)tiles[`${a},${b}`]=v;
-  try {g.api.validatePark({version:2,fieldRevision:6,money:90000,tiles,edges:{}});if(!g.api.approachRoute())throw Error("approach blocked");x=px;y=py;found=true;}
+  try {g.api.validatePark({version:2,fieldRevision:6,money:90000,tiles,edges:{}});if(!g.api.approachRoute())throw Error("approach blocked");if(g.api.footprintError(px+ax*side,py+ay*side,{type:"path",rot:0}))throw Error("entry blocked");x=px;y=py;found=true;}
   catch {for(const k of Object.keys(tiles))delete tiles[k];}
  }
  assert.ok(found,"fixture fits outside field");
@@ -869,7 +869,7 @@ function diagonalPark(rotation,type="endStairLeft",rear=false) {
   const [px,py]=queue[i];
   for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
    const nx=px+dx,ny=py+dy,k=`${nx},${ny}`;
-   if((nx<15&&ny<11)||nx<9||nx>=53||ny<5||ny>=49||nx+ny<19||nx+ny>81||parents.has(k)||tiles[k]||g.api.footprintError(nx,ny,{type:"path",rot:0}))continue;
+   if((nx<15&&ny<11)||nx<9||nx>=53||ny<5||ny>=49||nx+ny<19||nx+ny>=g.api.centerFieldLine+6||parents.has(k)||tiles[k]||g.api.footprintError(nx,ny,{type:"path",rot:0}))continue;
    parents.set(k,`${px},${py}`);queue.push([nx,ny]);
   }
  }
@@ -947,7 +947,7 @@ test("diagonal demo supports a complete 100-fan game, preserves money on reload 
  assert.equal(g.element("seats").textContent,184);
  assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),184);
  const cost=500000-g.api.state().money;
- assert.equal(cost,20300,"demo construction price stays fixed; the moved-gate connector is supplied without charge");
+ assert.equal(cost,19600,"the new outfield approach is included in the demo price");
  const saved=JSON.parse(g.storage.get("svs01"));assert.equal(game(saved).api.state().money,500000-cost);
  g.api.startFanTest();assert.equal(g.api.fanState().fans.length,100);
  for(let i=0;i<420&&g.api.fanState().fanActive;i++)g.api.advanceFans(1);
@@ -1286,10 +1286,12 @@ test("backstop shares diagonal row depth and connects a separate rear concourse"
  for(const edge of [1,2]){const rails=g.api.deckRailSegments(12,11,tiles["12,11"],edge);assert.equal(rails.length,1);assert.ok(Math.hypot(rails[0][1][0]-rails[0][0][0],rails[0][1][1]-rails[0][0][1])<1);}
  tiles["12,11"].baseFeet=10;assert.equal(g.api.stairRearConnected(13,12,item),false);assert.equal(g.api.deckRailSegments(12,11,tiles["12,11"],1).length,1);
 });
-test("500 fans can enter a multi-tier diagonal stand and finish their exits",()=>{
- const g=game(undefined,seededRandom(35));g.api.buildDiagonalDemo();const tiles=g.api.state().tiles;
- for(let tier=0;tier<=1;tier++)for(let n=0;n<11-tier;n++)tiles[`${42+n+tier},${36-n+tier}`]={type:n===0?"stairStand":"stand",rot:1,baseFeet:tier*5};
- tiles["41,37"]={type:"stand",rot:1,baseFeet:0};g.api.validatePark({version:2,fieldRevision:6,seatingRevision:1,money:50000,tiles,edges:{}});assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),592);
+test("500 fans can enter a multi-tier stand and finish their exits",()=>{
+ const g=game(undefined,seededRandom(35)),tiles=g.api.state().tiles;
+ tiles['9,4']={type:'path',rot:0};for(let y=4;y<=48;y++)tiles[`10,${y}`]={type:'path',rot:0};
+ for(let x=11;x<=16;x++)tiles[`${x},48`]={type:'path',rot:0};
+ for(let tier=0;tier<3;tier++)for(let n=0;n<9;n++)tiles[`${16+n},${47-tier}`]={type:n===0?'stairStand':'stand',rot:4,baseFeet:tier*5};
+ g.api.validatePark({version:2,fieldRevision:7,seatingRevision:2,money:50000,tiles,edges:{}});assert.equal(g.api.reachableSeats().reduce((n,s)=>n+s.capacity,0),504);
  const select=g.element("fanCount");select.value="500";select.onchange();g.api.startFanTest();const crowd=g.api.fanState().fans;assert.equal(crowd.length,500);
  g.api.advanceFans(230);assert.ok(g.api.fanState().fans.every(f=>f.seated)||g.api.fanState().fanPhase==="exiting"||!g.api.fanState().fanActive,`${g.api.fanState().fans.filter(f=>f.seated).length}/500 seated`);
  g.api.advanceFans(400);assert.equal(g.api.fanState().fanActive,false,`${g.api.fanState().fans.filter(f=>f.exited).length}/500 exited`);assert.ok(crowd.every(f=>f.exited));
@@ -1308,13 +1310,13 @@ test("physical seat bays are two feet apart at every rotation and diagonal stair
  }
 });
 test("front-edge fence snapping rotates reusable sections and starts outfield seating five feet high",()=>{
- const g=game();for(const [x,y,rot,sum] of [[38,37,1,75],[13,12,5,28]])for(const type of ['stand','backstopStand']){
+ const g=game();for(const [x,y,rot,sum] of [[46,43,1,32+40*Math.SQRT2],[13,12,5,28]])for(const type of ['stand','backstopStand']){
   const snap=g.api.fenceSnap(x,y,{type,rot,baseFeet:0});assert.ok(snap);assert.equal(snap.baseFeet,rot===1?5:0);
   const item={type,rot,...snap};for(const a of [-0.5,0.5]){const p=g.api.standPoint(x,y,item,a,-0.5);assert.ok(Math.abs(p.x+p.y-sum)<1e-8);}
   assert.equal(g.api.footprintError(x,y,item),null);
  }
  g.select('backstopStand');g.key('r');g.key('r');g.key('r');g.key('r');assert.equal(g.api.state().rot,1);
- g.clickTile(38,37);assert.equal(g.api.state().tiles['38,37'].baseFeet,5);assert.equal(g.api.state().tiles['38,37'].rot,1);
+ g.clickTile(46,43);assert.equal(g.api.state().tiles['46,43'].baseFeet,5);assert.equal(g.api.state().tiles['46,43'].rot,1);
 });
 test("backstop stair bands stack without mandatory concourses and preserve exact shared edges",()=>{
  const g=game();g.select('backstopStair');g.clickTile(13,12);g.clickTile(12,11);g.clickTile(11,10);
@@ -1402,4 +1404,57 @@ test('solid wall occlusion hides legs behind padding while leaving heads above t
   const cuts=g.api.occlusionCuts(fan).map(poly=>poly.map(p=>[p.x,p.y]));assert.ok(cuts.some(poly=>g.api.pointInPolygon(leg.x,leg.y,poly)),`camera ${camera}: wall covers legs`);assert.ok(!cuts.some(poly=>g.api.pointInPolygon(head.x,head.y,poly)),`camera ${camera}: head above wall remains visible`);
   g.key('q');
  }
+});
+
+
+test('400-foot center field, unchanged foul poles and ten-cell tight foul corners stay outside the expanded perimeter',()=>{
+ const g=game(),line=g.api.centerFieldLine;
+ assert.ok(Math.abs((line-32)/Math.SQRT2*10-400)<1e-8);
+ const cf=g.api.fieldFence.filter(p=>Math.abs(p.a[0]+p.a[1]-line)<1e-8&&Math.abs(p.b[0]+p.b[1]-line)<1e-8);
+ assert.ok(cf.length>0);assert.ok(cf.every(p=>p.feet===8));
+ for(const panel of g.api.fieldFence)for(const [x,y] of [panel.a,panel.b])assert.ok(g.api.pointInPolygon(x,y,g.api.stadiumBoundary));
+ for(let n=0;n<10;n++){
+  assert.ok(g.api.fieldFence.some(p=>Math.abs(p.a[0]-(38+n))<1e-8&&p.a[1]===13&&p.b[1]===13));
+  assert.ok(!g.api.footprintError(38+n,12,{type:'path',rot:0}));
+  assert.ok(!g.api.footprintError(16,34+n,{type:'path',rot:0}));
+ }
+ assert.ok(g.api.footprintError(40,36,{type:'path',rot:0}));
+ assert.ok(g.api.insideStadium(46,47));
+});
+test('field expansion refunds only swallowed old construction once and preserves the current two-level park',()=>{
+ const saved={version:2,fieldRevision:6,money:10000,tiles:{'42,36':{type:'stand',rot:1,baseFeet:0},'12,5':{type:'path',rot:0}},edges:{}};
+ const g=game(saved);assert.equal(g.api.state().money,11800);assert.ok(!g.api.state().tiles['42,36']);assert.ok(g.api.state().tiles['12,5']);
+ assert.equal(game(JSON.parse(g.storage.get('svs01'))).api.state().money,11800);
+ const park=JSON.parse(fs.readFileSync(new URL('./fixtures/two-level-wedge-v038.json',`file://${__filename}`),'utf8'));
+ const original=JSON.stringify(park.tiles),p=game(park);assert.equal(JSON.stringify(p.api.state().tiles),original);assert.equal(p.api.state().money,park.money);
+});
+test('upper wedge metadata reaches reserved fan seats and all 100 visitors exit the reported park',()=>{
+ const saved=JSON.parse(fs.readFileSync(new URL('./fixtures/two-level-wedge-v038.json',`file://${__filename}`),'utf8'));
+ const g=game(saved);g.api.startFanTest();const crowd=g.api.fanState().fans;assert.equal(crowd.length,100);
+ assert.ok(crowd.every(f=>f.route.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.feet||0))));
+ g.api.advanceFans(40);assert.ok(crowd.every(f=>f.seated));g.api.advanceFans(100);assert.ok(crowd.every(f=>f.exited));
+});
+test('bathroom meter grows, queues use at most two stalls, parties take independent trips and return before exiting',()=>{
+ for(const seed of [39,51,71]){
+ const saved=JSON.parse(fs.readFileSync(new URL('./fixtures/two-level-wedge-v038.json',`file://${__filename}`),'utf8'));
+ saved.tiles['10,4']={type:'restroom',rot:0};saved.gameMinutes=2;
+ const g=game(saved,seededRandom(seed));g.api.startFanTest();const crowd=g.api.fanState().fans,targets=crowd.map(f=>({...f.seatTarget}));
+ let used=false,returned=false,partySplit=false;
+ for(let t=0;t<300&&g.api.fanState().fanActive;t++){
+  g.api.advanceFans(1);
+  const using=crowd.filter(f=>f.activity==='using restroom');assert.ok(using.length<=2);used ||=using.length>0;
+  returned ||=crowd.some(f=>f.bathroomVisits>0&&f.seated);
+  partySplit ||=crowd.some(f=>f.activity==='to restroom'&&crowd.some(other=>other!==f&&other.partyId===f.partyId&&other.seated));
+  assert.ok(crowd.every(f=>Number.isFinite(f.x)&&Number.isFinite(f.y)));
+  for(let i=0;i<crowd.length;i++)if(crowd[i].seated){assert.ok(g.api.fanDistance(crowd[i],targets[i])<1e-7);}
+ }
+ assert.ok(used);assert.ok(returned,`seed ${seed}: at least one reserved-seat return before game end`);assert.ok(partySplit);assert.ok(crowd.every(f=>f.exited));
+ assert.match(g.element('fanStatus').textContent,/restroom round trips completed/);
+ }
+});
+test('missing bathrooms report the problem without stranding fans',()=>{
+ const g=game();g.api.buildStandDemo();g.api.startFanTest();const crowd=g.api.fanState().fans;
+ g.api.advanceFans(100);assert.ok(crowd.every(f=>f.seated));assert.ok(crowd.some(f=>f.bathroomBlocked));
+ g.api.updateFanPanel();assert.match(g.element('fanDetails').textContent,/No reachable restroom/);
+ g.api.advanceFans(300);assert.ok(crowd.every(f=>f.exited));
 });

@@ -1,3 +1,12 @@
+# v0.39
+
+- Bathroom meters and fan inspection, reachable restroom trips, two-stall interior queues and return to reserved seats.
+- Preserve upper wedge metadata when routing fans; fixes six invalid seats that prevented the reported park from starting departures.
+- Center field at 400 ft, expanded outer diagonal fence, and 10 ft foul territory for the last 100 ft approaching unchanged 300 ft foul poles.
+- Revision 7 save migration refunds construction swallowed by the expanded field; the current two-level test park remains unchanged.
+- Triangle infill preview accepts the same valid placements as construction.
+- Relocate the diagonal demo beyond the expanded outfield.
+
 ## v0.38 — Diagonal concourse surfaces and fan visibility
 
 - Triangular concourses can occupy the unused part of a diagonal seating cell independently of the seating host. Separate cost, refund, Undo and export/import; invalid overlapping triangles are rejected.

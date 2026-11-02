@@ -108,3 +108,9 @@ See docs/CHUNK-3.2-TESTING.md for the player checklist.
 - **Build corner bowl demo ($25,800):** a connected 132-seat front bowl with both fence corners, stair entrances, half-width rear concourses and a triangular turn. Open gates for up to 100 fans. Use an empty area; the demo preserves occupied parks and is undoable.
 
 Corners connect rows laterally at matching heights. They do not provide an uphill route or automatically stack behind one another. Use matching stairs and concourses between elevations. Older parks, balances and the save format remain unchanged. See docs/CHUNK-3.3-TESTING.md and the visual review in docs/review-v0.33.jpg.
+
+### Bathroom needs and field update (v0.39)
+
+Place a restroom beside a ground walkway connected to the gate. During a game, click a fan or choose one in **Inspect a fan** to see bathroom need and activity. Fans at 75% need visit a reachable restroom and return to their reserved seat. Two stalls operate per restroom; waiting is inside the building. Restroom trips begin after initial entry finishes. When the clock ends, fans already away from their seats head straight to the exit.
+
+Center field now measures 400 ft; foul poles remain 300 ft. The last 100 ft approaching each pole has a 10 ft foul strip. Older saves receive a full construction refund for pieces now inside the expanded playing field. Export a park backup before updating.
