@@ -1,3 +1,10 @@
+# v0.40
+
+- Functional concessions: hunger, six-second single-server queues, $5 meals and separate food revenue.
+- Shared amenity routing preserves party seats, bounds visitor batches and handles closing-time purchases.
+- Inspect Fan tool and floating popup with hunger, bathroom needs, activity, party and reserved seat; X/Escape close.
+- Ground walkway access required; missing food stands explained in inspection.
+
 # v0.39
 
 - Bathroom meters and fan inspection, reachable restroom trips, two-stall interior queues and return to reserved seats.

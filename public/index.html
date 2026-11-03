@@ -6,15 +6,15 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Sports Venue Simulator — Sandbox 0.39.0</title>
-    <link rel="stylesheet" href="styles.css?v=0.39.0" />
+    <title>Sports Venue Simulator — Sandbox 0.40.0</title>
+    <link rel="stylesheet" href="styles.css?v=0.40.0" />
   </head>
   <body>
     <header>
       <div class="logo">🏟️</div>
       <div>
         <h1>SPORTS VENUE<br />SIMULATOR</h1>
-        <small>BUILD SANDBOX · v0.39</small>
+        <small>BUILD SANDBOX · v0.40</small>
       </div>
       <div class="topstats">
         <div class="stat">💵 <strong id="money">$500,000</strong></div>
@@ -39,6 +39,7 @@
         </details>
         <div class="section">CONSTRUCTION TOOLS</div>
         <p id="selectedTool" class="selectedtool" role="status">Selected: Walkway (W)</p>
+<button class="tool" data-tool="inspectFan"><span class="emoji">👤</span><span>Inspect fan (F)</span></button>
 <button class="tool" data-tool="inspect"><span class="emoji">🔎</span><span>Inspect access (I)</span></button>
 <button class="tool" data-tool="erase">
           <span class="emoji">🗑️</span><span>Remove (G)</span
@@ -134,12 +135,6 @@
           <p id="fanStatus" class="foot" role="status" aria-live="polite">Connect walkways to stair entrances, then open gates. Fans arrive in groups, play for your selected duration, and queue to walk out afterward.</p>
           <label for="fanPicker">Inspect a fan</label>
           <select id="fanPicker" hidden style="width:100%;padding:10px;margin:8px 0" aria-label="Inspect a fan"></select>
-          <div id="fanPanel" hidden style="padding:10px;background:#fff4d6;border-radius:8px;margin:8px 0">
-            <strong>🚻 Bathroom need</strong><br>
-            <meter id="bathroomMeter" min="0" max="100" low="40" high="75" optimum="0" value="0" aria-label="Bathroom need" style="width:75%"></meter> <span id="bathroomValue">0%</span>
-            <p id="fanDetails" style="font-size:12px;line-height:1.5"></p>
-            <p class="foot">Click a fan or choose one above. Each restroom has two stalls; waiting fans queue inside.</p>
-          </div>
           <div class="section">CONTROLS</div>
           <div class="inline">
             <button class="smallbtn" id="rotate">↻ Item 45° (R)</button
@@ -192,6 +187,16 @@
           paths, bleachers and amenities around the diamond. Every square =
           <strong>10 × 10 feet</strong>. Foul fence: 3 ft · Outfield fence: 8 ft. Gold arrows show seat facing.
         </div>
+        <aside id="fanPanel" hidden aria-label="Fan inspector">
+          <button id="closeFanPanel" aria-label="Close fan inspector">×</button>
+          <h2>Fan inspector</h2>
+          <label for="bathroomMeter">🚻 Bathroom need</label>
+          <div><meter id="bathroomMeter" min="0" max="100" low="40" high="75" optimum="0"></meter> <span id="bathroomValue">0%</span></div>
+          <label for="hungerMeter">🍔 Hunger</label>
+          <div><meter id="hungerMeter" min="0" max="100" low="40" high="75" optimum="0"></meter> <span id="hungerValue">0%</span></div>
+          <p id="fanDetails"></p>
+          <small>Food costs $5. Stands serve one fan at a time. Esc closes.</small>
+        </aside>
         <div id="toast"></div>
         <div id="location">
           Tile <b id="coords">—</b> · Item <b id="rotation">0°</b> · Camera
@@ -201,6 +206,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=0.39.0" defer></script>
+    <script src="game.js?v=0.40.0" defer></script>
   </body>
 </html>

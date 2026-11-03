@@ -334,3 +334,6 @@ button:focus-visible {
 .toolgroup summary { cursor:pointer; font-weight:700; padding:7px 3px; }
 .toolgroup .tool:first-of-type { margin-top:8px; }
 .selectedtool { position:sticky; top:0; z-index:2; background:#eaf0e9; border:1px solid #bac9bf; border-radius:6px; padding:9px; font-size:12px; font-weight:700; }
+
+#fanPanel { position:absolute;right:16px;top:110px;z-index:20;width:min(320px,calc(100% - 32px));padding:20px;background:#fff4d6;color:#203b50;border:2px solid #8096a0;border-radius:12px;box-shadow:0 8px 24px #142c3b40;font-size:14px;line-height:1.5; }
+#fanPanel[hidden] {display:none} #fanPanel h2 {margin:0 28px 12px 0;font-size:20px} #closeFanPanel {position:absolute;right:10px;top:8px;border:0;background:transparent;font-size:28px;cursor:pointer;color:#203b50} #fanPanel meter {width:75%;height:20px} #fanPanel label {font-weight:700}

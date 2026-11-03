@@ -114,3 +114,9 @@ Corners connect rows laterally at matching heights. They do not provide an uphil
 Place a restroom beside a ground walkway connected to the gate. During a game, click a fan or choose one in **Inspect a fan** to see bathroom need and activity. Fans at 75% need visit a reachable restroom and return to their reserved seat. Two stalls operate per restroom; waiting is inside the building. Restroom trips begin after initial entry finishes. When the clock ends, fans already away from their seats head straight to the exit.
 
 Center field now measures 400 ft; foul poles remain 300 ft. The last 100 ft approaching each pole has a 10 ft foul strip. Older saves receive a full construction refund for pieces now inside the expanded playing field. Export a park backup before updating.
+
+### Food and fan inspection (v0.40)
+
+Build a **Concession** beside a connected ground walkway. Seated fans seek food at 75% hunger after initial arrivals finish. A stand serves one customer at a time for six seconds; each meal costs $5, resets hunger, and earns food revenue separately from admissions. Customers queue inside. Trips use the same bounded batches and reserved seats as restroom trips. At game end a purchase already underway finishes, waiting orders cancel, and everyone heads home.
+
+Use **Inspect fan (F)** and click a fan, or choose one in the existing picker, to open the floating needs and activity panel. Close with × or Escape. Restrooms and food stands require ground access in this pass; upper-deck shops, drinks and configurable prices remain future work.
