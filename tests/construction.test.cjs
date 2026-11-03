@@ -51,7 +51,7 @@ function game(saved, random=()=>0.5) {
     return elements.get(id);
   }
   const toolButtons = [
-    "inspect",
+    "inspect", "inspectFan",
     "path",
     "halfPath",
     "concourse",
@@ -104,7 +104,7 @@ function game(saved, random=()=>0.5) {
   vm.runInContext(
     source.replace(
       /update\(\);\s*resize\(\);\s*\}\)\(\);\s*$/,
-      "globalThis.inspect={delayArrivals:seconds=>fans.forEach(f=>f.start+=seconds),prepareRestrooms,restroomTrip,updateFanPanel,centerFieldLine,insideStadium,polygonsOverlap,drawFieldFence,sharedSegment,surfaceSeams,walkingSurfaces,stairEnds,infillPlacement,clipFaceDepth,occlusionCuts,captureFace,drawVisibleFan,simulateTraffic:routes=>{fanActive=true;fanPhase=\"game\";fanElapsed=0;departureElapsed=0;fans=routes.map((r,i)=>({route:laneRoute(r),index:0,...r[0],start:0,spawned:true,seated:false,exited:false,paid:true,standSeat:false,gateIndex:0,exitStart:0}));return fans;},rowSeats,standShift,fenceSnap,drawStairApron,stairRearConnected,cornerRowSpan,cornerSeatPoint,accessReport,validAccessPiece,connectLegacyGate,groundItem,automaticPath,laneRoute,TRAFFIC_LANE,cornerPoint,cornerPorts,cornerCols,rowNeighbor,deckShape,deckCenter,deckOpening,deckRailSegments,pointInPolygon,buildCornerDemo,drawPartialDeck,drawNeighborhood,buildBackstopDemo,parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,infillDecks,money,rot,cameraRot,team,zoom}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
+      "globalThis.inspect={delayArrivals:seconds=>fans.forEach(f=>f.start+=seconds),prepareAmenities,startAmenityTrip,updateFanPanel,centerFieldLine,insideStadium,polygonsOverlap,drawFieldFence,sharedSegment,surfaceSeams,walkingSurfaces,stairEnds,infillPlacement,clipFaceDepth,occlusionCuts,captureFace,drawVisibleFan,simulateTraffic:routes=>{fanActive=true;fanPhase=\"game\";fanElapsed=0;departureElapsed=0;fans=routes.map((r,i)=>({route:laneRoute(r),index:0,...r[0],start:0,spawned:true,seated:false,exited:false,paid:true,standSeat:false,gateIndex:0,exitStart:0}));return fans;},rowSeats,standShift,fenceSnap,drawStairApron,stairRearConnected,cornerRowSpan,cornerSeatPoint,accessReport,validAccessPiece,connectLegacyGate,groundItem,automaticPath,laneRoute,TRAFFIC_LANE,cornerPoint,cornerPorts,cornerCols,rowNeighbor,deckShape,deckCenter,deckOpening,deckRailSegments,pointInPolygon,buildCornerDemo,drawPartialDeck,drawNeighborhood,buildBackstopDemo,parkingLot,parkingSpawn,neighborhood,streetLamps,colors,partySeatPlan,footprint,footprintError,overlaps,stairEntrance,drawConcourse,buildDiagonalDemo,halfContains,entrancePavedAt,entrancePaving,halfCorners,pathPoint,pathOpens,buildConcourseDemo,concoursePlacement,concourseConnection,buildSideEntryDemo,standPlacement,standPoint,standAxes,drawStandRow,seatCapacity,project,inverse,diamond,drawObject,approachRoute,solidBuildingAt,defensivePlayers,draw,PAVEMENT,buildStandDemo,reachableSeats,startFanTest,advanceFans,buildFanDemo,arrivalSchedule,FAN_SPACE,fanDistance,fanState:()=>({fans,fanActive,fanElapsed,fanPhase,departureElapsed}),roadsideTrees,siteTemplate,stadiumBoundary,outerFence,mainGate,dugouts,drawDugout,warningTrack,warningTrackWidth,fieldFence,homeWorld,basesWorld,fenceCorners,wallEdge,edgePanel,validatePark,state:()=>({tiles,edges,infillDecks,money,rot,cameraRot,team,zoom}),setHover:(x,y)=>{hover={x,y}},action};update();resize();})();",
     ),
     context,
   );
@@ -1455,6 +1455,52 @@ test('bathroom meter grows, queues use at most two stalls, parties take independ
 test('missing bathrooms report the problem without stranding fans',()=>{
  const g=game();g.api.buildStandDemo();g.api.startFanTest();const crowd=g.api.fanState().fans;
  g.api.advanceFans(100);assert.ok(crowd.every(f=>f.seated));assert.ok(crowd.some(f=>f.bathroomBlocked));
- g.api.updateFanPanel();assert.match(g.element('fanDetails').textContent,/No reachable restroom/);
+ g.element("fanPicker").onchange({target:{value:"0"}});g.api.updateFanPanel();assert.match(g.element('fanDetails').textContent,/No reachable restroom/);
  g.api.advanceFans(300);assert.ok(crowd.every(f=>f.exited));
+});
+
+test('food service charges once, returns independent party members to reserved seats and all 100 fans exit',()=>{
+ const saved=JSON.parse(fs.readFileSync(new URL('./fixtures/two-level-wedge-v038.json',`file://${__filename}`),'utf8'));
+ saved.tiles['10,4']={type:'concession',rot:0};saved.gameMinutes=2;
+ const g=game(saved,seededRandom(40)),before=g.api.state().money;
+ g.api.startFanTest();const crowd=g.api.fanState().fans;
+ let purchased=false,returned=false,split=false,maxUsing=0;
+ for(let t=0;t<300&&g.api.fanState().fanActive;t++){
+  g.api.advanceFans(1);
+  maxUsing=Math.max(maxUsing,crowd.filter(f=>f.activity==='buying food').length);
+  purchased ||=crowd.some(f=>f.foodPaid&&f.hunger<5);
+  returned ||=crowd.some(f=>f.foodVisits>0&&f.seated);
+  split ||=crowd.some(f=>f.activity==='to concession'&&crowd.some(o=>o!==f&&o.partyId===f.partyId&&o.seated));
+  for(const f of crowd)if(f.seated)assert.ok(g.api.fanDistance(f,f.seatTarget)<1e-7);
+ }
+ assert.equal(maxUsing,1);assert.ok(purchased);assert.ok(returned);assert.ok(split);assert.ok(crowd.every(f=>f.exited));
+ const status=g.element('fanStatus').textContent,sales=Number(status.match(/\((\d+) sales\)/)[1]);
+ assert.ok(sales>0);assert.equal(g.api.state().money-before,500+sales*5);
+ assert.equal(JSON.parse(g.storage.get('svs01')).money,g.api.state().money);
+ g.element('undo').click();assert.ok(g.api.state().money>=before+500+sales*5);
+});
+test('fan inspection opens from the picker, reports missing food and closes with X or Escape',()=>{
+ const g=game();g.api.buildStandDemo();g.api.startFanTest();
+ assert.equal(g.element('fanPanel').hidden,true);g.api.advanceFans(100);
+ g.element('fanPicker').onchange({target:{value:'0'}});
+ assert.equal(g.element('fanPanel').hidden,false);assert.match(g.element('fanDetails').textContent,/No reachable food stand/);
+ assert.ok(g.element('hungerMeter').value>=75);g.element('closeFanPanel').click();assert.equal(g.element('fanPanel').hidden,true);
+ g.element('fanPicker').onchange({target:{value:'1'}});g.key('Escape');assert.equal(g.element('fanPanel').hidden,true);
+ g.select('inspectFan');const before=JSON.stringify(g.api.state());g.clickTile(11,5);assert.equal(JSON.stringify(g.api.state()),before);
+});
+test('food customers finish service after the clock, queued customers cancel, without a second charge',()=>{
+ const saved=JSON.parse(fs.readFileSync(new URL('./fixtures/two-level-wedge-v038.json',`file://${__filename}`),'utf8'));
+ saved.tiles['10,4']={type:'concession',rot:0};saved.gameMinutes=1;
+ const g=game(saved,seededRandom(42));g.api.startFanTest();const crowd=g.api.fanState().fans;
+ for(const f of crowd){f.bathroomNeed=0;f.hunger=0;}g.api.advanceFans(54);
+ // Use real validated outbound routing, then position four customers at its doorway.
+ for(const f of crowd.slice(0,4)){
+  assert.ok(g.api.startAmenityTrip(f,'concession'));f.index=f.route.length-2;Object.assign(f,f.route.at(-1));
+  g.api.advanceFans(0.02);
+ }
+ const buyer=crowd.find(f=>f.activity==='buying food');assert.ok(buyer);
+ buyer.serviceSeconds=8;const before=g.api.state().money;
+ g.api.advanceFans(6);assert.equal(g.api.fanState().fanPhase,'finishing arrivals');assert.equal(buyer.foodPaid,false);
+ g.api.advanceFans(3);assert.equal(buyer.foodPaid,true);assert.equal(g.api.state().money-before,5);
+ g.api.advanceFans(150);assert.ok(crowd.every(f=>f.exited));assert.equal(g.api.state().money-before,5);
 });
