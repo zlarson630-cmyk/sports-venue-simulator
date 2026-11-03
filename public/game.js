@@ -1593,7 +1593,7 @@
   document.getElementById("fanPicker").onchange=e=>{selectedFan=e.target.value===""?null:fans[Number(e.target.value)]||null;updateFanPanel();};
   document.getElementById("closeFanPanel").onclick=()=>{selectedFan=null;document.getElementById("fanPicker").value="";updateFanPanel();};
   function endFanTest(message) {
-    fanActive=false;fanPhase="idle";fans=[];selectedFan=null;amenityServices=[];disconnectedSections.clear();fanFrame++;
+    fanActive=false;fanPhase="idle";fans=[];selectedFan=null;amenityServices=[];trafficIndex=null;disconnectedSections.clear();fanFrame++;
     fanStatus(message||`Game ended early. ${gateAdmissions} admissions · $${gateRevenue} gate revenue · $${concessionRevenue} food revenue (${foodSales} sales). Adjust your park, then open gates again.`);draw();
   }
   function startFanTest() {
@@ -1741,10 +1741,17 @@
       fan.exitStart=fan.seated?release:0;release+=0.1+Math.random()*0.12;
     }
   }
+  let trafficIndex=null;
   function advanceFans(dt) {
     if(!fanActive||!Number.isFinite(dt)||dt<=0)return;
     // Fixed small integration steps prevent tunneling on slow/hidden tabs and
     // make the result independent of the animation frame rate.
+    if(trafficIndex?.fans!==fans)trafficIndex={fans,cells:new Map(),cellOf:new Map()};
+    const {cells,cellOf}=trafficIndex;
+    const cellKey=(x,y)=>`${Math.floor(x/0.6)},${Math.floor(y/0.6)}`;
+    const indexFan=fan=>{const k=cellKey(fan.x,fan.y),old=cellOf.get(fan);if(old===k)return;if(old){const previous=cells.get(old);previous?.delete(fan);if(!previous?.size)cells.delete(old);}if(!cells.has(k))cells.set(k,new Set());cells.get(k).add(fan);cellOf.set(fan,k);};
+    if(!trafficIndex.initialized){for(const fan of fans)if(fan.spawned&&!fan.exited&&!fan.insideAmenity)indexFan(fan);trafficIndex.initialized=true;}
+    const nearbySome=(p,predicate)=>{const x=Math.floor(p.x/0.6),y=Math.floor(p.y/0.6);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const fan of cells.get(`${x+dx},${y+dy}`)||[])if(predicate(fan))return true;return false;};
     let collected=0;
     while(dt>1e-8&&fanActive) {
       const step=Math.min(dt,1/60);dt-=step;
@@ -1754,7 +1761,7 @@
       else advanceNeeds(step);
       collected+=pendingFoodRevenue;pendingFoodRevenue=0;
       // Leaders move first; followers can use the space they just vacated.
-      const moving=fans.filter(f=>!f.exited&&!f.insideAmenity).sort((a,b)=>fanPhase==="exiting"?
+      const moving=fans.filter(f=>!f.exited&&!f.insideAmenity&&(fanPhase==="exiting"?departureElapsed>=f.exitStart:!f.seated&&arrivalElapsed>=f.start)).sort((a,b)=>fanPhase==="exiting"?
         (a.remaining[a.index+1]||0)+fanDistance(a,a.route[a.index+1]||a)-
         (b.remaining[b.index+1]||0)-fanDistance(b,b.route[b.index+1]||b)||a.exitStart-b.exitStart:a.start-b.start);
       const priority=new Map(moving.map((f,i)=>[f,i]));
@@ -1777,17 +1784,13 @@
         }
         return best;
       };
-      const corridors=new Map(),cells=new Map(),cellOf=new Map();
-      const cellKey=(x,y)=>`${Math.floor(x/0.6)},${Math.floor(y/0.6)}`;
-      const indexFan=fan=>{const k=cellKey(fan.x,fan.y),old=cellOf.get(fan);if(old===k)return;if(old)cells.get(old)?.delete(fan);if(!cells.has(k))cells.set(k,new Set());cells.get(k).add(fan);cellOf.set(fan,k);};
-      for(const fan of fans)if(fan.spawned&&!fan.exited&&!fan.insideAmenity)indexFan(fan);
-      const nearby=p=>{const result=[],x=Math.floor(p.x/0.6),y=Math.floor(p.y/0.6);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const fan of cells.get(`${x+dx},${y+dy}`)||[])result.push(fan);return result;};
+      const corridors=new Map();
       for(const fan of moving) {
         if(fanPhase==="exiting"?departureElapsed<fan.exitStart:arrivalElapsed<fan.start||fan.seated)continue;
         // The final doorway is an interior queue portal, not a standing position
         // that blocks a returning visitor on the same walkway.
         if(["to restroom","to concession"].includes(fan.activity)&&fan.index>=fan.route.length-2&&fanDistance(fan,fan.route.at(-1))<0.35){finishFanRoute(fan);continue;}
-        const occupied=p=>nearby(p).some(other=>other!==fan&&other.spawned&&!other.exited&&!other.insideAmenity&&(!other.seated||other.standSeat)&&
+        const occupied=p=>nearbySome(p,other=>other!==fan&&other.spawned&&!other.exited&&!other.insideAmenity&&(!other.seated||other.standSeat)&&
           // Fans still sitting during their staggered release occupy seats,
           // not the walking aisle in front of that row.
           !(fanPhase==="exiting"&&departureElapsed<other.exitStart)&&(fanDistance(p,other)<(other.seated?0.03:FAN_SPACE)-1e-8||
@@ -1830,7 +1833,7 @@
     if(collected) {
       money+=collected;
       for(const snapshot of history)snapshot.money+=collected;
-      store();update();
+      store();update(true);
     }
     if(!fanActive)return;
     if(fanPhase==="exiting") {
@@ -1999,8 +2002,38 @@
   document.getElementById("demoFans").onclick=buildFanDemo;
   document.getElementById("openGates").onclick=startFanTest;
   document.getElementById("stopFans").onclick=()=>endFanTest();
-  function draw() {
-    surfaceFrame=null;seamFrame=null;surfaceFrame=walkingSurfaces();seamFrame=new Map();
+  // One viewport-sized bitmap and its matching face bins; overlays remain live.
+  // Keep the raster and occluders together so cached seats still hide fans correctly.
+  let worldCache=null,worldLayer,worldGeometry=null,worldRevision=0,drawPending=false;
+  const renderStats={worldBuilds:0,worldReuses:0};
+  function requestDraw(){
+    if(fanActive)return; // The game loop already draws once per animation frame.
+    if(typeof requestAnimationFrame!=="function"){draw();return;}
+    if(drawPending)return;drawPending=true;
+    requestAnimationFrame(()=>{drawPending=false;if(!fanActive)draw();});
+  }
+  function draw(){
+    if(pointer)hover=inverse(pointer.x,pointer.y);
+    const cw=canvas.clientWidth,ch=canvas.clientHeight;
+    const signature=[worldRevision,canvas.width,canvas.height,cw,ch,dpr,zoom,panX,panY,cameraRot,fanActive,[...disconnectedSections].join(";")].join("|");
+    if(worldCache?.signature===signature){
+      ctx.clearRect(0,0,cw,ch);ctx.drawImage(worldCache.canvas,0,0,cw,ch);
+      occlusionBins=worldCache.bins;renderStats.worldReuses++;
+    }else{
+      drawWorld();renderStats.worldBuilds++;
+      if(worldLayer===undefined){const layer=document.createElement("canvas");worldLayer=layer.getContext?.("2d")?layer:null;}
+      if(worldLayer){
+        if(worldLayer.width!==canvas.width)worldLayer.width=canvas.width;
+        if(worldLayer.height!==canvas.height)worldLayer.height=canvas.height;
+        worldLayer.getContext("2d").drawImage(canvas,0,0);
+        worldCache={signature,canvas:worldLayer,bins:occlusionBins};
+      }
+    }
+    drawOverlays();
+  }
+  function drawWorld() {
+    if(worldGeometry?.revision!==worldRevision){surfaceFrame=null;worldGeometry={revision:worldRevision,surfaces:walkingSurfaces(),seams:new Map(),all:null};}
+    surfaceFrame=worldGeometry.surfaces;seamFrame=worldGeometry.seams;
     captureFaces=false;occlusionBins=new Map();
     if (pointer) hover = inverse(pointer.x, pointer.y);
     const cw = canvas.clientWidth,
@@ -2043,7 +2076,9 @@
       const [x,y]=k.split(",").map(Number);drawObject(x,y,v);
     }
     captureFaces=true;
-    let all = [...Object.entries(tiles),...Object.entries(infillDecks)]
+    let all=worldGeometry.all;
+    if(!all||worldGeometry.cameraRot!==cameraRot){
+    all = [...Object.entries(tiles),...Object.entries(infillDecks)]
       .filter(([,v])=>!isPath(v))
       .flatMap(([k, v]) => {
         const [x,y]=k.split(",").map(Number);
@@ -2079,6 +2114,8 @@
         const depth=aa.x+aa.y-(bb.x+bb.y);
         return Math.abs(depth)>1e-8?depth:(a.fan?1:0)-(b.fan?1:0);
       });
+    worldGeometry.all=all;worldGeometry.cameraRot=cameraRot;
+    }
     for (let e of all) {
       if(e.apron)drawStairApron(e.originX,e.originY,e.v);
       else if(e.partialPatch)drawPartialDeck(e.originX,e.originY,e.v,e.partialPatch);
@@ -2098,6 +2135,8 @@
       else drawObject(e.x, e.y, e.v);
     }
     captureFaces=false;surfaceFrame=null;seamFrame=null;
+  }
+  function drawOverlays(){
     updateFanPanel();
     for(const fan of fans.filter(f=>f.spawned&&!f.exited&&!f.insideAmenity).sort((a,b)=>{const p=rotated(a.x,a.y),q=rotated(b.x,b.y);return p.x+p.y-q.x-q.y||a.start-b.start;}))drawVisibleFan(fan);
     if(!fanActive)for(const [k,v] of Object.entries(tiles))if(hasStairs(v)&&(isPlatform({type:tool})||isPath({type:tool})||hover&&k===key(hover.x,hover.y))) {
@@ -2150,7 +2189,9 @@
       }
     }
   }
-  function update() {
+  function update(cashOnly=false) {
+    if(cashOnly){document.getElementById("money").textContent="$"+money.toLocaleString();return;}
+    worldRevision++;worldCache=null;
     accessRevision++;accessCache=null;
     for(const role of ["primary","secondary","accent"])document.getElementById("team"+role).value=team[role];
     document.getElementById("fieldMaterial").value=team.fenceMaterial;
@@ -2336,7 +2377,7 @@
     }
   };
   function changeZoom(factor,p={x:wrap.clientWidth/2,y:wrap.clientHeight/2}) {
-    const old=zoom;zoom=Math.max(0.45,Math.min(6,zoom*factor));panX=p.x-(p.x-panX)*zoom/old;panY=p.y-(p.y-panY)*zoom/old;draw();
+    const old=zoom;zoom=Math.max(0.45,Math.min(6,zoom*factor));panX=p.x-(p.x-panX)*zoom/old;panY=p.y-(p.y-panY)*zoom/old;requestDraw();
   }
   document.getElementById("zoomIn").onclick=()=>changeZoom(1.18);
   document.getElementById("zoomOut").onclick=()=>changeZoom(1/1.18);
@@ -2380,7 +2421,7 @@
     }
     hover = inverse(p.x, p.y);
     document.getElementById("coords").textContent = `${hover.x}, ${hover.y}`;
-    draw();
+    requestDraw();
   });
   canvas.addEventListener("pointerup", (e) => {
     if (!down) return;

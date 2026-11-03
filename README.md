@@ -120,3 +120,9 @@ Center field now measures 400 ft; foul poles remain 300 ft. The last 100 ft appr
 Build a **Concession** beside a connected ground walkway. Seated fans seek food at 75% hunger after initial arrivals finish. A stand serves one customer at a time for six seconds; each meal costs $5, resets hunger, and earns food revenue separately from admissions. Customers queue inside. Trips use the same bounded batches and reserved seats as restroom trips. At game end a purchase already underway finishes, waiting orders cancel, and everyone heads home.
 
 Use **Inspect fan (F)** and click a fan, or choose one in the existing picker, to open the floating needs and activity panel. Close with × or Escape. Restrooms and food stands require ground access in this pass; upper-deck shops, drinks and configurable prices remain future work.
+
+### Performance pass (v0.41)
+
+The stadium and its fan-hiding surfaces are cached together until the layout, colors, camera, zoom, viewport or game/build mode changes. Deck geometry and draw ordering survive pan/zoom. Fans and construction previews remain live. Income updates only the balance display. Collision checks retain a spatial index and sort only fans ready to move; spacing, walking speeds and game times are unchanged.
+
+Run `npm run benchmark` for a reproducible 100-fan headless comparison. It reports JavaScript cost, excluding native canvas rasterization, and is not an FPS estimate. An optional source-file argument (`node scripts/benchmark.cjs /path/to/game.js`) compares a previous release. See `docs/PERFORMANCE-v041.md` for browser measurements and limits.

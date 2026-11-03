@@ -1,3 +1,11 @@
+# v0.41
+
+- Cache the stadium bitmap and matching fan occlusion surfaces between view/layout changes.
+- Reuse deck geometry and render ordering across zoom/pan, and combine repeated pointer redraw requests.
+- Keep a persistent fan collision grid, skip sorting stationary/future fans and avoid temporary neighbor arrays.
+- Admission/food income updates the cash display without rebuilding the stadium or access graph.
+- Reusable headless benchmark and shared test harness; cache invalidation and frame scheduling coverage.
+
 # v0.40
 
 - Functional concessions: hunger, six-second single-server queues, $5 meals and separate food revenue.
