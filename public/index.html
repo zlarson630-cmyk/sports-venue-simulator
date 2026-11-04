@@ -7,7 +7,7 @@
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
     <title>Sports Venue Simulator — Sandbox 0.43.0</title>
-    <link rel="stylesheet" href="styles.css?v=0.43.0" />
+    <link rel="stylesheet" href="styles.css?v=0.43.0-guide" />
   </head>
   <body>
     <header>
@@ -129,6 +129,7 @@
 </details>
         <p id="standHelp" class="standhelp" role="status" hidden></p>
         <div class="sidebarbottom">
+          <button type="button" class="smallbtn" id="openTutorial" hidden>Quick start guide</button>
           <div class="section">GAME DAY</div>
           <button class="smallbtn" id="demoCorners" style="width:100%;margin-bottom:6px">Build corner bowl demo · up to $31,200</button>
           <button class="smallbtn" id="demoBackstop" style="width:100%;margin-bottom:6px">Build backstop demo · up to $11,700</button>
@@ -218,6 +219,26 @@
         </div>
       </section>
     </main>
+    <dialog id="tutorial" aria-labelledby="tutorialTitle">
+      <h2 id="tutorialTitle" tabindex="-1" autofocus>Build and run your first game</h2>
+      <ol>
+        <li>
+          <h3>Build a small ballpark</h3>
+          <p>Choose a path tool, then click or tap tiles to lay a continuous walkway from the main gate into the park. Place a bleacher next to the walkway. If you build raised seating, connect the walkway to the bottom of its stairs. Use <strong>Rotate</strong> to turn a piece before placing it and <strong>Undo</strong> to take back your last build.</p>
+          <p>Want a ready-made example? In <strong>Game Day</strong>, choose <strong>Build demo route</strong> to add a walkway and bleacher if the area is clear.</p>
+        </li>
+        <li>
+          <h3>Choose your crowd and game length</h3>
+          <p>In <strong>Game Day</strong>, start with <strong>100 fans</strong> and <strong>2 minutes</strong>. The crowd is capped by the number of seats fans can reach. Changes made during play apply to the next game.</p>
+        </li>
+        <li>
+          <h3>Open the gates</h3>
+          <p>Click <strong>Open gates</strong> to start. Fans arrive in groups, pay $5 each, and head to their seats. When the timer ends, watch them leave. Use <strong>End game</strong> if you want to stop early.</p>
+        </li>
+      </ol>
+      <form method="dialog"><button class="smallbtn">Got it</button></form>
+    </dialog>
     <script src="game.js?v=0.43.0" defer></script>
+    <script src="tutorial.js" defer></script>
   </body>
 </html>
