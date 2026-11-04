@@ -55,6 +55,8 @@
     tiles = {},
     edges = {},
     infillDecks = {},
+    underlays = {},
+    workUnder=false,placementHeight="auto",foundationChoice="auto",
     history = [];
   const defaultTeam={primary:"#31566b",secondary:"#edc75b",accent:"#fff0c9",fenceMaterial:"green"};
   let team={...defaultTeam};
@@ -64,7 +66,7 @@
     if(!value||!["primary","secondary","accent"].every(k=>validColor(value[k])))throw Error("Invalid team colors");
     return {primary:value.primary,secondary:value.secondary,accent:value.accent};
   }
-  const snapshot=()=>({tiles:{...tiles},edges:{...edges},infillDecks:{...infillDecks},money,team:{...team}});
+  const snapshot=()=>({tiles:{...tiles},edges:{...edges},infillDecks:{...infillDecks},underlays:{...underlays},money,team:{...team}});
   const homeWorld = [18,14], baseSpacing = 9;
   const basesWorld = [homeWorld,[27,14],[27,23],[18,23]];
   // Center-field wall is exactly 400 ft along the 45-degree home-to-center ray.
@@ -236,8 +238,8 @@
   }
   const halfContains=(item,a,b)=>item?.type!=="halfPath"||[a+b<=1+1e-8,a>=b-1e-8,a+b>=1-1e-8,a<=b+1e-8][item.rot/2];
   const entrancePaving=[[5,1],[6,1],[6,2],[7,2],[7,3],[8,3],[8,4],[8,5],[9,4]];
-  const automaticPath=(x,y)=>!tiles[key(x,y)]&&entrancePaving.some(([a,b])=>a===x&&b===y)?{type:"path",rot:0}:null;
-  const groundItem=(x,y)=>isPath(tiles[key(x,y)])?tiles[key(x,y)]:automaticPath(x,y);
+  const automaticPath=(x,y)=>(!tiles[key(x,y)]||isHollow(tiles[key(x,y)])&&tiles[key(x,y)].baseFeet>=10)&&!underlays[key(x,y)]&&entrancePaving.some(([a,b])=>a===x&&b===y)?{type:"path",rot:0}:null;
+  const groundItem=(x,y)=>isPath(underlays[key(x,y)])?underlays[key(x,y)]:isPath(tiles[key(x,y)])?tiles[key(x,y)]:automaticPath(x,y);
   const entrancePavedAt=(x,y)=>(x<5||y<1)||[-1,0].some(dx=>[-1,0].some(dy=>{const a=Math.floor(x+1e-8)+dx,b=Math.floor(y+1e-8)+dy,item=groundItem(a,b);return item&&x>=a-1e-8&&x<=a+1+1e-8&&y>=b-1e-8&&y<=b+1+1e-8&&halfContains(item,x-a,y-b);}));
   const isEndStair = item => item?.type === "endStairLeft" || item?.type === "endStairRight";
   const endSide = item => item.type === "endStairLeft" ? -1 : 1;
@@ -250,6 +252,30 @@
   const completableDeck=(item,type,rotation)=>isDeck(item)&&item.type!=="concourse"&&(type==="concourse"||(type===item.type&&(rotation+4)%8===item.rot));
   const isRamp=item=>item?.type==="ramp";
   const isPlatform = item => isStand(item)||isDeck(item)||isRamp(item);
+  const isHollow=item=>isPlatform(item)&&item.hollow===true&&item.baseFeet>0;
+  const groundTypes=["path","halfPath",...amenityTypes,...decorationTypes];
+  const groundHeight=item=>isPath(item)?8:item.type==="tree"?20:12;
+  const groundLayout=()=>({...Object.fromEntries(Object.entries(tiles).filter(([,v])=>!isPlatform(v))),...underlays});
+  const separated=(a,b)=>isHollow(a)&&!isPlatform(b)&&a.baseFeet-0.5>=groundHeight(b)||isHollow(b)&&!isPlatform(a)&&b.baseFeet-0.5>=groundHeight(a);
+  const visiblePiece=item=>!workUnder||!isPlatform(item)||item.baseFeet===0;
+  function columnError(x,y,item,layout=tiles,below=underlays,extras=infillDecks){
+    const shape=footprint(x,y,item);
+    for(const [k,v] of [...Object.entries(layout),...Object.entries(below),...Object.entries(extras)]){
+      if(v===item)continue;const [a,b]=k.split(",").map(Number);
+      if(!overlaps(shape,footprint(a,b,v)))continue;
+      if(isPlatform(item)&&isPlatform(v))continue; // Existing platform-footprint rules handle upper pieces.
+      if(!separated(item,v))return isPlatform(item)||isPlatform(v)?"Not enough open space below this section. Use Open underneath and enough height (10 ft for paths, 15 ft for shops).":"Ground tile is already occupied.";
+    }
+    if(isHollow(item))for(const [a,b] of entrancePaving)if(automaticPath(a,b)&&overlaps(shape,footprint(a,b,{type:"path"}))&&item.baseFeet-0.5<8)return "Keep at least 8 ft of headroom over the entrance walkway.";
+    return null;
+  }
+  function newPlatform(item){return {...item,hollow:item.baseFeet>0&&foundationChoice!=="solid"};}
+  function platformPlacement(x,y,rotation){
+    if(placementHeight==="auto")return standPlacement(x,y,rotation);
+    const baseFeet=Number(placementHeight),old=tiles[key(x,y)];
+    if(isCorner({type:tool}))return {error:"Use Auto height for wedge alignment."};
+    return {baseFeet,shift:isStand({type:tool})?(isStand(old)?standShift(old):isBackstop({type:tool})?-0.5:0):undefined};
+  }
   const deckShape=item=>item?.type==="cornerLanding"?halfCorners(item.rot):item?.type==="halfConcourse"?[
     [[0,0],[1,0],[1,0.5],[0,0.5]],[[0.5,0],[1,0],[1,1],[0.5,1]],[[0,0.5],[1,0.5],[1,1],[0,1]],[[0,0],[0.5,0],[0.5,1],[0,1]]
   ][item.rot/2]:[[0,0],[1,0],[1,1],[0,1]];
@@ -371,20 +397,21 @@
     }
     return true;
   }
-  function footprintError(x,y,item,layout=tiles,walls=edges,extras=infillDecks) {
+  function footprintError(x,y,item,layout=tiles,walls=edges,extras=infillDecks,below=underlays) {
     const shape=footprint(x,y,item);
-    for(const [k,v] of Object.entries(extras)){if(v===item||(key(x,y)===k&&layout[k]===item))continue;const [a,b]=k.split(",").map(Number);if(overlaps(shape,footprint(a,b,v)))return "Section overlaps a concourse triangle. Remove it first.";}
+    for(const [k,v] of Object.entries(below)){if(v===item)continue;const [a,b]=k.split(",").map(Number);if(overlaps(shape,footprint(a,b,v))&&!separated(item,v))return "Construction conflicts with a ground-layer piece.";}
+    for(const [k,v] of Object.entries(extras)){if(v===item||(key(x,y)===k&&layout[k]===item))continue;const [a,b]=k.split(",").map(Number);if(overlaps(shape,footprint(a,b,v))&&!separated(item,v))return "Section overlaps a concourse triangle. Remove it first.";}
     if([...neighborhood,{...parkingLot,w:parkingLot.width,d:parkingLot.depth}].some(b=>overlaps(shape,[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.d],[b.x,b.y+b.d]])))return "Neighborhood scenery is outside the construction area.";
     if((isStand(item))&&polygonsOverlap(shape,fenceCorners))return "Seating must remain outside the backstop fence.";
     if(shape.some(([a,b])=>a<0||a>W||b<0||b>H))return "Section extends outside the map.";
     // Diagonal sections and six-cell ramps extend outside their anchor cell. Check both directions
     // so later paths/buildings cannot be placed inside their triangular corners.
-    if(!isRamp(item))for(const [rk,rv] of Object.entries(layout))if(isRamp(rv)||isCorner(rv)){const [a,b]=rk.split(",").map(Number);if((a!==x||b!==y)&&overlaps(shape,footprint(a,b,rv)))return "Section footprint overlaps construction. Leave its footprint clear.";}
+    if(!isRamp(item))for(const [rk,rv] of Object.entries(layout))if(isRamp(rv)||isCorner(rv)){const [a,b]=rk.split(",").map(Number);if((a!==x||b!==y)&&overlaps(shape,footprint(a,b,rv))&&!separated(item,rv))return "Section footprint overlaps construction. Leave its footprint clear.";}
     const radius=isRamp(item)?7:isCorner(item)?Math.max(3,(item.ring||0)+3):3;
     for(let a=x-radius;a<=x+radius;a++)for(let b=y-radius;b<=y+radius;b++) {
       const k=key(a,b),v=layout[k];
       if((dugoutTiles.has(k)||(!isStand(item)&&field.has(k)))&&overlaps(shape,footprint(a,b,{type:"path"})))return "Section overlaps the field or dugout.";
-      if((a!==x||b!==y)&&v&&(isStand(item)&&item.rot%2||isStand(v)&&v.rot%2||isRamp(item)||isRamp(v)||isCorner(item)||isCorner(v)||isDeck(item)||isDeck(v))&&overlaps(shape,footprint(a,b,v)))return "Section footprint overlaps construction. Leave its footprint clear.";
+      if((a!==x||b!==y)&&v&&(isStand(item)&&item.rot%2||isStand(v)&&v.rot%2||isRamp(item)||isRamp(v)||isCorner(item)||isCorner(v)||isDeck(item)||isDeck(v))&&overlaps(shape,footprint(a,b,v))&&!separated(item,v))return "Section footprint overlaps construction. Leave its footprint clear.";
       for(const axis of ["h","v","a","d"])if(walls[k+":"+axis]) {
         const {a:start,b:end}=edgePanel(k+":"+axis),dx=end[0]-start[0],dy=end[1]-start[1],epsilon=1e-5;
         const strip=[[start[0]-dy*epsilon,start[1]+dx*epsilon],[end[0]-dy*epsilon,end[1]+dx*epsilon],[end[0]+dy*epsilon,end[1]-dx*epsilon],[start[0]+dy*epsilon,start[1]-dx*epsilon]];
@@ -404,7 +431,7 @@
   }
   function standPlacement(x,y,rotation) {
     if(isRamp({type:tool})) {
-      const item={type:tool,rot:rotation,baseFeet:0},error=footprintError(x,y,item);if(error)return {error};
+      const item={type:tool,rot:rotation,baseFeet:0},error=footprintError(x,y,newPlatform(item));if(error)return {error};
       const [dx,dy]=directions[rotation],a=tiles[key(x-dx,y-dy)],b=tiles[key(x+dx*6,y+dy*6)];
       const heights=[];if(isDeck(a)&&deckOpens(a,dx,dy))heights.push(a.baseFeet);if(isPath(a))heights.push(0);if(isDeck(b)&&deckOpens(b,-dx,-dy))heights.push(b.baseFeet-5);
       if(heights.some(h=>h!==heights[0]))return {error:"Ramp endpoints need a five-foot height difference."};
@@ -418,7 +445,7 @@
       if(ring)heights.push(below.baseFeet+5);
       for(const [n,port] of ports.entries()){const next=tiles[key(port.x,port.y)];if(isStand(next)&&!isCorner(next)&&next.rot===port.rot){heights.push(next.baseFeet);item[n?"bankShift":"straightShift"]=standShift(next);}}
       if(heights.some(h=>h!==heights[0]))return {error:"Corner rows need neighboring banks at the same height."};item.baseFeet=heights[0]??0;if(ring>20||item.baseFeet>300)return {error:"Wedge continuation exceeds the construction height limit."};
-      const error=footprintError(x,y,item);return error?{error}:{baseFeet:item.baseFeet,ring,bankShift:item.bankShift??(ports[1].backstop?-0.5:0),straightShift:item.straightShift??0};
+      const error=footprintError(x,y,newPlatform(item));return error?{error}:{baseFeet:item.baseFeet,ring,bankShift:item.bankShift??(ports[1].backstop?-0.5:0),straightShift:item.straightShift??0};
     }
     const {ax,ay,bx,by}=standAxes(rotation),heights=[],shifts=[];
     for(const [da,db] of [[-1,0],[1,0],[0,-1],[0,1]]){
@@ -433,7 +460,7 @@
     const item={type:tool,rot:rotation,baseFeet:heights[0]??0,shift:shifts[0]??(isBackstop({type:tool})?-0.5:0)},snap=!heights.length?fenceSnap(x,y,item):null;
     if(snap){item.shift=snap.shift;item.baseFeet=snap.baseFeet;}
     if(item.baseFeet<0||item.baseFeet>300)return {error:"Start at ground level and build uphill behind the front row."};
-    const error=footprintError(x,y,item);return error?{error}:{baseFeet:item.baseFeet,shift:item.shift};
+    const error=footprintError(x,y,newPlatform(item));return error?{error}:{baseFeet:item.baseFeet,shift:item.shift};
   }
 
   // Walking surfaces use real shared segments, including triangular edges inside a seating cell.
@@ -473,7 +500,7 @@
     const error=footprintError(x,y,item);return error?{error}:{...snap};
   }
   function concourseConnection(x,y,item,dx,dy) {
-    const next=tiles[key(x+dx,y+dy)]||groundItem(x+dx,y+dy);
+    const next=item.baseFeet===0&&groundItem(x+dx,y+dy)||tiles[key(x+dx,y+dy)]||groundItem(x+dx,y+dy);
     if(!deckOpens(item,dx,dy)||wallBlocks(key(x,y),key(x+dx,y+dy)))return null;
     for(const [rk,rv] of Object.entries(tiles))if(isRamp(rv)){const [a,b]=rk.split(",").map(Number),[rx,ry]=directions[rv.rot];if(x===a+rx*6&&y===b+ry*6&&dx===-rx&&dy===-ry&&item.baseFeet===rv.baseFeet+5)return {kind:"rampTop",key:rk};}
     if(!next||!deckOpens(next,-dx,-dy))return null;
@@ -525,7 +552,7 @@
     if((!(bx&&by)&&Math.abs(standShift(item))<1e-8)||!isDeck(deck)||!concourseConnection(x+bx,y+by,deck,-bx,-by))return;
     const feet=item.baseFeet+5,depth=0.5+standShift(item),a=stairCenter(item),width=isEndStair(item)?0.25:item.type==="stairs"?0.5:0.3/Math.hypot(ax,ay);
     const p=t=>({x:x+0.5+ax*(a+t)+bx*depth,y:y+0.5+ay*(a+t)+by*depth,feet}),q=deckCenter(x+bx,y+by,deck),shape=footprint(x+bx,y+by,deck),ps=[p(-width),p(width),segmentEntry(p(width),{x:q.x+ax*width,y:q.y+ay*width,feet},shape),segmentEntry(p(-width),{x:q.x-ax*width,y:q.y-ay*width,feet},shape)];
-    for(const i of [1,3]){const a=ps[i],b=ps[(i+1)%4];polygon([raisedWorld({...a,feet:0}),raisedWorld({...b,feet:0}),raisedWorld(b),raisedWorld(a)],"#8e9898",null);}
+    for(const i of [1,3]){const a=ps[i],b=ps[(i+1)%4];polygon([raisedWorld({...a,feet:isHollow(item)?feet-0.5:0}),raisedWorld({...b,feet:isHollow(item)?feet-0.5:0}),raisedWorld(b),raisedWorld(a)],"#8e9898",null);}
     polygon(ps.map(raisedWorld),PAVEMENT,null);
     for(const [a,b] of [[ps[0],ps[3]],[ps[1],ps[2]]]){line(raisedWorld(a),raisedWorld({...a,feet:feet+3}),"#627986",1);line(raisedWorld({...a,feet:feet+3}),raisedWorld({...b,feet:feet+3}),"#a4b5b9",1.2);}
   }
@@ -536,7 +563,7 @@
       for(let i=0;i<4;i++) {
         const a=corners[i],b=corners[(i+1)%4];
         if(patch&&!((a[0]===0&&b[0]===0)||(a[0]===1&&b[0]===1)||(a[1]===0&&b[1]===0)||(a[1]===1&&b[1]===1)))continue;
-        polygon([p(...a,0),p(...b,0),p(...b),p(...a)],"#8e9898","#7d9293",0.5);
+        polygon([p(...a,isHollow(item)?h-0.5*FT:0),p(...b,isHollow(item)?h-0.5*FT:0),p(...b),p(...a)],"#8e9898","#7d9293",0.5);
 
       }
       polygon(corners.map(c=>p(...c)),PAVEMENT,patch?null:"#a9b7b1",0.6);
@@ -584,7 +611,7 @@
     let cs=deckShape(item);if(patch)for(const [axis,value,greater] of [[0,patch[0],true],[0,patch[0]+0.25,false],[1,patch[1],true],[1,patch[1]+0.25,false]])cs=clipDeck(cs,axis,value,greater);
     if(cs.length<3)return;
     const center=deckCenter(x,y,item),depth=project(center.x,center.y).y;
-    for(let i=0;i<cs.length;i++){const a=cs[i],b=cs[(i+1)%cs.length];if(patch&&!deckShape(item).some((v,n)=>{const w=deckShape(item)[(n+1)%deckShape(item).length],cross=p=>(w[0]-v[0])*(p[1]-v[1])-(w[1]-v[1])*(p[0]-v[0]);return Math.abs(cross(a))<1e-8&&Math.abs(cross(b))<1e-8;}))continue;if((at(a,0).y+at(b,0).y)/2>=depth-1e-8)polygon([at(a,0),at(b,0),at(b),at(a)],"#8e9898",null);}
+    for(let i=0;i<cs.length;i++){const a=cs[i],b=cs[(i+1)%cs.length];if(patch&&!deckShape(item).some((v,n)=>{const w=deckShape(item)[(n+1)%deckShape(item).length],cross=p=>(w[0]-v[0])*(p[1]-v[1])-(w[1]-v[1])*(p[0]-v[0]);return Math.abs(cross(a))<1e-8&&Math.abs(cross(b))<1e-8;}))continue;if((at(a,0).y+at(b,0).y)/2>=depth-1e-8)polygon([at(a,isHollow(item)?item.baseFeet-0.5:0),at(b,isHollow(item)?item.baseFeet-0.5:0),at(b),at(a)],"#8e9898",null);}
     polygon(cs.map(p=>at(p)),PAVEMENT,null);
   }
   // Each row is a separate painter entry, so fans and neighboring sections share depth order.
@@ -603,6 +630,7 @@
     const screen=(a,b,feet)=>{const w=standPoint(x,y,item,a,b,feet),p=project(w.x,w.y);p.y-=feet*FT*zoom;return p;};
     const face=(points,fill,stroke=null)=>polygon(points.map(p=>screen(...p)),fill,stroke,0.6*zoom);
     const prism=(a,b,w,depth,bottom,top,side,color,hideSides=[])=>{
+      if(isHollow(item))bottom=Math.max(bottom,top-0.5);
       const cs=[[a,b],[a+w,b],[a+w,b+depth],[a,b+depth]],cy=screen(a+w/2,b+depth/2,0).y;
       for(let i=0;i<4;i++) {
         if(hideSides.includes(i))continue;
@@ -940,9 +968,11 @@
           const staff=local(0,-0.34,7);ctx.beginPath();ctx.arc(staff.x,staff.y,1.5*z,0,Math.PI*2);ctx.fillStyle="#ecc29a";ctx.fill();
           line({x:staff.x,y:staff.y+2*z},{x:staff.x,y:staff.y+5*z},palette.accent,2);
         }
-        ctx.font = `${12 * z}px sans-serif`;
+        // Keep wayfinding signs below the slab rather than poking into upper seats.
+        const covered=!workUnder&&[...Object.entries(tiles),...Object.entries(infillDecks)].some(([k,v])=>{if(!isHollow(v))return false;const [a,b]=k.split(",").map(Number);return pointInPolygon(x+0.5,y+0.5,footprint(a,b,v));});
+        ctx.font = `${(covered?8:12) * z}px sans-serif`;
         ctx.textAlign = "center";
-        ctx.fillStyle=colors(item).accent;ctx.fillText(({concession:"🌭",drinks:"🥤",iceCream:"🍦",souvenir:"🧢",restroom:"🚻"})[item.type],p.x,p.y-20*z);
+        ctx.fillStyle=colors(item).accent;ctx.fillText(({concession:"🌭",drinks:"🥤",iceCream:"🍦",souvenir:"🧢",restroom:"🚻"})[item.type],p.x,p.y-(covered?12:20)*z);
         break;
       }
     }
@@ -1269,7 +1299,8 @@
   }
   function solidBuildingAt(x,y) {
     // Reserve the whole occupied cell, including a small pedestrian clearance.
-    for(const [k,v] of Object.entries(tiles)) {
+    for(const [k,v] of [...Object.entries(tiles),...Object.entries(underlays)]) {
+      if(isHollow(v))continue;
       if(![...amenityTypes,...scoreboardTypes,...decorationTypes,"bleacher"].includes(v.type)&&!isPlatform(v))continue;
       if(isCorner(v)||isDeck(v)&&v.type!=="concourse"){const [a,b]=k.split(",").map(Number);if(pointInPolygon(x,y,footprint(a,b,v)))return true;continue;}
       if(isRamp(v)){const [a,b]=k.split(",").map(Number),[dx,dy]=directions[v.rot],along=(x-a-0.5)*dx+(y-b-0.5)*dy+0.5,across=-(x-a-0.5)*dy+(y-b-0.5)*dx;if(along>0&&along<6&&Math.abs(across)<0.5)return true;continue;}
@@ -1359,7 +1390,9 @@
     const join=(a,b)=>{if(nodes.has(a)&&nodes.has(b)){links.get(a).push(b);links.get(b).push(a);}};
     const ground=k=>"g:"+k,step=(k,n)=>`t:${k}:${n}`,rowId=(k,r)=>`r:${k}:${r}`,landing=(k,n)=>`l:${k}:${n}`;
     add(ground(entranceTile),{x:entryX+0.5,y:entryY+0.5,feet:0});
-    const walkingTiles={...Object.fromEntries(entrancePaving.map(([x,y])=>[key(x,y),automaticPath(x,y)]).filter(([,v])=>v)),...tiles};
+    const walkingTiles={...Object.fromEntries(entrancePaving.map(([x,y])=>[key(x,y),automaticPath(x,y)]).filter(([,v])=>v)),...Object.fromEntries(Object.entries(underlays).filter(([k])=>!tiles[k])),...tiles};
+    const groundWalking={...Object.fromEntries(entrancePaving.map(([x,y])=>[key(x,y),automaticPath(x,y)]).filter(([,v])=>v)),...groundLayout()};
+    for(const [k,item] of Object.entries(groundWalking))if(isPath(item)&&insideStadium(...k.split(",").map(Number))){const [x,y]=k.split(",").map(Number);add(ground(k),pathPoint(x,y,item));}
     for(const [k,item] of Object.entries(walkingTiles)) {
       const [x,y]=k.split(",").map(Number);
       if(!insideStadium(x,y)&&k!==entranceTile)continue;
@@ -1385,11 +1418,11 @@
     for(const [k,item] of Object.entries(walkingTiles)) {
       const [x,y]=k.split(",").map(Number);
       if(!insideStadium(x,y)&&k!==entranceTile)continue;
-      if(isPath(item)||k===entranceTile) {
+      if(isPath(groundWalking[k])||k===entranceTile) {
         const openGround=(fromX,fromY,dx,dy)=>{
           const from=key(fromX,fromY),to=key(fromX+dx,fromY+dy);
           return nodes.has(ground(from))&&nodes.has(ground(to))&&
-            pathOpens(walkingTiles[from],dx,dy)&&pathOpens(walkingTiles[to],-dx,-dy)&&!wallBlocks(from,to);
+            pathOpens(groundWalking[from],dx,dy)&&pathOpens(groundWalking[to],-dx,-dy)&&!wallBlocks(from,to);
         };
         for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
           if(openGround(x,y,dx,dy))join(ground(k),ground(key(x+dx,y+dy)));
@@ -1417,7 +1450,7 @@
         for(const [tx,ty,n,height] of [[x-dx,y-dy,0,item.baseFeet],[x+dx*6,y+dy*6,12,item.baseFeet+5]]) {
           const other=tiles[key(tx,ty)];const near=key(n?x+dx*5:x,n?y+dy*5:y);if(wallBlocks(near,key(tx,ty)))continue;
           if(isDeck(other)&&other.baseFeet===height&&deckOpens(other,-dx*(n?1:-1),-dy*(n?1:-1)))join(`ramp:${k}:${n}`,"c:"+key(tx,ty));
-          if(isPath(other)&&height===0&&pathOpens(other,dx*(n? -1:1),dy*(n? -1:1)))join(`ramp:${k}:${n}`,ground(key(tx,ty)));
+          if(groundItem(tx,ty)&&height===0&&pathOpens(groundItem(tx,ty),dx*(n? -1:1),dy*(n? -1:1)))join(`ramp:${k}:${n}`,ground(key(tx,ty)));
         }
       }
       if(!isStand(item))continue;
@@ -1432,8 +1465,8 @@
         if(item.baseFeet===0) {
           if(isEndStair(item)) {
             const side=endSide(item),outside=key(x+ax*side,y+ay*side);
-            if(pathOpens(tiles[outside],-ax*side,-ay*side)&&!wallBlocks(k,outside))join(ground(outside),landing(k,0));
-          } else if(pathOpens(tiles[front],bx,by)&&!wallBlocks(k,front))join(ground(front),step(k,-1));
+            if(pathOpens(groundItem(x+ax*side,y+ay*side),-ax*side,-ay*side)&&!wallBlocks(k,outside))join(ground(outside),landing(k,0));
+          } else if(pathOpens(groundItem(x-bx,y-by),bx,by)&&!wallBlocks(k,front))join(ground(front),step(k,-1));
         }
         if(matchingStand(x,y,item,0,1)&&hasStairs(tiles[back])&&stairCenter(item)===stairCenter(tiles[back]))join(step(k,8),step(back,-1));
       }
@@ -1445,7 +1478,7 @@
     }
     // The fixed gate landing is traversable even before a path is built on it.
     for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-      const next=key(entryX+dx,entryY+dy);if(pathOpens(tiles[next],-dx,-dy)&&!wallBlocks(entranceTile,next))join(ground(entranceTile),ground(next));
+      const next=key(entryX+dx,entryY+dy);if(pathOpens(groundWalking[next],-dx,-dy)&&!wallBlocks(entranceTile,next))join(ground(entranceTile),ground(next));
     }
     // Walking distance matters more than the number of graph nodes. Crossing a
     // seating row is slower than using the concourse; stairs also cost effort.
@@ -1551,7 +1584,7 @@
   function prepareAmenities(){
     amenityServices=[];if(!walkingGraph)return;
     const {nodes,links,routeCost}=walkingGraph;
-    for(const [k,item] of Object.entries(tiles))if(item.type==="restroom"||item.type==="concession"){
+    for(const [k,item] of Object.entries(groundLayout()))if(item.type==="restroom"||item.type==="concession"){
       const [x,y]=k.split(",").map(Number),entries=[];
       for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
         const other=key(x+dx,y+dy),id="g:"+other;
@@ -2053,7 +2086,7 @@
   function draw(){
     if(pointer)hover=inverse(pointer.x,pointer.y);
     const cw=canvas.clientWidth,ch=canvas.clientHeight;
-    const signature=[worldRevision,canvas.width,canvas.height,cw,ch,dpr,zoom,panX,panY,cameraRot,fanActive,[...disconnectedSections].join(";")].join("|");
+    const signature=[worldRevision,canvas.width,canvas.height,cw,ch,dpr,zoom,panX,panY,cameraRot,fanActive,workUnder,[...disconnectedSections].join(";")].join("|");
     if(worldCache?.signature===signature){
       ctx.clearRect(0,0,cw,ch);ctx.drawImage(worldCache.canvas,0,0,cw,ch);
       occlusionBins=worldCache.bins;renderStats.worldReuses++;
@@ -2110,14 +2143,14 @@
     pitch();
 
     // Pavement belongs to the ground pass, below every person and structure.
-    for(const [k,v] of Object.entries(tiles)) if(isPath(v)) {
+    for(const [k,v] of Object.entries(groundLayout())) if(isPath(v)) {
       const [x,y]=k.split(",").map(Number);drawObject(x,y,v);
     }
     captureFaces=true;
     let all=worldGeometry.all;
     if(!all||worldGeometry.cameraRot!==cameraRot){
-    all = [...Object.entries(tiles),...Object.entries(infillDecks)]
-      .filter(([,v])=>!isPath(v))
+    all = [...Object.entries(tiles),...Object.entries(infillDecks),...Object.entries(underlays)]
+      .filter(([,v])=>!isPath(v)&&visiblePiece(v))
       .flatMap(([k, v]) => {
         const [x,y]=k.split(",").map(Number);
         if(isRamp(v))return Array.from({length:24},(_,n)=>{const p=rampPoint(x,y,v,(n+0.5)/4);return {x:p.x-0.5,y:p.y-0.5,v,rampPatch:n,originX:x,originY:y};});
@@ -2133,7 +2166,7 @@
         }
         return isStand(v)?[0,1,2,3].map(row=>{const p=standPoint(x,y,v,0,-0.3125+row/4);return {x:p.x-0.5,y:p.y-0.5,v,standRow:row,originX:x,originY:y};}):[{x,y,v}];
       })
-      .concat(Object.entries(tiles).filter(([,v])=>hasStairs(v)).flatMap(([k,v])=>{const [x,y]=k.split(",").map(Number),{bx,by}=standAxes(v.rot),p=standPoint(x,y,v,stairCenter(v),0.5);return [{x:(p.x+x+bx+0.5)/2-0.5,y:(p.y+y+by+0.5)/2-0.5,v,apron:true,originX:x,originY:y}];}))
+      .concat(Object.entries(tiles).filter(([,v])=>hasStairs(v)&&visiblePiece(v)).flatMap(([k,v])=>{const [x,y]=k.split(",").map(Number),{bx,by}=standAxes(v.rot),p=standPoint(x,y,v,stairCenter(v),0.5);return [{x:(p.x+x+bx+0.5)/2-0.5,y:(p.y+y+by+0.5)/2-0.5,v,apron:true,originX:x,originY:y}];}))
       .concat(Object.keys(edges).map(edge => {
         const p = edgePanel(edge);
         return {x:(p.a[0]+p.b[0])/2-0.5, y:(p.a[1]+p.b[1])/2-0.5, edge};
@@ -2176,8 +2209,8 @@
   }
   function drawOverlays(){
     updateFanPanel();
-    for(const fan of fans.filter(f=>f.spawned&&!f.exited&&!f.insideAmenity).sort((a,b)=>{const p=rotated(a.x,a.y),q=rotated(b.x,b.y);return p.x+p.y-q.x-q.y||a.start-b.start;}))drawVisibleFan(fan);
-    if(!fanActive)for(const [k,v] of Object.entries(tiles))if(hasStairs(v)&&(isPlatform({type:tool})||isPath({type:tool})||hover&&k===key(hover.x,hover.y))) {
+    for(const fan of fans.filter(f=>f.spawned&&!f.exited&&!f.insideAmenity&&(!workUnder||f.feet<=5)).sort((a,b)=>{const p=rotated(a.x,a.y),q=rotated(b.x,b.y);return p.x+p.y-q.x-q.y||a.start-b.start;}))drawVisibleFan(fan);
+    if(!fanActive)for(const [k,v] of Object.entries(tiles))if(visiblePiece(v)&&hasStairs(v)&&(isPlatform({type:tool})||isPath({type:tool})||hover&&k===key(hover.x,hover.y))) {
       const [x,y]=k.split(",").map(Number);drawStairEntrance(x,y,v);
     }
     const inspectKey=tool==="inspect"&&hover&&tiles[key(hover.x,hover.y)]?key(hover.x,hover.y):inspectedSection;
@@ -2188,12 +2221,24 @@
       if(!report.connected){const plan=report.plan?.length?report.plan:report.block?[report.block]:[];for(const p of plan)diamond(p.x+0.5,p.y+0.5,"#e8a04733","#f4a949");}
     }
     if(suggestedGhost&&validAccessPiece(suggestedGhost)){ctx.save();ctx.globalAlpha=0.6;const c=suggestedGhost;polygon(footprint(c.x,c.y,c).map(([x,y])=>project(x,y)),"#54dab555","#27ba8a",2);drawObject(c.x,c.y,c);const p=project(c.x+0.5,c.y+0.5);ctx.fillStyle="#163b39";ctx.font=`bold ${7*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillText(`SUGGESTED · ${c.baseFeet||0} ft`,p.x,p.y-15*zoom);ctx.restore();}
+    if(tool==="foundation"){
+      document.getElementById("standHelp").hidden=false;
+      const item=hover&&tiles[key(hover.x,hover.y)];document.getElementById("standHelp").textContent=isPlatform(item)?`${item.baseFeet} ft base · ${isHollow(item)?"OPEN":"SOLID"} underneath. Click its ground footprint to change. Ground-level sections stay solid.`:"Click a raised section's ground footprint to switch Solid / Open underneath.";
+      if(hover){const item=tiles[key(hover.x,hover.y)];if(isPlatform(item))polygon(footprint(hover.x,hover.y,item).map(p=>project(...p)),isHollow(item)?"#54dab555":"#e8a04755","#ffe66d",2);}return;
+    }
+    if(hover&&(workUnder||underlays[key(hover.x,hover.y)]&&!tiles[key(hover.x,hover.y)]||isHollow(tiles[key(hover.x,hover.y)])&&groundTypes.includes(tool))&&!["inspect","inspectFan"].includes(tool)){
+      document.getElementById("standHelp").hidden=false;
+      const old=underlays[key(hover.x,hover.y)]||(!isPlatform(tiles[key(hover.x,hover.y)])?tiles[key(hover.x,hover.y)]:null),error=tool==="erase"||tool==="paint"?null:groundPlacementError(hover.x,hover.y,{type:tool,rot},old);
+      document.getElementById("standHelp").textContent=error||"Ground layer · upper sections are kept. Shops need 12 ft of clear space; paths need 8 ft.";
+      diamond(hover.x+0.5,hover.y+0.5,error||tool==="erase"?"#f0717299":"#54dab555",error?"#a93131":"#27ba8a");
+      if(!error&&groundTypes.includes(tool)&&!old){ctx.save();ctx.globalAlpha=0.65;drawObject(hover.x,hover.y,{type:tool,rot});ctx.restore();}return;
+    }
     if(tool==="inspect"||tool==="inspectFan"){document.getElementById("standHelp").hidden=true;return;}
     const help=document.getElementById("standHelp");
     const hovered=hover&&tiles[key(hover.x,hover.y)];
     help.hidden=!isPlatform({type:tool})&&!hasStairs(hovered);
     if(!help.hidden) {
-      const snap=hover&&completableDeck(hovered,tool,rot)?{baseFeet:hovered.baseFeet}:hover?standPlacement(hover.x,hover.y,rot):{baseFeet:0};
+      const snap=hover&&completableDeck(hovered,tool,rot)?{baseFeet:hovered.baseFeet}:hover?platformPlacement(hover.x,hover.y,rot):{baseFeet:0};
       help.textContent=isFenceCorner({type:tool})?`Fence corner · ${tool==="backstopCornerFirst"?"first-base at 17,9 (straight 18,9; backstop 16,9)":"third-base at 13,13 (straight 13,14; backstop 13,12)"}. Four continuous rows; place the same wedge one cell uphill to continue the next band. Upper wedges widen automatically. Connect stairs in an adjoining seating bank.`:isCorner({type:tool})?`Corner seating · joins a straight bank to a 45° bank · four continuous rows · ${seatCapacity({type:tool,rot})} seats · base ${snap.baseFeet} ft. R turns 90°; choose L/R to mirror. Both banks need matching base heights; access comes through their stairs.`:tool==="halfConcourse"?`Half concourse · 5 × 10 ft · level at ${snap.baseFeet} ft. R turns 90°; add its opposite half or a full concourse to complete the tile. Rails guard exposed edges.`:tool==="ramp"?`Ramp · 10 × 60 ft · six cells · 1:12 slope · ${snap.baseFeet}–${snap.baseFeet+5} ft. Connect only at its low and high ends.`:tool==="cornerLanding"?`Triangular concourse · ${snap.baseFeet} ft · R turns 90°. Fill the unused half of a diagonal fence-seating cell, then connect adjacent concourses and upper stairs at matching heights. In a shared cell, Remove deletes the triangle first; Undo restores it. Empty cells can still be completed with a full concourse.`:tool==="stairs"?`Standalone stairs · no seats · ${snap.baseFeet}–${snap.baseFeet+5} ft. Path at bottom; matching-height concourse at top. R rotates 45°.`:isBackstop({type:tool})?`Fence seating · R rotates 45° for any field fence. Front edges snap to the wall; new outfield sections start 5 ft higher. Same-size chairs: 5 per straight row, 7 per diagonal row; stairs keep a 6 ft aisle. Four rows rise 5 ft. Stack matching sections uphill or add a separate concourse with stairs.`:hasStairs(hovered)?stairEntrance(hover.x,hover.y,hovered).message:snap.error||(tool==="concourse"?`Level concourse · 10 × 10 ft · ${snap.baseFeet} ft high. Snaps to stair tops and adjoining platforms. Only matching walking heights connect.`:(isEndStair({type:tool})?`End stairs · no seats · ${rot%2?"14.1 ft diagonal footprint; stairs + side landing":"5 ft stairs + 5 ft level landing"} · +5 ft rise. Base: ${snap.baseFeet} ft. Green arrow marks the side walkway entrance. Connect the highlighted entry walkway continuously to the gate. R rotates 45°; choose the other end piece to mirror.`:`${tool==="stand"?`${rowSeats({type:tool,rot}).length*4} seats · ${rowSeats({type:tool,rot}).length} per row`:`${rowSeats({type:tool,rot}).length*4} seats · 6 ft central stairs`} · 4 rows · ${rot%2?"14.1 × 14.1 ft diagonal":"10 × 10 ft"} · +5 ft rise. Base: ${snap.baseFeet} ft. Match facing; build behind to rise. Connect a path to the front of a stair section.`));
       if(snap.error&&!hasStairs(hovered))help.textContent=snap.error;
     }
@@ -2201,9 +2246,10 @@
       const edge = wallEdge(hover.x, hover.y);
       const existing=tiles[key(hover.x,hover.y)],completingDeck=completableDeck(existing,tool,rot),candidate=completingDeck?{...existing,type:"concourse"}:{type:tool,rot};
       const infill=tool==="cornerLanding"&&isStand(existing)?infillPlacement(hover.x,hover.y,rot):null;
-      const standSnap=infill|| (completingDeck?{baseFeet:existing.baseFeet}:isPlatform({type:tool})?standPlacement(hover.x,hover.y,rot):null);
+      const standSnap=infill|| (completingDeck?{baseFeet:existing.baseFeet}:isPlatform({type:tool})?platformPlacement(hover.x,hover.y,rot):null);
+      const proposed=completingDeck?{...candidate,...standSnap}:isPlatform(candidate)?newPlatform({...candidate,...standSnap}):candidate;
       const occupied = tool === "wall" ? edges[edge] || !edgeAllowed(edge) || diagonalWallCollision(edge) || sceneryBlocksEdge(edge) || (/[ad]$/.test(edge) && tiles[key(hover.x,hover.y)])
-        : standSnap?.error || (!infill&&footprintError(hover.x,hover.y,{...candidate,...standSnap})) || blockedTile(key(hover.x, hover.y)) || (tiles[key(hover.x, hover.y)]&&!(infill&&!infill.error||completingDeck||tiles[key(hover.x,hover.y)].type==="halfPath"&&(tool==="path"||(tool==="halfPath"&&(rot+4)%8===tiles[key(hover.x,hover.y)].rot)))) || edges[key(hover.x,hover.y)+":a"] || edges[key(hover.x,hover.y)+":d"];
+        : standSnap?.error || (!infill&&((isPlatform(proposed)?columnError(hover.x,hover.y,proposed):null)||footprintError(hover.x,hover.y,proposed))) || blockedTile(key(hover.x, hover.y)) || (tiles[key(hover.x, hover.y)]&&!(infill&&!infill.error||completingDeck||tiles[key(hover.x,hover.y)].type==="halfPath"&&(tool==="path"||(tool==="halfPath"&&(rot+4)%8===tiles[key(hover.x,hover.y)].rot)))) || edges[key(hover.x,hover.y)+":a"] || edges[key(hover.x,hover.y)+":d"];
       if (tool === "wall") {
         drawWall(edge, occupied ? "#d35b65aa" : "#f5d554bb");
         const panel = edgePanel(edge);
@@ -2219,7 +2265,7 @@
       if (tool !== "erase" && tool!=="paint" && !occupied) {
         ctx.save();
         ctx.globalAlpha = 0.65;
-        const preview={...candidate,...standSnap,rot:completingDeck?0:rot,baseFeet:standSnap?.baseFeet||0};
+        const preview={...proposed,rot:completingDeck?0:rot,baseFeet:standSnap?.baseFeet||0};
         if(isStand(preview)||isRamp(preview)||isDeck(preview))polygon(footprint(hover.x,hover.y,preview).map(([x,y])=>project(x,y)),"#f8e78c44","#f6e284");
         drawObject(hover.x,hover.y,preview);
         if(hasStairs(preview))drawStairEntrance(hover.x,hover.y,preview);
@@ -2240,7 +2286,7 @@
     document.getElementById("money").textContent = "$" + money.toLocaleString();
     document.getElementById("seats").textContent =
       Object.values(tiles).reduce((sum,item)=>sum+seatCapacity(item),0);
-    document.getElementById("placed").textContent = Object.keys(tiles).length + Object.keys(edges).length + Object.keys(infillDecks).length;
+    document.getElementById("placed").textContent = Object.keys(tiles).length + Object.keys(edges).length + Object.keys(infillDecks).length+Object.keys(underlays).length;
     document.getElementById("rotation").textContent = tool === "wall" ? ({0:"Top edge",2:"Right edge",4:"Bottom edge",6:"Left edge",1:"Diagonal /",5:"Diagonal \\"})[rot] : rot * 45 + "°";
     document.getElementById("rotate").textContent = tool === "wall" ? "↻ Wall edge (R)" : (isDeck({type:tool})||isRamp({type:tool})||isCorner({type:tool})||tool==="halfPath")?"↻ Section 90° (R)":"↻ Item 45° (R)";
     document.getElementById("mobileRotate").textContent = tool === "wall" ? "↻ Wall edge" : (isDeck({type:tool})||isRamp({type:tool})||isCorner({type:tool})||tool==="halfPath")?"↻ Section 90°":"↻ Item 45°";
@@ -2256,7 +2302,7 @@
     try {
       localStorage.setItem(
         "svs01",
-        JSON.stringify({ version: 2, fieldRevision: 7, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, money, team }),
+        JSON.stringify({ version: 2, fieldRevision: 7, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, underlays, money, team }),
       );
       return true;
     } catch (e) {
@@ -2264,9 +2310,53 @@
       return false;
     }
   }
+  function groundPlacementError(x,y,item,old=null){
+    if(!groundTypes.includes(item.type))return "Use a walkway, shop, restroom or decoration on the ground layer.";
+    if(blockedTile(key(x,y)))return "Keep the playing field clear!";
+    const layout={...tiles},below={...underlays};
+    if(layout[key(x,y)]===old)delete layout[key(x,y)];if(below[key(x,y)]===old)delete below[key(x,y)];
+    if(edges[key(x,y)+":a"]||edges[key(x,y)+":d"])return "A diagonal wall occupies this ground tile.";
+    return columnError(x,y,item,layout,below)||footprintError(x,y,item,layout,edges,infillDecks,below);
+  }
+  function groundAction(k){
+    const [x,y]=k.split(",").map(Number),map=underlays[k]?underlays:tiles[k]&&!isPlatform(tiles[k])?tiles:underlays,old=map[k];
+    if(tool==="erase"){
+      if(!old){toast("No ground-layer piece here. Upper sections are kept.");return;}
+      history.push(snapshot());delete map[k];money+=Math.round(prices[old.type]*0.7);
+    }else if(tool==="paint"){
+      if(!old||isPath(old)){toast("Choose a ground shop or decoration.");return;}
+      const custom=document.getElementById("paintLinked").checked?null:{primary:document.getElementById("customPrimary").value||team.primary,secondary:team.secondary,accent:team.accent};
+      if(custom&&!validColor(custom.primary)){toast("Choose a valid color");return;}
+      history.push(snapshot());map[k]={...old};if(custom)map[k].customColors=custom;else delete map[k].customColors;
+    }else{
+      if(!groundTypes.includes(tool)){toast("Underneath mode builds ground paths, shops, bathrooms and decorations. Turn it off to edit upper sections.");return;}
+      const complete=old?.type==="halfPath"&&(tool==="path"||tool==="halfPath"&&(rot+4)%8===old.rot);
+      if(old&&!complete){toast("Ground tile is already occupied.");return;}
+      const item={type:complete?"path":tool,rot:complete?0:rot},error=groundPlacementError(x,y,item,old);
+      if(error){toast(error);return;}const cost=complete?prices.halfPath:prices[tool];if(money<cost){toast("Not enough money");return;}
+      history.push(snapshot());map[k]=item;money-=cost;
+    }
+    update();store();draw();
+  }
+  function foundationAction(k){
+    let map=tiles;
+    if(infillDecks[k]&&pointer){const shape=footprint(hover.x,hover.y,infillDecks[k]).map(p=>{const q=project(...p);return [q.x,q.y];});if(pointInPolygon(pointer.x,pointer.y,shape))map=infillDecks;}
+    const old=map[k];if(!isPlatform(old)){toast("Click the ground footprint of a raised seating section or concourse.");return;}
+    if(!old.baseFeet){toast("Ground-level sections keep a solid foundation.");return;}
+    const next={...old,hollow:!isHollow(old)};
+    const layout={...tiles},extras={...infillDecks};if(map===tiles)delete layout[k];else delete extras[k];
+    const [x,y]=k.split(",").map(Number),error=columnError(x,y,next,layout,underlays,extras)||footprintError(x,y,next,layout,edges,extras);
+    if(error){toast(error+" Remove the pieces below before making a section solid.");return;}
+    history.push(snapshot());map[k]=next;update();store();draw();toast(next.hollow?"Open underneath · lower pieces need enough headroom.":"Solid foundation restored.");
+  }
+  document.getElementById("workUnder").onchange=e=>{workUnder=!!e.target.checked;update();draw();toast(workUnder?"Ground layer: upper pieces are hidden. Paths and amenities still need ground access.":"All sections visible.");};
+  document.getElementById("placementHeight").innerHTML='<option value="auto">Auto: match neighbors</option>'+Array.from({length:61},(_,n)=>`<option value="${n*5}">${n*5} ft base height</option>`).join("");
+  document.getElementById("placementHeight").value="auto";
+  document.getElementById("placementHeight").onchange=e=>{const n=Number(e.target.value);if(e.target.value!=="auto"&&(!Number.isInteger(n)||n<0||n>300||n%5))return;placementHeight=e.target.value;draw();};
+  document.getElementById("newFoundation").onchange=e=>{if(["auto","open","solid"].includes(e.target.value)){foundationChoice=e.target.value;draw();}};
   function action() {
     if(fanActive) {
-      if(pointer){let closest=null,best=14*zoom;for(const f of fans)if(f.spawned&&!f.exited&&!f.insideAmenity){const p=project(f.x,f.y),height=f.standSeat?f.feet*FT:(f.seated?4+f.row*3:0),d=Math.hypot(pointer.x-p.x,pointer.y-(p.y-height*zoom-6*zoom));if(d<best){best=d;closest=f;}}if(closest){selectedFan=closest;document.getElementById("fanPicker").value=String(fans.indexOf(closest));updateFanPanel();return;}}
+      if(pointer){let closest=null,best=14*zoom;for(const f of fans)if(f.spawned&&!f.exited&&!f.insideAmenity&&(!workUnder||f.feet<=5)){const p=project(f.x,f.y),height=f.standSeat?f.feet*FT:(f.seated?4+f.row*3:0),d=Math.hypot(pointer.x-p.x,pointer.y-(p.y-height*zoom-6*zoom));if(d<best){best=d;closest=f;}}if(closest){selectedFan=closest;document.getElementById("fanPicker").value=String(fans.indexOf(closest));updateFanPanel();return;}}
       toast("Choose a fan or end the game before building");return;
     }
     disconnectedSections.clear();
@@ -2277,6 +2367,8 @@
     if((tool==="erase"||tool==="paint"||tool==="inspect")&&!tiles[k])for(const [rk,rv] of Object.entries(tiles))if(isRamp(rv)||isCorner(rv)){const [rx,ry]=rk.split(",").map(Number);if(overlaps(footprint(hover.x,hover.y,{type:"path"}),footprint(rx,ry,rv))){k=rk;break;}}
     if (hover.x < 0 || hover.x >= W || hover.y < 0 || hover.y >= H) return;
     const edge = wallEdge(hover.x, hover.y);
+    if(tool==="foundation"){foundationAction(k);return;}
+    if(workUnder||underlays[k]&&!tiles[k]||isHollow(tiles[k])&&groundTypes.includes(tool)){groundAction(k);return;}
     if(tool==="inspect"){inspectedSection=tiles[k]?k:null;suggestedGhost=null;draw();return;}
     if(tool==="paint") {
       const candidates=wallSlots.map(r=>wallEdge(hover.x,hover.y,r)).filter(k=>edges[k]);
@@ -2325,7 +2417,7 @@
       if(tool==="cornerLanding"&&isStand(tiles[k])){
         const snap=infillPlacement(hover.x,hover.y,rot);if(!snap||snap.error){toast(snap?.error||"Triangle already placed in this cell");return;}
         if(money<prices.cornerLanding){toast("Not enough money");return;}history.push(snapshot());money-=prices.cornerLanding;
-        infillDecks[k]={type:"cornerLanding",rot,...snap};update();store();draw();toast(`Independent concourse triangle · ${snap.baseFeet} ft. Click Remove here to remove the triangle first.`);return;
+        infillDecks[k]=newPlatform({type:"cornerLanding",rot,...snap});update();store();draw();toast(`Independent concourse triangle · ${snap.baseFeet} ft. Click Remove here to remove the triangle first.`);return;
       }
       const oldDeck=tiles[k],completeDeck=completableDeck(oldDeck,tool,rot);
       if(completeDeck){const error=footprintError(hover.x,hover.y,{...oldDeck,type:"concourse"});if(error){toast(error);return;}const cost=prices.concourse-prices[oldDeck.type];if(money<cost){toast("Not enough money");return;}history.push(snapshot());money-=cost;tiles[k]={...oldDeck,type:"concourse",rot:0};update();store();draw();toast(`Concourse completed · level at ${oldDeck.baseFeet} ft`);return;}
@@ -2334,14 +2426,16 @@
         if(money<prices.halfPath){toast("Not enough money");return;}
         history.push(snapshot());money-=prices.halfPath;tiles[k]={type:"path",rot:0};update();store();draw();return;
       }
-      if (tiles[k] || edges[k+":a"] || edges[k+":d"]) { toast("Tile is already occupied"); return; }
+      if (tiles[k]&&!(isPlatform({type:tool})&&groundTypes.includes(tiles[k].type)) || edges[k+":a"] || edges[k+":d"]) { toast("Tile is already occupied"); return; }
       if (money < prices[tool]) { toast("Not enough money"); return; }
-      const snap=isPlatform({type:tool})?standPlacement(hover.x,hover.y,rot):null;
+      const snap=isPlatform({type:tool})?platformPlacement(hover.x,hover.y,rot):null;
       if(snap?.error) {toast(snap.error);return;}
-      const shapeError=footprintError(hover.x,hover.y,{type:tool,rot,...snap});if(shapeError){toast(shapeError);return;}
+      const placed=isPlatform({type:tool})?newPlatform({type:tool,rot,...snap}):{type:tool,rot};
+      const shapeError=(isPlatform(placed)?columnError(hover.x,hover.y,placed):null)||footprintError(hover.x,hover.y,placed);if(shapeError){toast(shapeError);return;}
       history.push(snapshot());
       money -= prices[tool];
-      tiles[k] = {type:tool, rot,...(snap||{})};
+      if(tiles[k]&&isPlatform(placed))underlays[k]=tiles[k];
+      tiles[k] = placed;
       if(snap)toast(isDeck(tiles[k])?`Concourse placed · level at ${snap.baseFeet} ft. Join matching-height walking surfaces.`:isRamp(tiles[k])?`Ramp placed · ${snap.baseFeet}–${snap.baseFeet+5} ft. Connect paths or concourses at its ends.`:`Section placed · ${snap.baseFeet}–${snap.baseFeet+5} ft · ${seatCapacity(tiles[k])} seats. Connect stair sections for access.`);
     }
     if (history.length > 70) history.shift();
@@ -2369,6 +2463,7 @@
   }
   new ResizeObserver(resize).observe(wrap);
   function select(t) {
+    if(t==="foundation"){workUnder=false;document.getElementById("workUnder").checked=false;}
     suggestedGhost=null;
     tool = t;
     if(t==="halfPath"){rot-=rot%2;toast("Half-tile paving · R turns the corner 90°. Place its opposite half to complete the square.");}
@@ -2400,13 +2495,13 @@
     history.push(snapshot());team={...team,fenceMaterial:e.target.value};store();update();draw();
   };
   document.getElementById("paintTool").onclick=()=>select("paint");
-  document.getElementById("accessSuggestion").onclick=()=>{if(!inspectedSection)return;const c=accessReport(inspectedSection).suggestion;if(!c)return;select(c.type);rot=c.rot;suggestedGhost={...c};toast(`Click the green suggested tile to place ${c.label}. R changes facing; costs $${c.cost.toLocaleString()}.`);draw();};
+  document.getElementById("accessSuggestion").onclick=()=>{placementHeight="auto";document.getElementById("placementHeight").value="auto";if(!inspectedSection)return;const c=accessReport(inspectedSection).suggestion;if(!c)return;select(c.type);rot=c.rot;suggestedGhost={...c};toast(`Click the green suggested tile to place ${c.label}. R changes facing; costs $${c.cost.toLocaleString()}.`);draw();};
   document.getElementById("rotate").onclick = rotationStep;
   document.getElementById("undo").onclick = () => {
     if(fanActive)endFanTest("Layout changed; fan test ended.");
     let h = history.pop();
     if (h) {
-      tiles = h.tiles;infillDecks=h.infillDecks||{};
+      tiles = h.tiles;infillDecks=h.infillDecks||{};underlays=h.underlays||{};
       edges = h.edges;
       money = h.money;
       team=h.team||team;
@@ -2426,7 +2521,7 @@
   document.getElementById("reset").onclick = () => {
     if(fanActive)endFanTest("Layout changed; fan test ended.");
     if (confirm("Reset the ballpark and restore the starting budget?")) {
-      tiles = {};infillDecks={};
+      tiles = {};infillDecks={};underlays={};
       edges = {};
       money = 500000;
       history = [];
@@ -2530,7 +2625,7 @@
     if(!["chain","padded","green"].includes(cleanTeam.fenceMaterial))throw Error("Invalid field fence material");
     if(!saved.wallFinishRevision)cleanTeam.fenceMaterial="green";
     const metadata=v=>{
-      const out={};for(const prop of ["shift","bankShift","straightShift"]){if(v[prop]!==undefined){if(!Number.isFinite(v[prop])||Math.abs(v[prop])>2)throw Error("Invalid seating offset");out[prop]=v[prop];}}if(v.ring!==undefined){if(!Number.isInteger(v.ring)||v.ring<0||v.ring>20)throw Error("Invalid wedge band");out.ring=v.ring;}if(v.legacyCorner===true)out.legacyCorner=true;if(v.customColors!==undefined)out.customColors=cleanColors(v.customColors);
+      const out={};if(v.hollow!==undefined){if(typeof v.hollow!=="boolean"||v.hollow&&(!isPlatform(v)||!(v.baseFeet>0)))throw Error("Invalid underside setting");out.hollow=v.hollow;}for(const prop of ["shift","bankShift","straightShift"]){if(v[prop]!==undefined){if(!Number.isFinite(v[prop])||Math.abs(v[prop])>2)throw Error("Invalid seating offset");out[prop]=v[prop];}}if(v.ring!==undefined){if(!Number.isInteger(v.ring)||v.ring<0||v.ring>20)throw Error("Invalid wedge band");out.ring=v.ring;}if(v.legacyCorner===true)out.legacyCorner=true;if(v.customColors!==undefined)out.customColors=cleanColors(v.customColors);
       if(v.material!==undefined){if(!["wood","chain","padded"].includes(v.material))throw Error("Invalid fence material");out.material=v.material;}
       return out;
     };
@@ -2584,18 +2679,28 @@
     for(const [k,v] of Object.entries(saved.infillDecks||{})){
       if(migrateField&&!clean[k]){cash+=prices.cornerLanding;continue;}
       if(!/^\d+,\d+$/.test(k)||!v||v.type!=="cornerLanding"||![0,2,4,6].includes(v.rot)||!Number.isInteger(v.baseFeet)||v.baseFeet<0||v.baseFeet>300||v.baseFeet%5)throw Error("Invalid concourse triangle");
-      const [x,y]=k.split(",").map(Number);if(!isStand(clean[k])||overlaps(footprint(x,y,v),footprint(x,y,clean[k])))throw Error("Concourse triangle overlaps its seating host");cleanInfills[k]={type:v.type,rot:v.rot,baseFeet:v.baseFeet};
+      const [x,y]=k.split(",").map(Number);if(!isStand(clean[k])||overlaps(footprint(x,y,v),footprint(x,y,clean[k])))throw Error("Concourse triangle overlaps its seating host");cleanInfills[k]={type:v.type,rot:v.rot,baseFeet:v.baseFeet,...metadata(v)};
     }
-    for(const [k,v] of Object.entries(cleanInfills)){const [x,y]=k.split(",").map(Number),error=footprintError(x,y,v,clean,cleanEdges,cleanInfills);if(error)throw Error(error);}
+    const cleanUnderlays={};
+    if(saved.underlays!==undefined&&(!saved.underlays||typeof saved.underlays!=="object"||Array.isArray(saved.underlays)))throw Error("Invalid ground layer");
+    for(const [k,v] of Object.entries(saved.underlays||{})){
+      if(!/^\d+,\d+$/.test(k)||!v||!groundTypes.includes(v.type)||!Number.isInteger(v.rot)||v.rot<0||v.rot>7||v.type==="halfPath"&&v.rot%2)throw Error("Invalid ground-layer piece");
+      const [x,y]=k.split(",").map(Number);if(x>=W||y>=H||blockedTile(k))throw Error("Ground piece is outside the build area");
+      cleanUnderlays[k]={type:v.type,rot:v.rot,...metadata(v)};
+    }
+    for(const [k,v] of Object.entries(cleanUnderlays)){
+      const [x,y]=k.split(",").map(Number),error=columnError(x,y,v,clean,cleanUnderlays,cleanInfills)||footprintError(x,y,v,clean,cleanEdges,cleanInfills,cleanUnderlays);if(error)throw Error(error);
+    }
+    for(const [k,v] of Object.entries(cleanInfills)){const [x,y]=k.split(",").map(Number),error=footprintError(x,y,v,clean,cleanEdges,cleanInfills,cleanUnderlays);if(error)throw Error(error);}
     for(const [k,v] of Object.entries(clean))if(isStand(v)||isRamp(v)||isCorner(v)||isDeck(v)) {
-      const [x,y]=k.split(",").map(Number),error=footprintError(x,y,v,clean,cleanEdges,cleanInfills);
+      const [x,y]=k.split(",").map(Number),error=footprintError(x,y,v,clean,cleanEdges,cleanInfills,cleanUnderlays);
       if(error)throw Error(error);
     }
-    return { gameMinutes:[1,2,5,10].includes(saved.gameMinutes)?saved.gameMinutes:5, requestedFans:attendanceChoice(saved.requestedFans), tiles: clean, edges: cleanEdges, infillDecks:cleanInfills, money: cash, team:cleanTeam,entranceRevision:saved.entranceRevision||0 };
+    return { gameMinutes:[1,2,5,10].includes(saved.gameMinutes)?saved.gameMinutes:5, requestedFans:attendanceChoice(saved.requestedFans), tiles: clean, edges: cleanEdges, infillDecks:cleanInfills, underlays:cleanUnderlays, money: cash, team:cleanTeam,entranceRevision:saved.entranceRevision||0 };
   }
   document.getElementById("export").onclick = () => {
     const blob = new Blob(
-        [JSON.stringify({ version: 2, fieldRevision: 7, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, money, team }, null, 2)],
+        [JSON.stringify({ version: 2, fieldRevision: 7, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, underlays, money, team }, null, 2)],
         { type: "application/json" },
       ),
       url = URL.createObjectURL(blob),
@@ -2616,7 +2721,7 @@
       if (confirm("Replace the current layout with this park?")) {
         history.push(snapshot());
         if(fanActive)endFanTest("Park imported; fan test ended.");
-        tiles = park.tiles;infillDecks=park.infillDecks;
+        tiles = park.tiles;infillDecks=park.infillDecks;underlays=park.underlays;
         edges = park.edges;
         money = park.money;
         team=park.team;gameMinutes=park.gameMinutes;gameMinutesControl.value=String(gameMinutes);requestedFans=park.requestedFans;fanCountControl.value=String(requestedFans);
@@ -2636,7 +2741,7 @@
     const raw = localStorage.getItem("svs01");
     if (raw) {
       const saved = validatePark(JSON.parse(raw));
-      tiles = saved.tiles;infillDecks=saved.infillDecks;
+      tiles = saved.tiles;infillDecks=saved.infillDecks;underlays=saved.underlays;
       edges = saved.edges;
       money = saved.money;
       team=saved.team;gameMinutes=saved.gameMinutes;gameMinutesControl.value=String(gameMinutes);requestedFans=saved.requestedFans;fanCountControl.value=String(requestedFans);

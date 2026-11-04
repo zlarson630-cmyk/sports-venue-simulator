@@ -130,3 +130,11 @@ Run `npm run benchmark` for a reproducible 100-fan headless comparison. It repor
 ### Decorations (v0.42)
 
 Open **Decorations** to place a tree ($250) or bronze baseball-player statue ($1,500). Each occupies one ground tile. R cycles tree shapes or turns the statue in 45° steps. Decorations use the normal save/export, removal/refund and undo tools. Keep the gate and walking routes clear; decorations block their occupied ground tile.
+
+### Open undersides (v0.43)
+
+Expand **Build layers**. New raised sections are open underneath by default; ground-level sections stay solid. Use **New raised-piece height** to set a base explicitly or leave Auto to match neighbors. A 10 ft base clears ground paths; a 15 ft base clears food stands and restrooms. Trees require a 25 ft base. Upper access still needs stairs or ramps connected at the correct height.
+
+For an existing raised section, select **Change underside** and click its ground footprint to toggle solid/open. Existing parks keep their old foundations. A section cannot become solid while a ground piece occupies the space below.
+
+Check **Work underneath · hide upper pieces**, then build connected ground paths, shops and restrooms normally. Remove and paint affect ground items in this mode; uncheck it to edit the upper construction. Fans keep using both layers while upper pieces are hidden. Save, export/import and Undo preserve both layers. For now, this supports ground amenities beneath the existing elevated construction layer; additional independent elevated floors on the same cell and support columns are future work.

@@ -1,0 +1,121 @@
+{
+  "version": 2,
+  "fieldRevision": 7,
+  "entranceRevision": 1,
+  "money": 500000,
+  "gameMinutes": 2,
+  "requestedFans": 100,
+  "tiles": {
+    "9,5": {
+      "type": "path",
+      "rot": 0
+    },
+    "10,5": {
+      "type": "path",
+      "rot": 0
+    },
+    "10,6": {
+      "type": "path",
+      "rot": 0
+    },
+    "10,7": {
+      "type": "path",
+      "rot": 0
+    },
+    "11,7": {
+      "type": "path",
+      "rot": 0
+    },
+    "12,7": {
+      "type": "path",
+      "rot": 0
+    },
+    "10,8": {
+      "type": "path",
+      "rot": 0
+    },
+    "10,9": {
+      "type": "path",
+      "rot": 0
+    },
+    "10,10": {
+      "type": "path",
+      "rot": 0
+    },
+    "11,10": {
+      "type": "path",
+      "rot": 0
+    },
+    "13,10": {
+      "type": "path",
+      "rot": 0
+    },
+    "14,10": {
+      "type": "path",
+      "rot": 0
+    },
+    "10,11": {
+      "type": "path",
+      "rot": 0
+    },
+    "11,11": {
+      "type": "path",
+      "rot": 0
+    },
+    "12,8": {
+      "type": "stairs",
+      "rot": 0,
+      "baseFeet": 0,
+      "hollow": false
+    },
+    "12,9": {
+      "type": "stairs",
+      "rot": 0,
+      "baseFeet": 5,
+      "hollow": true
+    },
+    "12,10": {
+      "type": "stairs",
+      "rot": 0,
+      "baseFeet": 10,
+      "hollow": true
+    },
+    "12,11": {
+      "type": "stairStand",
+      "rot": 0,
+      "baseFeet": 15,
+      "hollow": true
+    },
+    "13,11": {
+      "type": "stand",
+      "rot": 0,
+      "baseFeet": 15,
+      "hollow": true
+    },
+    "14,11": {
+      "type": "stand",
+      "rot": 0,
+      "baseFeet": 15,
+      "hollow": true
+    }
+  },
+  "underlays": {
+    "12,10": {
+      "type": "path",
+      "rot": 0
+    },
+    "12,11": {
+      "type": "path",
+      "rot": 0
+    },
+    "13,11": {
+      "type": "concession",
+      "rot": 0
+    },
+    "14,11": {
+      "type": "restroom",
+      "rot": 0
+    }
+  },
+  "edges": {}
+}

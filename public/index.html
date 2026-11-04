@@ -6,15 +6,15 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <title>Sports Venue Simulator — Sandbox 0.42.0</title>
-    <link rel="stylesheet" href="styles.css?v=0.42.0" />
+    <title>Sports Venue Simulator — Sandbox 0.43.0</title>
+    <link rel="stylesheet" href="styles.css?v=0.43.0" />
   </head>
   <body>
     <header>
       <div class="logo">🏟️</div>
       <div>
         <h1>SPORTS VENUE<br />SIMULATOR</h1>
-        <small>BUILD SANDBOX · v0.42</small>
+        <small>BUILD SANDBOX · v0.43</small>
       </div>
       <div class="topstats">
         <div class="stat">💵 <strong id="money">$500,000</strong></div>
@@ -37,7 +37,14 @@
           <button id="paintTool" class="smallbtn">Apply to an item → click it</button>
           <p class="foot">Linked items update together. Custom items keep their colors. Undo restores colors too.</p>
         </details>
-        <div class="section">CONSTRUCTION TOOLS</div>
+        <details class="toolgroup" open><summary>Build layers</summary>
+<label style="display:block;margin:8px 0"><input type="checkbox" id="workUnder"> Work underneath · hide upper pieces</label>
+<label for="placementHeight">New raised-piece height</label><select id="placementHeight" style="width:100%;padding:8px;margin:6px 0"></select>
+<label for="newFoundation">New piece underneath</label><select id="newFoundation" style="width:100%;padding:8px;margin:6px 0"><option value="auto">Auto: open when raised</option><option value="open">Open when raised</option><option value="solid">Solid foundation</option></select>
+<p class="foot">Ground stays solid. Open sections need a 10 ft base above paths or 15 ft above shops. Change underside edits existing pieces at their ground footprint.</p>
+<button class="tool" data-tool="foundation"><span class="emoji">▱</span><span>Change underside</span></button>
+</details>
+<div class="section">CONSTRUCTION TOOLS</div>
         <p id="selectedTool" class="selectedtool" role="status">Selected: Walkway (W)</p>
 <button class="tool" data-tool="inspectFan"><span class="emoji">👤</span><span>Inspect fan (F)</span></button>
 <button class="tool" data-tool="inspect"><span class="emoji">🔎</span><span>Inspect access (I)</span></button>
@@ -211,6 +218,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=0.42.0" defer></script>
+    <script src="game.js?v=0.43.0" defer></script>
   </body>
 </html>

@@ -1,3 +1,11 @@
+# v0.43
+
+- New elevated seating, stairs and concourses default to open underneath; ground sections stay solid. Existing saved foundations remain solid until changed.
+- Build layers controls choose automatic or explicit base height, solid/open undersides, and a hide-upper mode for editing ground pieces below.
+- Ground paths and amenities occupy a separate saved layer. Clearance checks reject low/solid ceilings; 10 ft bases clear paths and 15 ft bases clear shops.
+- Food/restroom trips use the lower ground routes independently of the raised seating routes. Removing, painting and undoing either layer preserves the other.
+- First pass supports a ground layer beneath the existing upper construction layer, not arbitrary stacks of multiple upper pieces on one cell. Support columns remain future decorative assets.
+
 # v0.42
 
 - Add placeable one-tile decorative trees ($250) and bronze baseball-player statues ($1,500).
