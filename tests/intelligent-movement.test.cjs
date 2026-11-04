@@ -7,7 +7,7 @@ const random=seed=>()=>((seed=(1664525*seed+1013904223)>>>0)/4294967296);
 test('actual game arrivals have party waves, singles and variable gaps',()=>{
  const patterns=[];
  for(const seed of [42,99]) {
-  const g=game(undefined,random(seed),{record:false});g.api.buildConcourseDemo();g.api.startFanTest();
+  const g=game(undefined,random(seed),{record:false});g.api.buildCornerDemo();g.api.startFanTest();
   const fans=g.api.fanState().fans;assert.equal(fans.length,100);
   const parties=new Map();
   for(const fan of fans){if(!parties.has(fan.partyId))parties.set(fan.partyId,[]);parties.get(fan.partyId).push(fan);}
@@ -21,7 +21,7 @@ test('actual game arrivals have party waves, singles and variable gaps',()=>{
 });
 
 test('short selected games and repeated saved-park games drain all 100 fans without extra tickets',()=>{
- const initial=game(undefined,random(27),{record:false});initial.api.buildConcourseDemo();
+ const initial=game(undefined,random(27),{record:false});initial.api.buildCornerDemo();
  const saved=JSON.parse(initial.storage.get('svs01'));
  for(const minutes of [1,2]) {
   const g=game(saved,random(27),{record:false});
