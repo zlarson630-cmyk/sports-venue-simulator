@@ -553,10 +553,45 @@
     if((!(bx&&by)&&Math.abs(standShift(item))<1e-8)||!isDeck(deck)||!concourseConnection(x+bx,y+by,deck,-bx,-by))return;
     const feet=item.baseFeet+5,depth=0.5+standShift(item),a=stairCenter(item),width=isEndStair(item)?0.25:item.type==="stairs"?0.5:0.3/Math.hypot(ax,ay);
     const p=t=>({x:x+0.5+ax*(a+t)+bx*depth,y:y+0.5+ay*(a+t)+by*depth,feet}),q=deckCenter(x+bx,y+by,deck),shape=footprint(x+bx,y+by,deck),ps=[p(-width),p(width),segmentEntry(p(width),{x:q.x+ax*width,y:q.y+ay*width,feet},shape),segmentEntry(p(-width),{x:q.x-ax*width,y:q.y-ay*width,feet},shape)];
+    if(ps.slice(0,2).every((p,i)=>Math.hypot(p.x-ps[3-i].x,p.y-ps[3-i].y)<1e-8))return;
     for(const i of [1,3]){const a=ps[i],b=ps[(i+1)%4];polygon([raisedWorld({...a,feet:isHollow(item)?feet-0.5:0}),raisedWorld({...b,feet:isHollow(item)?feet-0.5:0}),raisedWorld(b),raisedWorld(a)],"#8e9898",null);}
     polygon(ps.map(raisedWorld),PAVEMENT,null);
     for(const [a,b] of [[ps[0],ps[3]],[ps[1],ps[2]]]){line(raisedWorld(a),raisedWorld({...a,feet:feet+3}),"#627986",1);line(raisedWorld({...a,feet:feet+3}),raisedWorld({...b,feet:feet+3}),"#a4b5b9",1.2);}
   }
+  // Keep only the exposed parts of a deck edge, including on clipped patches.
+  function exposedDeckEdge(x,y,item,a,b) {
+    const shape=deckShape(item),epsilon=1e-8;
+    const edge=shape.findIndex((u,i)=>{
+      const v=shape[(i+1)%shape.length];
+      const cross=p=>(v[0]-u[0])*(p[1]-u[1])-(v[1]-u[1])*(p[0]-u[0]);
+      return Math.abs(cross(a))<epsilon&&Math.abs(cross(b))<epsilon;
+    });
+    if(edge<0)return [];
+    const u=shape[edge],v=shape[(edge+1)%shape.length],dx=v[0]-u[0],dy=v[1]-u[1];
+    const along=p=>((p[0]-u[0])*dx+(p[1]-u[1])*dy)/(dx*dx+dy*dy);
+    const at=t=>[u[0]+dx*t,u[1]+dy*t];
+    let spans=[[Math.min(along(a),along(b)),Math.max(along(a),along(b))]];
+    for(const seam of surfaceSeams(x,y,item)){
+      if(seam.edge!==edge)continue;
+      const [layer,cell]=seam.id.split(":");
+      const neighbor=(layer==="i"?infillDecks:tiles)[cell];
+      if(!neighbor||isHollow(item)!==isHollow(neighbor))continue;
+      spans=spans.flatMap(([lo,hi])=>seam.hi<=lo||seam.lo>=hi?[[lo,hi]]:[[lo,seam.lo],[seam.hi,hi]]);
+    }
+    return spans.filter(([lo,hi])=>hi-lo>epsilon).map(([lo,hi])=>[at(lo),at(hi)]);
+  }
+
+  function drawUndersideSteel(at,a,b,top,clearance=12) {
+    const bottom=Math.max(clearance,top-1.8);
+    if(top-bottom<0.45)return;
+    const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+    const steel="#506879";
+    line(at(a,top),at(b,top),steel,1.4);
+    line(at(a,bottom),at(b,bottom),steel,1);
+    line(at(a,bottom),at(mid,top),steel,1);
+    line(at(mid,top),at(b,bottom),steel,1);
+  }
+
   function drawConcourse(x,y,item,rails=false,patch=null,railIndex=null) {
     const h=item.baseFeet*FT,p=(a,b,z=h)=>{const q=project(x+a,y+b);q.y-=z*zoom;return q;};
     const corners=patch?[[patch[0],patch[1]],[patch[0]+0.25,patch[1]],[patch[0]+0.25,patch[1]+0.25],[patch[0],patch[1]+0.25]]:[[0,0],[1,0],[1,1],[0,1]];
@@ -564,8 +599,11 @@
       for(let i=0;i<4;i++) {
         const a=corners[i],b=corners[(i+1)%4];
         if(patch&&!((a[0]===0&&b[0]===0)||(a[0]===1&&b[0]===1)||(a[1]===0&&b[1]===0)||(a[1]===1&&b[1]===1)))continue;
-        polygon([p(...a,isHollow(item)?h-0.5*FT:0),p(...b,isHollow(item)?h-0.5*FT:0),p(...b),p(...a)],"#8e9898","#7d9293",0.5);
-
+        const at=([u,v],feet)=>p(u,v,feet*FT);
+        for(const [start,end] of exposedDeckEdge(x,y,item,a,b)){
+          if(isHollow(item))drawUndersideSteel(at,start,end,item.baseFeet-0.5);
+          polygon([p(...start,isHollow(item)?h-0.5*FT:0),p(...end,isHollow(item)?h-0.5*FT:0),p(...end),p(...start)],"#8e9898",null);
+        }
       }
       polygon(corners.map(c=>p(...c)),PAVEMENT,patch?null:"#a9b7b1",0.6);
     } else if(h>0) {
@@ -612,7 +650,15 @@
     let cs=deckShape(item);if(patch)for(const [axis,value,greater] of [[0,patch[0],true],[0,patch[0]+0.25,false],[1,patch[1],true],[1,patch[1]+0.25,false]])cs=clipDeck(cs,axis,value,greater);
     if(cs.length<3)return;
     const center=deckCenter(x,y,item),depth=project(center.x,center.y).y;
-    for(let i=0;i<cs.length;i++){const a=cs[i],b=cs[(i+1)%cs.length];if(patch&&!deckShape(item).some((v,n)=>{const w=deckShape(item)[(n+1)%deckShape(item).length],cross=p=>(w[0]-v[0])*(p[1]-v[1])-(w[1]-v[1])*(p[0]-v[0]);return Math.abs(cross(a))<1e-8&&Math.abs(cross(b))<1e-8;}))continue;if((at(a,0).y+at(b,0).y)/2>=depth-1e-8)polygon([at(a,isHollow(item)?item.baseFeet-0.5:0),at(b,isHollow(item)?item.baseFeet-0.5:0),at(b),at(a)],"#8e9898",null);}
+    for(let i=0;i<cs.length;i++){
+      const a=cs[i],b=cs[(i+1)%cs.length];
+      if((at(a,0).y+at(b,0).y)/2<depth-1e-8)continue;
+      for(const [start,end] of exposedDeckEdge(x,y,item,a,b)){
+        if(isHollow(item))drawUndersideSteel(at,start,end,item.baseFeet-0.5);
+        const bottom=isHollow(item)?item.baseFeet-0.5:0;
+        polygon([at(start,bottom),at(end,bottom),at(end),at(start)],"#8e9898",null);
+      }
+    }
     polygon(cs.map(p=>at(p)),PAVEMENT,null);
   }
   // Each row is a separate painter entry, so fans and neighboring sections share depth order.
@@ -637,6 +683,10 @@
         if(hideSides.includes(i))continue;
         const v=cs[i],n=cs[(i+1)%4];
         if((screen(...v,0).y+screen(...n,0).y)/2<cy-0.001)continue;
+        if(isHollow(item)&&color===PAVEMENT&&Math.abs(top-bottom-0.5)<1e-8&&
+          ((i===1&&Math.abs(a+w-0.5)<1e-8)||(i===3&&Math.abs(a+0.5)<1e-8))){
+          drawUndersideSteel(([u,v],feet)=>screen(u,v,feet),v,n,base-0.5);
+        }
         face([[...v,bottom],[...n,bottom],[...n,top],[...v,top]],side);
       }
       face(cs.map(c=>[...c,top]),color);
@@ -2288,6 +2338,29 @@
     }
     captureFaces=false;surfaceFrame=null;seamFrame=null;
   }
+  function drawPlacementGuide(x,y,item,invalid=false){
+    const color=invalid?"#be3e43":"#ffd85b";
+    polygon(footprint(x,y,item).map(([u,v])=>project(u,v)),invalid?"#f0717233":"#f8e78c33",color,1.5*zoom);
+    if(invalid)return;
+    let start,end;
+    if(isStand(item)){
+      const front=isEndStair(item)?[endSide(item)*0.5,0]:[hasStairs(item)?stairCenter(item):0,-0.5];
+      const outward=isEndStair(item)?[endSide(item)*0.42,0]:[0,-0.42];
+      const feet=item.baseFeet+0.08;
+      start=raisedWorld(standPoint(x,y,item,front[0],front[1],feet));
+      end=raisedWorld(standPoint(x,y,item,front[0]+outward[0],front[1]+outward[1],feet));
+    }else if(amenityTypes.includes(item.type)){
+      const [dx,dy]=directions[item.rot],len=Math.hypot(dx,dy);
+      start=project(x+0.5+dy/len*0.34,y+0.5-dx/len*0.34);
+      end=project(x+0.5+dy/len*0.76,y+0.5-dx/len*0.76);
+    }else return;
+    const dx=end.x-start.x,dy=end.y-start.y,len=Math.hypot(dx,dy);
+    if(len<1e-8)return;
+    const ux=dx/len,uy=dy/len,size=5*zoom;
+    line(start,end,color,2);
+    polygon([end,{x:end.x-size*(ux+uy*0.55),y:end.y-size*(uy-ux*0.55)},
+      {x:end.x-size*(ux-uy*0.55),y:end.y-size*(uy+ux*0.55)}],color,"#504128",0.6);
+  }
   function drawOverlays(){
     updateFanPanel();
     for(const fan of fans.filter(f=>f.spawned&&!f.exited&&!f.insideAmenity&&(!workUnder||f.feet<=5)).sort((a,b)=>{const p=rotated(a.x,a.y),q=rotated(b.x,b.y);return p.x+p.y-q.x-q.y||a.start-b.start;}))drawVisibleFan(fan);
@@ -2316,6 +2389,7 @@
       help.textContent=error||(surface?"Concrete surface · existing construction is kept.":tool==="erase"&&groundConcrete[k]?"Remove ground concrete.":"Ground layer · upper sections are kept. Shops need 12 ft of clear space; paths need 8 ft.");
       if(hover.x>=0&&hover.x<W&&hover.y>=0&&hover.y<H){
         if(!error&&next?.item){ctx.save();ctx.globalAlpha=0.65;drawObject(hover.x,hover.y,next.item);ctx.restore();}
+        if(next?.item)drawPlacementGuide(hover.x,hover.y,next.item,!!error);
         diamond(hover.x+0.5,hover.y+0.5,error||tool==="erase"?"#f0717299":"#54dab555",error?"#a93131":"#27ba8a");
       }
       return;
@@ -2351,11 +2425,11 @@
         ctx.save();
         ctx.globalAlpha = 0.65;
         const preview=next.item;
-        if(isStand(preview)||isRamp(preview)||isDeck(preview))polygon(footprint(hover.x,hover.y,preview).map(([x,y])=>project(x,y)),"#f8e78c44","#f6e284");
         drawObject(hover.x,hover.y,preview);
         if(hasStairs(preview))drawStairEntrance(hover.x,hover.y,preview);
         ctx.restore();
       }
+      if(next?.item)drawPlacementGuide(hover.x,hover.y,next.item,!!occupied);
     }
   }
   function update(cashOnly=false) {
