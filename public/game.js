@@ -952,8 +952,8 @@
         );
         polygon(
           [
-            local(-0.23, -0.325, 2),
-            local(0.23, -0.325, 2),
+            local(-0.23, -0.325, food ? 5 : 2),
+            local(0.23, -0.325, food ? 5 : 2),
             local(0.23, -0.325, 11),
             local(-0.23, -0.325, 11),
           ],
@@ -969,11 +969,35 @@
           const staff=local(0,-0.34,7);ctx.beginPath();ctx.arc(staff.x,staff.y,1.5*z,0,Math.PI*2);ctx.fillStyle="#ecc29a";ctx.fill();
           line({x:staff.x,y:staff.y+2*z},{x:staff.x,y:staff.y+5*z},palette.accent,2);
         }
-        // Keep wayfinding signs below the slab rather than poking into upper seats.
-        const covered=!workUnder&&[...Object.entries(tiles),...Object.entries(infillDecks)].some(([k,v])=>{if(!isHollow(v))return false;const [a,b]=k.split(",").map(Number);return pointInPolygon(x+0.5,y+0.5,footprint(a,b,v));});
-        ctx.font = `${(covered?8:12) * z}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.fillStyle=colors(item).accent;ctx.fillText(({concession:"🌭",drinks:"🥤",iceCream:"🍦",souvenir:"🧢",restroom:"🚻"})[item.type],p.x,p.y-(covered?12:20)*z);
+        // Paint the sign in the plane of the service face, below the window.
+        if(local(0,-0.32).y>local(0,0.32).y){
+          const mark=(points,fill)=>polygon(points.map(([u,h])=>local(u,-0.327,h+(food?0:11.5))),fill);
+          mark([[-0.20,0.4],[0.20,0.4],[0.20,4.8],[-0.20,4.8]],"#183a55");
+          const ink=palette.accent;
+          switch(item.type){
+            case "concession":
+              mark([[-0.15,1.9],[-0.12,1],[0.12,1],[0.15,1.9],[0.12,3.5],[-0.12,3.5]],"#eab471");
+              mark([[-0.13,2.3],[0.13,2.3],[0.11,3.2],[-0.11,3.2]],"#bf4a42");
+              break;
+            case "drinks":
+              mark([[-0.09,3.2],[-0.065,1],[0.065,1],[0.09,3.2]],ink);
+              mark([[0.035,3],[0.075,4.3],[0.045,4.3],[0.005,3]],ink);
+              break;
+            case "iceCream":
+              mark([[-0.07,2.8],[0,0.8],[0.07,2.8]],"#eab471");
+              mark([[-0.09,2.7],[-0.09,3.6],[-0.04,4.2],[0.04,4.2],[0.09,3.6],[0.09,2.7]],"#ffc5dc");
+              break;
+            case "souvenir":
+              mark([[-0.13,1.7],[-0.12,2.9],[-0.07,3.8],[0.045,3.8],[0.10,3],[0.10,2.3],[0.17,1.8],[0.12,1.5]],ink);
+              break;
+            case "restroom":
+              for(const u of [-0.07,0.07]){
+                mark([[u-0.024,3.2],[u+0.024,3.2],[u+0.024,4.1],[u-0.024,4.1]],"#ffffff");
+                mark([[u-0.04,2.9],[u+0.04,2.9],[u+0.04,1],[u-0.04,1]],"#ffffff");
+              }
+              break;
+          }
+        }
         break;
       }
     }
