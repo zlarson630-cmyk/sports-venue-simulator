@@ -10,8 +10,9 @@ test('one-tile decorations rotate, save, reload, remove with refund and undo',()
   assert.equal(g.api.footprint(12,8,{type,rot:1}).length,4);
   const saved=JSON.parse(g.storage.get('svs01')),reloaded=game(saved);assert.equal(reloaded.api.state().tiles['12,8'].type,type);
   g.select('path');g.clickTile(12,8);assert.equal(g.api.state().tiles['12,8'].type,type);
-  g.select('erase');g.clickTile(12,8);assert.equal(g.api.state().tiles['12,8'],undefined);assert.equal(g.api.state().money,before-cost+Math.round(cost*0.7));
-  g.element('undo').click();assert.equal(g.api.state().tiles['12,8'].type,type);assert.equal(g.api.state().money,before-cost);
+  assert.equal(JSON.parse(g.storage.get('svs01')).groundConcrete['12,8'],true);
+  g.select('erase');g.clickTile(12,8);assert.equal(g.api.state().tiles['12,8'],undefined);assert.equal(g.api.state().money,before-cost-100+Math.round(cost*0.7));
+  g.element('undo').click();assert.equal(g.api.state().tiles['12,8'].type,type);assert.equal(g.api.state().money,before-cost-100);
  }
 });
 
