@@ -1,6 +1,14 @@
 # Sports Venue Simulator — design backlog
 
-Current baseline: v0.42. Historical decisions and release checkpoints follow below. Keep it simple, make it work, then expand.
+Current baseline: v0.43. Historical decisions and release checkpoints follow below. Keep it simple, make it work, then expand.
+
+## Latest published pass — open undersides (v0.43)
+
+- New elevated construction defaults open underneath; ground sections stay solid. Existing saved foundations remain solid unless explicitly changed.
+- Independent ground paths, shops, bathrooms and decorations can occupy the space beneath open raised sections when clearance permits. Base heights of 10 ft clear paths; 15 ft clear shops; trees require 25 ft.
+- Build layers adds explicit/automatic height, new-piece underside choices, Change underside, and a hide-upper work-under view. Lower editing, saves, refunds and Undo preserve the upper layer.
+- Food/restroom ground routes remain separate from raised seat routes. Automated and browser completion checks passed; hands-on player acceptance remains pending. See HOLLOW-UNDERSIDES-TESTING.md.
+- Still queued: support-column decorations, arbitrary independent upper floors on one cell, named user-assigned level/piece groups, per-group visibility/transparency and upper-concourse amenities. Do not equate a five-foot seating block with a named stadium level.
 
 ## Chunk 2.5 verification pass
 
@@ -62,7 +70,7 @@ Neighborhood buildings initially have no interiors, traffic, residents, customer
 
 - **Access clarity — implemented locally.** NO SEAT ROUTE and stair-hover explanations distinguish missing paths, blocked walls and mismatched heights. Highlighted entrance tiles guide both stair mirrors without requiring front pavement.
 - **Hands-on investigation: dugout-adjacent seats.** Test placement, collision boundaries, fan access, height and stair/concourse connections. Do not remove dugout collision checks as a shortcut. The side-walkway resolution does not settle every dugout seating case.
-- **Separate larger project: multi-level grandstands.** Under-stand construction and more advanced elevated access require deliberate design/testing.
+- **Multi-level grandstands — remaining scope.** The ground-under-elevated pass is published in v0.43. Independent additional upper floors, named level groups and more advanced elevated access still require deliberate design/testing.
 - **Later: tutorial.** Keep immediate placement guidance lightweight.
 - **Later: fan feedback.** Simple occasional bubbles and postgame comments tied to actual conditions; satisfaction/attendance consequences deferred.
 - **Later: trash/cleanliness.** Standard cans, recycling stations and dumpster; eventual concession litter and automatic custodial service. Excluded from current batches.
