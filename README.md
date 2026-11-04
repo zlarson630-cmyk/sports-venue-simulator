@@ -126,3 +126,7 @@ Use **Inspect fan (F)** and click a fan, or choose one in the existing picker, t
 The stadium and its fan-hiding surfaces are cached together until the layout, colors, camera, zoom, viewport or game/build mode changes. Deck geometry and draw ordering survive pan/zoom. Fans and construction previews remain live. Income updates only the balance display. Collision checks retain a spatial index and sort only fans ready to move; spacing, walking speeds and game times are unchanged.
 
 Run `npm run benchmark` for a reproducible 100-fan headless comparison. It reports JavaScript cost, excluding native canvas rasterization, and is not an FPS estimate. An optional source-file argument (`node scripts/benchmark.cjs /path/to/game.js`) compares a previous release. See `docs/PERFORMANCE-v041.md` for browser measurements and limits.
+
+### Decorations (v0.42)
+
+Open **Decorations** to place a tree ($250) or bronze baseball-player statue ($1,500). Each occupies one ground tile. R cycles tree shapes or turns the statue in 45° steps. Decorations use the normal save/export, removal/refund and undo tools. Keep the gate and walking routes clear; decorations block their occupied ground tile.

@@ -60,7 +60,7 @@ function game(saved, random=()=>0.5, options={}) {
     "wall",
     "gate",
     "concession",
-    "restroom", "drinks", "iceCream", "souvenir", "basicScoreboard", "deluxeScoreboard", "videoScoreboard", "vintageScoreboard",
+    "tree", "baseballStatue", "restroom", "drinks", "iceCream", "souvenir", "basicScoreboard", "deluxeScoreboard", "videoScoreboard", "vintageScoreboard",
     "erase",
   ].map((t) => {
     const button = element("tool-" + t);

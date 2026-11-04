@@ -1,3 +1,9 @@
+# v0.42
+
+- Add placeable one-tile decorative trees ($250) and bronze baseball-player statues ($1,500).
+- New collapsible Decorations group; R changes tree shape or turns statues 45°.
+- Decorations persist in saves/exports, support removal/refunds/undo, and block pedestrian routes.
+
 # v0.41
 
 - Cache the stadium bitmap and matching fan occlusion surfaces between view/layout changes.
