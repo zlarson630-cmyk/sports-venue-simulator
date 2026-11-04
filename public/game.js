@@ -56,6 +56,7 @@
     edges = {},
     infillDecks = {},
     underlays = {},
+    groundConcrete = {},
     workUnder=false,placementHeight="auto",foundationChoice="auto",
     history = [];
   const defaultTeam={primary:"#31566b",secondary:"#edc75b",accent:"#fff0c9",fenceMaterial:"green"};
@@ -66,7 +67,7 @@
     if(!value||!["primary","secondary","accent"].every(k=>validColor(value[k])))throw Error("Invalid team colors");
     return {primary:value.primary,secondary:value.secondary,accent:value.accent};
   }
-  const snapshot=()=>({tiles:{...tiles},edges:{...edges},infillDecks:{...infillDecks},underlays:{...underlays},money,team:{...team}});
+  const snapshot=()=>({tiles:{...tiles},edges:{...edges},infillDecks:{...infillDecks},underlays:{...underlays},groundConcrete:{...groundConcrete},money,team:{...team}});
   const homeWorld = [18,14], baseSpacing = 9;
   const basesWorld = [homeWorld,[27,14],[27,23],[18,23]];
   // Center-field wall is exactly 400 ft along the 45-degree home-to-center ray.
@@ -2146,6 +2147,10 @@
     for(const [k,v] of Object.entries(groundLayout())) if(isPath(v)) {
       const [x,y]=k.split(",").map(Number);drawObject(x,y,v);
     }
+    for(const k of Object.keys(groundConcrete)){
+      const [x,y]=k.split(",").map(Number);
+      diamond(x+0.5,y+0.5,PAVEMENT,PAVEMENT_EDGE);
+    }
     captureFaces=true;
     let all=worldGeometry.all;
     if(!all||worldGeometry.cameraRot!==cameraRot){
@@ -2226,12 +2231,18 @@
       const item=hover&&tiles[key(hover.x,hover.y)];document.getElementById("standHelp").textContent=isPlatform(item)?`${item.baseFeet} ft base · ${isHollow(item)?"OPEN":"SOLID"} underneath. Click its ground footprint to change. Ground-level sections stay solid.`:"Click a raised section's ground footprint to switch Solid / Open underneath.";
       if(hover){const item=tiles[key(hover.x,hover.y)];if(isPlatform(item))polygon(footprint(hover.x,hover.y,item).map(p=>project(...p)),isHollow(item)?"#54dab555":"#e8a04755","#ffe66d",2);}return;
     }
-    if(hover&&(workUnder||underlays[key(hover.x,hover.y)]&&!tiles[key(hover.x,hover.y)]||isHollow(tiles[key(hover.x,hover.y)])&&groundTypes.includes(tool))&&!["inspect","inspectFan"].includes(tool)){
-      document.getElementById("standHelp").hidden=false;
-      const old=underlays[key(hover.x,hover.y)]||(!isPlatform(tiles[key(hover.x,hover.y)])?tiles[key(hover.x,hover.y)]:null),error=tool==="erase"||tool==="paint"?null:groundPlacementError(hover.x,hover.y,{type:tool,rot},old);
-      document.getElementById("standHelp").textContent=error||"Ground layer · upper sections are kept. Shops need 12 ft of clear space; paths need 8 ft.";
-      diamond(hover.x+0.5,hover.y+0.5,error||tool==="erase"?"#f0717299":"#54dab555",error?"#a93131":"#27ba8a");
-      if(!error&&groundTypes.includes(tool)&&!old){ctx.save();ctx.globalAlpha=0.65;drawObject(hover.x,hover.y,{type:tool,rot});ctx.restore();}return;
+    const surface=hover&&surfacePlacement(hover.x,hover.y);
+    if(hover&&(surface||usesGroundLayer(key(hover.x,hover.y)))&&!["inspect","inspectFan"].includes(tool)){
+      const help=document.getElementById("standHelp"),k=key(hover.x,hover.y);
+      const next=surface||(tool==="erase"||tool==="paint"?null:groundPlacement(hover.x,hover.y));
+      const error=next?.error;
+      help.hidden=false;
+      help.textContent=error||(surface?"Concrete surface · existing construction is kept.":tool==="erase"&&groundConcrete[k]?"Remove ground concrete.":"Ground layer · upper sections are kept. Shops need 12 ft of clear space; paths need 8 ft.");
+      if(hover.x>=0&&hover.x<W&&hover.y>=0&&hover.y<H){
+        if(!error&&next?.item){ctx.save();ctx.globalAlpha=0.65;drawObject(hover.x,hover.y,next.item);ctx.restore();}
+        diamond(hover.x+0.5,hover.y+0.5,error||tool==="erase"?"#f0717299":"#54dab555",error?"#a93131":"#27ba8a");
+      }
+      return;
     }
     if(tool==="inspect"||tool==="inspectFan"){document.getElementById("standHelp").hidden=true;return;}
     const help=document.getElementById("standHelp");
@@ -2244,12 +2255,10 @@
     }
     if (hover && hover.x >= 0 && hover.x < W && hover.y >= 0 && hover.y < H) {
       const edge = wallEdge(hover.x, hover.y);
-      const existing=tiles[key(hover.x,hover.y)],completingDeck=completableDeck(existing,tool,rot),candidate=completingDeck?{...existing,type:"concourse"}:{type:tool,rot};
-      const infill=tool==="cornerLanding"&&isStand(existing)?infillPlacement(hover.x,hover.y,rot):null;
-      const standSnap=infill|| (completingDeck?{baseFeet:existing.baseFeet}:isPlatform({type:tool})?platformPlacement(hover.x,hover.y,rot):null);
-      const proposed=completingDeck?{...candidate,...standSnap}:isPlatform(candidate)?newPlatform({...candidate,...standSnap}):candidate;
+      const next=["wall","erase","paint"].includes(tool)?null:placement(hover.x,hover.y);
       const occupied = tool === "wall" ? edges[edge] || !edgeAllowed(edge) || diagonalWallCollision(edge) || sceneryBlocksEdge(edge) || (/[ad]$/.test(edge) && tiles[key(hover.x,hover.y)])
-        : standSnap?.error || (!infill&&((isPlatform(proposed)?columnError(hover.x,hover.y,proposed):null)||footprintError(hover.x,hover.y,proposed))) || blockedTile(key(hover.x, hover.y)) || (tiles[key(hover.x, hover.y)]&&!(infill&&!infill.error||completingDeck||tiles[key(hover.x,hover.y)].type==="halfPath"&&(tool==="path"||(tool==="halfPath"&&(rot+4)%8===tiles[key(hover.x,hover.y)].rot)))) || edges[key(hover.x,hover.y)+":a"] || edges[key(hover.x,hover.y)+":d"];
+        : next?.error;
+      if(next?.error){help.hidden=false;help.textContent=next.error;}
       if (tool === "wall") {
         drawWall(edge, occupied ? "#d35b65aa" : "#f5d554bb");
         const panel = edgePanel(edge);
@@ -2265,7 +2274,7 @@
       if (tool !== "erase" && tool!=="paint" && !occupied) {
         ctx.save();
         ctx.globalAlpha = 0.65;
-        const preview={...proposed,rot:completingDeck?0:rot,baseFeet:standSnap?.baseFeet||0};
+        const preview=next.item;
         if(isStand(preview)||isRamp(preview)||isDeck(preview))polygon(footprint(hover.x,hover.y,preview).map(([x,y])=>project(x,y)),"#f8e78c44","#f6e284");
         drawObject(hover.x,hover.y,preview);
         if(hasStairs(preview))drawStairEntrance(hover.x,hover.y,preview);
@@ -2302,13 +2311,62 @@
     try {
       localStorage.setItem(
         "svs01",
-        JSON.stringify({ version: 2, fieldRevision: 7, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, underlays, money, team }),
+        JSON.stringify({ version: 2, fieldRevision: 7, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, underlays, groundConcrete, money, team }),
       );
       return true;
     } catch (e) {
       toast("Browser storage unavailable. Export a park backup.");
       return false;
     }
+  }
+  function concreteError(x,y){
+    if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||x>=W||y<0||y>=H)return "Tile is outside the map.";
+    if(blockedTile(key(x,y)))return "Keep the playing field and dugouts clear.";
+    return footprintError(x,y,{type:"path",rot:0},{},{},{},{});
+  }
+  function usesGroundLayer(k){
+    return workUnder||underlays[k]&&!tiles[k]||isHollow(tiles[k])&&groundTypes.includes(tool);
+  }
+  function groundPlacement(x,y){
+    const k=key(x,y),map=underlays[k]?underlays:tiles[k]&&!isPlatform(tiles[k])?tiles:underlays,old=map[k];
+    const complete=old?.type==="halfPath"&&(tool==="path"||tool==="halfPath"&&(rot+4)%8===old.rot);
+    const item={type:complete?"path":tool,rot:complete?0:rot},cost=complete?prices.halfPath:prices[tool];
+    const error=old&&!complete?"Ground tile is already occupied.":groundPlacementError(x,y,item,old);
+    return {map,item,cost,error:error||(money<cost?"Not enough money":null)};
+  }
+  function placement(x,y){
+    const k=key(x,y),old=tiles[k],candidate={type:tool,rot};
+    const finish=(item,cost,error,kind)=>({item,cost,error:error||(money<cost?"Not enough money":null),kind});
+    if(blockedTile(k))return {error:"Keep the playing field clear!"};
+    if(tool==="cornerLanding"&&isStand(old)){
+      const snap=infillPlacement(x,y,rot);
+      return !snap||snap.error?{error:snap?.error||"Triangle already placed in this cell"}:
+        finish(newPlatform({...candidate,...snap}),prices.cornerLanding,null,"infill");
+    }
+    if(completableDeck(old,tool,rot)){
+      const item={...old,type:"concourse",rot:0};
+      return finish(item,prices.concourse-prices[old.type],footprintError(x,y,item),"deck");
+    }
+    if(old?.type==="halfPath"&&(tool==="path"||tool==="halfPath"&&(rot+4)%8===old.rot)){
+      return finish({type:"path",rot:0},prices.halfPath,null,"path");
+    }
+    if(old&&!(isPlatform(candidate)&&groundTypes.includes(old.type))||edges[k+":a"]||edges[k+":d"])return {error:"Tile is already occupied"};
+    const snap=isPlatform(candidate)?platformPlacement(x,y,rot):null;
+    if(snap?.error)return {error:snap.error};
+    const item=snap?newPlatform({...candidate,...snap}):candidate;
+    const error=(snap?columnError(x,y,item):null)||footprintError(x,y,item);
+    return finish(item,prices[tool],error);
+  }
+  function surfacePlacement(x,y){
+    const k=key(x,y);
+    if(tool!=="path"||isPath(tiles[k])||isPath(underlays[k]))return null;
+    const error=concreteError(x,y);
+    if(error)return {error};
+    if(groundConcrete[k])return {error:"Ground is already paved."};
+    // Use a normal walkway whenever its footprint has pedestrian clearance.
+    const path={type:"path",rot:0};
+    if(!columnError(x,y,path)&&!edges[k+":a"]&&!edges[k+":d"])return null;
+    return {item:path,cost:prices.path,error:money<prices.path?"Not enough money":null};
   }
   function groundPlacementError(x,y,item,old=null){
     if(!groundTypes.includes(item.type))return "Use a walkway, shop, restroom or decoration on the ground layer.";
@@ -2329,12 +2387,9 @@
       if(custom&&!validColor(custom.primary)){toast("Choose a valid color");return;}
       history.push(snapshot());map[k]={...old};if(custom)map[k].customColors=custom;else delete map[k].customColors;
     }else{
-      if(!groundTypes.includes(tool)){toast("Underneath mode builds ground paths, shops, bathrooms and decorations. Turn it off to edit upper sections.");return;}
-      const complete=old?.type==="halfPath"&&(tool==="path"||tool==="halfPath"&&(rot+4)%8===old.rot);
-      if(old&&!complete){toast("Ground tile is already occupied.");return;}
-      const item={type:complete?"path":tool,rot:complete?0:rot},error=groundPlacementError(x,y,item,old);
-      if(error){toast(error);return;}const cost=complete?prices.halfPath:prices[tool];if(money<cost){toast("Not enough money");return;}
-      history.push(snapshot());map[k]=item;money-=cost;
+      const next=groundPlacement(x,y);
+      if(next.error){toast(next.error);return;}
+      history.push(snapshot());next.map[k]=next.item;money-=next.cost;
     }
     update();store();draw();
   }
@@ -2368,7 +2423,17 @@
     if (hover.x < 0 || hover.x >= W || hover.y < 0 || hover.y >= H) return;
     const edge = wallEdge(hover.x, hover.y);
     if(tool==="foundation"){foundationAction(k);return;}
-    if(workUnder||underlays[k]&&!tiles[k]||isHollow(tiles[k])&&groundTypes.includes(tool)){groundAction(k);return;}
+    const groundKey=key(hover.x,hover.y),surface=surfacePlacement(hover.x,hover.y);
+    if(surface){
+      if(surface.error){toast(surface.error);return;}
+      history.push(snapshot());groundConcrete[groundKey]=true;money-=surface.cost;
+      update();store();draw();return;
+    }
+    if(tool==="erase"&&groundConcrete[groundKey]&&(workUnder||!tiles[k]&&!underlays[k]&&!infillDecks[k])){
+      history.push(snapshot());delete groundConcrete[groundKey];money+=Math.round(prices.path*0.7);
+      update();store();draw();return;
+    }
+    if(usesGroundLayer(k)&&tool!=="inspect"){groundAction(k);return;}
     if(tool==="inspect"){inspectedSection=tiles[k]?k:null;suggestedGhost=null;draw();return;}
     if(tool==="paint") {
       const candidates=wallSlots.map(r=>wallEdge(hover.x,hover.y,r)).filter(k=>edges[k]);
@@ -2413,30 +2478,22 @@
       if (removeEdge) { delete edges[chosen]; money += Math.round(prices.wall*0.7); }
       else { money += Math.round(prices[tiles[k].type]*0.7); delete tiles[k]; }
     } else {
-      if (blockedTile(k)) { toast("Keep the playing field clear!"); return; }
-      if(tool==="cornerLanding"&&isStand(tiles[k])){
-        const snap=infillPlacement(hover.x,hover.y,rot);if(!snap||snap.error){toast(snap?.error||"Triangle already placed in this cell");return;}
-        if(money<prices.cornerLanding){toast("Not enough money");return;}history.push(snapshot());money-=prices.cornerLanding;
-        infillDecks[k]=newPlatform({type:"cornerLanding",rot,...snap});update();store();draw();toast(`Independent concourse triangle · ${snap.baseFeet} ft. Click Remove here to remove the triangle first.`);return;
-      }
-      const oldDeck=tiles[k],completeDeck=completableDeck(oldDeck,tool,rot);
-      if(completeDeck){const error=footprintError(hover.x,hover.y,{...oldDeck,type:"concourse"});if(error){toast(error);return;}const cost=prices.concourse-prices[oldDeck.type];if(money<cost){toast("Not enough money");return;}history.push(snapshot());money-=cost;tiles[k]={...oldDeck,type:"concourse",rot:0};update();store();draw();toast(`Concourse completed · level at ${oldDeck.baseFeet} ft`);return;}
-      const complete=tiles[k]?.type==="halfPath"&&(tool==="path"||(tool==="halfPath"&&(rot+4)%8===tiles[k].rot));
-      if(complete) {
-        if(money<prices.halfPath){toast("Not enough money");return;}
-        history.push(snapshot());money-=prices.halfPath;tiles[k]={type:"path",rot:0};update();store();draw();return;
-      }
-      if (tiles[k]&&!(isPlatform({type:tool})&&groundTypes.includes(tiles[k].type)) || edges[k+":a"] || edges[k+":d"]) { toast("Tile is already occupied"); return; }
-      if (money < prices[tool]) { toast("Not enough money"); return; }
-      const snap=isPlatform({type:tool})?platformPlacement(hover.x,hover.y,rot):null;
-      if(snap?.error) {toast(snap.error);return;}
-      const placed=isPlatform({type:tool})?newPlatform({type:tool,rot,...snap}):{type:tool,rot};
-      const shapeError=(isPlatform(placed)?columnError(hover.x,hover.y,placed):null)||footprintError(hover.x,hover.y,placed);if(shapeError){toast(shapeError);return;}
+      const next=placement(hover.x,hover.y);
+      if(next.error){toast(next.error);return;}
+      const placed=next.item;
       history.push(snapshot());
-      money -= prices[tool];
-      if(tiles[k]&&isPlatform(placed))underlays[k]=tiles[k];
-      tiles[k] = placed;
-      if(snap)toast(isDeck(tiles[k])?`Concourse placed · level at ${snap.baseFeet} ft. Join matching-height walking surfaces.`:isRamp(tiles[k])?`Ramp placed · ${snap.baseFeet}–${snap.baseFeet+5} ft. Connect paths or concourses at its ends.`:`Section placed · ${snap.baseFeet}–${snap.baseFeet+5} ft · ${seatCapacity(tiles[k])} seats. Connect stair sections for access.`);
+      money-=next.cost;
+      if(next.kind==="infill"){
+        infillDecks[k]=placed;
+        toast(`Independent concourse triangle · ${placed.baseFeet} ft. Click Remove here to remove the triangle first.`);
+      }else{
+        if(!next.kind&&tiles[k]&&isPlatform(placed))underlays[k]=tiles[k];
+        tiles[k]=placed;
+        if(next.kind==="deck")toast(`Concourse completed · level at ${placed.baseFeet} ft`);
+        else if(isDeck(placed))toast(`Concourse placed · level at ${placed.baseFeet} ft. Join matching-height walking surfaces.`);
+        else if(isRamp(placed))toast(`Ramp placed · ${placed.baseFeet}–${placed.baseFeet+5} ft. Connect paths or concourses at its ends.`);
+        else if(isStand(placed))toast(`Section placed · ${placed.baseFeet}–${placed.baseFeet+5} ft · ${seatCapacity(placed)} seats. Connect stair sections for access.`);
+      }
     }
     if (history.length > 70) history.shift();
     update();
@@ -2501,7 +2558,7 @@
     if(fanActive)endFanTest("Layout changed; fan test ended.");
     let h = history.pop();
     if (h) {
-      tiles = h.tiles;infillDecks=h.infillDecks||{};underlays=h.underlays||{};
+      tiles = h.tiles;infillDecks=h.infillDecks||{};underlays=h.underlays||{};groundConcrete=h.groundConcrete||{};
       edges = h.edges;
       money = h.money;
       team=h.team||team;
@@ -2521,7 +2578,7 @@
   document.getElementById("reset").onclick = () => {
     if(fanActive)endFanTest("Layout changed; fan test ended.");
     if (confirm("Reset the ballpark and restore the starting budget?")) {
-      tiles = {};infillDecks={};underlays={};
+      tiles = {};infillDecks={};underlays={};groundConcrete={};
       edges = {};
       money = 500000;
       history = [];
@@ -2696,11 +2753,19 @@
       const [x,y]=k.split(",").map(Number),error=footprintError(x,y,v,clean,cleanEdges,cleanInfills,cleanUnderlays);
       if(error)throw Error(error);
     }
-    return { gameMinutes:[1,2,5,10].includes(saved.gameMinutes)?saved.gameMinutes:5, requestedFans:attendanceChoice(saved.requestedFans), tiles: clean, edges: cleanEdges, infillDecks:cleanInfills, underlays:cleanUnderlays, money: cash, team:cleanTeam,entranceRevision:saved.entranceRevision||0 };
+    const concrete=saved.groundConcrete;
+    if(concrete!==undefined&&(!concrete||typeof concrete!=="object"||Array.isArray(concrete)))throw Error("Invalid ground concrete");
+    const cleanConcrete={};
+    for(const [k,v] of Object.entries(concrete||{})){
+      const [x,y]=k.split(",").map(Number);
+      if(k!==key(x,y)||v!==true||concreteError(x,y))throw Error("Invalid ground concrete tile");
+      cleanConcrete[k]=true;
+    }
+    return { groundConcrete:cleanConcrete, gameMinutes:[1,2,5,10].includes(saved.gameMinutes)?saved.gameMinutes:5, requestedFans:attendanceChoice(saved.requestedFans), tiles: clean, edges: cleanEdges, infillDecks:cleanInfills, underlays:cleanUnderlays, money: cash, team:cleanTeam,entranceRevision:saved.entranceRevision||0 };
   }
   document.getElementById("export").onclick = () => {
     const blob = new Blob(
-        [JSON.stringify({ version: 2, fieldRevision: 7, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, underlays, money, team }, null, 2)],
+        [JSON.stringify({ version: 2, fieldRevision: 7, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, underlays, groundConcrete, money, team }, null, 2)],
         { type: "application/json" },
       ),
       url = URL.createObjectURL(blob),
@@ -2721,7 +2786,7 @@
       if (confirm("Replace the current layout with this park?")) {
         history.push(snapshot());
         if(fanActive)endFanTest("Park imported; fan test ended.");
-        tiles = park.tiles;infillDecks=park.infillDecks;underlays=park.underlays;
+        tiles = park.tiles;infillDecks=park.infillDecks;underlays=park.underlays;groundConcrete=park.groundConcrete;
         edges = park.edges;
         money = park.money;
         team=park.team;gameMinutes=park.gameMinutes;gameMinutesControl.value=String(gameMinutes);requestedFans=park.requestedFans;fanCountControl.value=String(requestedFans);
@@ -2741,7 +2806,7 @@
     const raw = localStorage.getItem("svs01");
     if (raw) {
       const saved = validatePark(JSON.parse(raw));
-      tiles = saved.tiles;infillDecks=saved.infillDecks;underlays=saved.underlays;
+      tiles = saved.tiles;infillDecks=saved.infillDecks;underlays=saved.underlays;groundConcrete=saved.groundConcrete;
       edges = saved.edges;
       money = saved.money;
       team=saved.team;gameMinutes=saved.gameMinutes;gameMinutesControl.value=String(gameMinutes);requestedFans=saved.requestedFans;fanCountControl.value=String(requestedFans);
