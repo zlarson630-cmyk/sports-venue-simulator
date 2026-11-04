@@ -1,6 +1,14 @@
 # Sports Venue Simulator — design backlog
 
-Agreed scope as of October 31, 2026. Keep it simple, make it work, then expand.
+Current baseline: v0.42. Historical decisions and release checkpoints follow below. Keep it simple, make it work, then expand.
+
+## Chunk 2.5 verification pass
+
+The requested backlog and intelligent movement were already published before this pass. Retain the current implementation and later fixes rather than reintroducing v0.27 code. The live arrival planner is `partySeatPlan`; `arrivalSchedule` alone is not evidence that gameplay arrivals work. Regression checks must exercise `startFanTest` and complete crowd cycles.
+
+Current behavior: selectable 1/2/5/10-minute games (five minutes by default), 100/250/500/1,000 requested fans limited by reachable seats, persistent social parties, traffic-weighted concourse routes, personal spacing, gate/stair queues and staggered exits to the parking spawn. Preserve later bathrooms, food service, decorations, rendering cache and saved parks.
+
+Priorities: (1) keep crowd completion, spacing and save/economy regressions passing; (2) complete hands-on gameplay acceptance using CHUNK-2.5-TESTING.md; (3) pursue the queued construction, visibility and fan-experience work recorded below. Historical “local” and “pending” entries describe their release checkpoint, not a rollback request. Current release limitations are summarized in RELEASE-STATUS.md.
 This file distinguishes accepted player tests from ideas and implementation work.
 
 ## Release rules
@@ -24,7 +32,7 @@ This file distinguishes accepted player tests from ideas and implementation work
 - Random arrival intervals, small groups, singles and quiet gaps; vary the pattern each game.
 - Personal spacing and queues on arrival and departure, including gates and stair bottlenecks.
 - Prefer practical low-resistance routes: concourses/walkways over long trips across seating rows; consider stairs and expected route traffic.
-- At the end of the two-minute game, stagger departures, return through valid stairs/paths/gate to the original spawn point, then allow the next game.
+- At the end of the selected game duration, stagger departures, return through valid stairs/paths/gate to the original spawn point, then allow the next game.
 - Preserve ticket accounting, saves and construction undo. Never charge again on departure.
 - Verify 100-fan completion and performance, mirrored end stairs, raised concourses, diagonal routes, camera rotation and repeated games.
 - Status: published in v0.27; 62 regression checks passed before publication. Subsequent local v0.29 checks cover all agreed batches.
