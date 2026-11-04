@@ -26,6 +26,8 @@
       gate: 800,
       concession: 2500,
       restroom: 2000,
+      tree:250,
+      baseballStatue:1500,
       drinks:2200,
       iceCream:2300,
       souvenir:3000,
@@ -217,6 +219,7 @@
     [0, 1],
     [1, 1],
   ];
+  const decorationTypes=["tree","baseballStatue"];
   const amenityTypes=["concession","drinks","iceCream","souvenir","restroom"];
   const scoreboardTypes=["basicScoreboard","deluxeScoreboard","videoScoreboard","vintageScoreboard"];
   const isPath = item => item?.type==="path"||item?.type==="halfPath";
@@ -901,6 +904,8 @@
         box(0.22, -0.12, 0.12, 0.24, 17, "#a8aaa5", "#dfddce");
         segment([-0.34, 0], [0.34, 0], 17, "#f9cc51", 5);
         break;
+      case "tree":drawRoadsideTree({x:x+0.5,y:y+0.5,variant:item.rot%3,placed:true});break;
+      case "baseballStatue":drawBaseballStatue(x,y,item);break;
       case "concession":
       case "drinks":
       case "iceCream":
@@ -1185,8 +1190,10 @@
     const size=[1,0.9,1.1][tree.variant],h=22*size*z;
     ctx.beginPath();ctx.ellipse(p.x+3*z,p.y+2*z,10*size*z,4*size*z,0,0,Math.PI*2);
     ctx.fillStyle="#284b3030";ctx.fill();
+    if(tree.placed)captureFace([{x:p.x-1.5*z,y:p.y,depth:p.depth},{x:p.x+1.5*z,y:p.y,depth:p.depth},{x:p.x+1.5*z,y:p.y-h*0.7,depth:p.depth},{x:p.x-1.5*z,y:p.y-h*0.7,depth:p.depth}],"#74513a");
     line(p,{x:p.x,y:p.y-h*0.7},"#74513a",3);
     const crown=(dx,dy,rx,ry,color)=>{
+      if(tree.placed)captureFace(Array.from({length:16},(_,i)=>{const a=i*Math.PI/8;return {x:p.x+(dx+Math.cos(a)*rx*size)*z,y:p.y+(dy+Math.sin(a)*ry*size)*z,depth:p.depth};}),color);
       ctx.beginPath();ctx.ellipse(p.x+dx*z,p.y+dy*z,rx*size*z,ry*size*z,0,0,Math.PI*2);
       ctx.fillStyle=color;ctx.fill();
     };
@@ -1194,6 +1201,37 @@
     crown(-4,-h/z-2,7.5,9,"#4e8850");
     crown(3,-h/z+2,7,8,"#427c46");
     crown(-3,-h/z-7,5.5,5,"#70a05b");
+  }
+  // Generic bronze batter on a stone plinth; all eight facings fit one ground cell.
+  function drawBaseballStatue(x,y,item){
+    const [dx,dy]=directions[item.rot],len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len;
+    const at=(a,b,h=0)=>{const p=project(x+0.5+ux*a-uy*b,y+0.5+uy*a+ux*b);p.y-=h*FT*zoom;return p;};
+    const prism=(a,b,w,d,low,high,side,top)=>{
+      const cs=[[a,b],[a+w,b],[a+w,b+d],[a,b+d]],center=at(a+w/2,b+d/2);
+      for(let i=0;i<4;i++){const c=cs[i],n=cs[(i+1)%4];if((at(...c).y+at(...n).y)/2<center.y-1e-8)continue;polygon([at(...c,low),at(...n,low),at(...n,high),at(...c,high)],side,null);}
+      polygon(cs.map(c=>at(...c,high)),top,null);
+    };
+    const disc=(p,rx,ry,fill)=>{polygon(Array.from({length:16},(_,i)=>({x:p.x+Math.cos(i*Math.PI/8)*rx*zoom,y:p.y+Math.sin(i*Math.PI/8)*ry*zoom,depth:p.depth})),fill,null);};
+    polygon([at(-0.37,-0.37),at(0.37,-0.37),at(0.37,0.37),at(-0.37,0.37)],"#284b3020",null);
+    prism(-0.31,-0.31,0.62,0.62,0,0.6,"#8b9393","#d2d0bf");
+    prism(-0.25,-0.25,0.5,0.5,0.6,2.2,"#858b88","#c3c3b5");
+    prism(-0.28,-0.28,0.56,0.56,2.2,2.6,"#9a9d91","#dedbc9");
+    if((at(-0.25,-0.251).y+at(0.25,-0.251).y)/2>at(0,0).y){polygon([at(-0.15,-0.252,1),at(0.15,-0.252,1),at(0.15,-0.252,1.7),at(-0.15,-0.252,1.7)],"#bba060",null);}
+    const bronze="#6d6246",light="#a29360",dark="#4f5340";
+    // Bent legs, sculpted jersey, joined hands and a bat above the shoulder.
+    line(at(-0.09,0.02,2.65),at(-0.06,0.04,4.1),dark,1.8);
+    line(at(-0.06,0.04,4.1),at(-0.01,0,5.25),bronze,2.1);
+    line(at(0.15,-0.08,2.65),at(0.13,-0.02,4),bronze,1.8);
+    line(at(0.13,-0.02,4),at(0.035,0,5.25),light,2);
+    prism(-0.09,-0.06,0.18,0.12,5.05,7.05,bronze,light);
+    line(at(-0.07,-0.03,6.8),at(-0.19,-0.1,6.1),bronze,1.6);
+    line(at(-0.19,-0.1,6.1),at(0.13,-0.13,6.8),light,1.5);
+    line(at(0.07,-0.03,6.8),at(0.19,-0.1,6.3),bronze,1.6);
+    line(at(0.19,-0.1,6.3),at(0.13,-0.13,6.8),light,1.5);
+    line(at(0.13,-0.13,6.6),at(0.2,0.17,10.7),light,1.2);
+    disc(at(0,-0.01,7.75),1.65,1.8,light);
+    disc(at(0,-0.01,8.45),1.9,0.8,bronze);
+    line(at(-0.09,-0.1,8.4),at(0.1,-0.1,8.4),dark,1.1);
   }
   function drawMainGate() {
     const a=project(...mainGate.a),b=project(...mainGate.b),h=20*zoom;
@@ -1232,7 +1270,7 @@
   function solidBuildingAt(x,y) {
     // Reserve the whole occupied cell, including a small pedestrian clearance.
     for(const [k,v] of Object.entries(tiles)) {
-      if(![...amenityTypes,...scoreboardTypes,"bleacher"].includes(v.type)&&!isPlatform(v))continue;
+      if(![...amenityTypes,...scoreboardTypes,...decorationTypes,"bleacher"].includes(v.type)&&!isPlatform(v))continue;
       if(isCorner(v)||isDeck(v)&&v.type!=="concourse"){const [a,b]=k.split(",").map(Number);if(pointInPolygon(x,y,footprint(a,b,v)))return true;continue;}
       if(isRamp(v)){const [a,b]=k.split(",").map(Number),[dx,dy]=directions[v.rot],along=(x-a-0.5)*dx+(y-b-0.5)*dy+0.5,across=-(x-a-0.5)*dy+(y-b-0.5)*dx;if(along>0&&along<6&&Math.abs(across)<0.5)return true;continue;}
       const [bx,by]=k.split(",").map(Number);
@@ -2343,6 +2381,7 @@
     if (t === "wall") { if (!wallSlots.includes(rot)) rot = 0; toast("R cycles 4 tile edges and 2 corner-to-corner diagonals."); }
     update(); draw();
     if(t==="inspectFan")toast("Click a fan during a game to see hunger, bathroom need and activity. Esc closes.");
+    if(decorationTypes.includes(t))toast(t==="tree"?"Decorative tree · one ground tile · R changes its shape. Keep walkways clear.":"Bronze baseball-player statue · one ground tile · R turns it 45°. Place beside a walkway.");
     if(t==="concession")toast("Food stand: $5 meals, one customer at a time. Connect an adjoining ground walkway to the gate.");
     if (t === "bleacher") toast("Gold arrow = fans face this way. R rotates before placement.");
     document
