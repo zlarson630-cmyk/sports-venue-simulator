@@ -191,3 +191,17 @@ Completed the five corrections above: opposing keep-right walking lanes and save
 ## v0.35 infrastructure pass
 
 Implemented the requested attendance dropdown (100/200/400, saved, seat-capped, next-game changes). Corrected the backstop's raked depth to ten feet while retaining a five-foot rise and adding a level rear landing inside the original reserved footprint. New fence corners use a shared front apex and empty narrow rows; legacy connectors preserve old bank ports. Solid stair/full/partial-concourse foundations, top/rear guards and diagonal connection aprons address the reported floating construction and railing gaps. The new bowl demo has 122 reachable seats for $31,200. A legal two-tier, 416-seat park completed a 400-fan run; the browser rear-access test completed 28 capped admissions and exits. Automatic widening upper-bowl wedge variants and other sports remain deferred; current fence wedges serve one bank depth at a time. Fan needs remain deferred to protect scope.
+
+## Future advanced seating geometry — MLB outfield-corner references (November 3, 2026)
+
+**Status: design approved for backlog; not implemented by this note.** Reference images supplied by player show real MLB seating bowls, including Wrigley Field, where sections approaching the outfield corners rotate their sightlines toward the infield and seating rows are effectively sheared/trimmed by the outfield wall. Aim for a usable, natural-looking bowl, not cosmetic seats that cannot be reached.
+
+- **Separate seat facing, section footprint, and fan-access graph.** A section may face the infield independently of the wall orientation and of its aisle/concourse connections.
+- **Preserve the 10 ft build grid.** Permit seating geometry inside/over grid cells to rotate, form angled/wedge-shaped sections, and trim row lengths against the fence. Preserve fence boundaries and existing park layouts.
+- **Three useful shapes:** straight existing sections; infield-facing angled sections; wall-trimmed/sheared sections with different numbers of seats per row. Eventually support curved bowl transitions through assembled wedges, not a required single curved tile.
+- **Functional seat model:** every seat has a real position, facing direction, row and capacity; trim seats rather than let them clip the fence. Every row/aisle must have an accessible route to connected stairs or concourses, including side-entry and rear access.
+- **Crowd-routing integration:** prefer concourses and nearby row entrances over long walks past seated spectators; support congestion and physical spacing on arrival/departure.
+- **Build validation and clarity:** preview seat counts and clipped rows, show aisle/stair/concourse connection points, and give actionable diagnostics for inaccessible seats. Don't count unreachable seats as usable capacity.
+- **Incremental delivery:** (1) rotated/infield-facing sections, (2) fence-trimmed rows, (3) more sophisticated wedge/curved transitions. Test wall collision, saved parks, rotated camera views, aisle links and actual fan seating/exits at each step.
+
+This extends the already implemented v0.33–v0.35 corner pieces; those do **not** yet constitute general-purpose, automatically wall-trimmed, freely oriented seating. Prioritize after the current crowd/construction acceptance work.
