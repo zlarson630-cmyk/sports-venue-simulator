@@ -1365,14 +1365,15 @@ test('fan inspection opens from the picker, reports missing food and closes with
 test('food customers finish service after the clock, queued customers cancel, without a second charge',()=>{
  const saved=JSON.parse(fs.readFileSync(new URL('./fixtures/two-level-wedge-v038.json',`file://${__filename}`),'utf8'));
  saved.tiles['10,4']={type:'concession',rot:0};saved.gameMinutes=1;
- const g=game(saved,seededRandom(42));g.api.startFanTest();const crowd=g.api.fanState().fans;
+ const g=game(saved,seededRandom(42),{record:false});g.api.startFanTest();const crowd=g.api.fanState().fans;
  for(const f of crowd){f.bathroomNeed=0;f.hunger=0;}g.api.advanceFans(54);
  // Use real validated outbound routing, then position four customers at its doorway.
  for(const f of crowd.slice(0,4)){
   assert.ok(g.api.startAmenityTrip(f,'concession'));f.index=f.route.length-2;Object.assign(f,f.route.at(-1));
-  g.api.advanceFans(0.02);
+  g.api.advanceFans(0.5);
  }
  const buyer=crowd.find(f=>f.activity==='buying food');assert.ok(buyer);
+ assert.equal(crowd.filter(f=>f.activity==='waiting for food').length,3);
  buyer.serviceSeconds=8;const before=g.api.state().money;
  g.api.advanceFans(6);assert.equal(g.api.fanState().fanPhase,'finishing arrivals');assert.equal(buyer.foodPaid,false);
  g.api.advanceFans(3);assert.equal(buyer.foodPaid,true);assert.equal(g.api.state().money-before,5);
