@@ -12,6 +12,8 @@ for(const restroom of [false,true])test(`early ${restroom?'restroom':'food'} sto
   g.api.startFanTest();
   const crowd=g.api.fanState().fans;
   assert.equal(crowd.length,100);
+  // Keep the fan at the back of the shared corridor free to take in the view.
+  for(const fan of crowd.filter(f=>f.scenicCandidate)){fan.bathroomNeed=0;fan.hunger=0;}
   let sawPause=false;
   for(let second=0;second<260&&g.api.fanState().fanActive;second++){
     g.api.advanceFans(1);
