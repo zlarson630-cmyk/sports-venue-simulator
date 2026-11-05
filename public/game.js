@@ -1809,9 +1809,9 @@
     if(!arrivalNode&&fans.some(f=>f!==fan&&
       (f.activity==="returning to seat"||f.activity==="arriving"||
        ["to restroom","to concession"].includes(f.activity)&&!f.route.slice(0,f.index+1).some(p=>p.node?.startsWith("g:")))&&
-      f.route.slice(f.index).some(p=>rowNodes.has(p.node))||
+      (f.activity==="arriving"?f.route.slice(f.index):f.walkingRoute).some(p=>rowNodes.has(p.node))||
       f!==fan&&["using restroom","buying food"].includes(f.activity)&&f.serviceSeconds<=0&&
-      f.returnRoute?.some(p=>rowNodes.has(p.node)))){
+      f.walkingRoute?.some(p=>rowNodes.has(p.node)))){
       fan[wait]="waiting for traffic in this seating aisle";fan[retry]=0.5;return false;
     }
     const room=choices[0].room;
@@ -1859,7 +1859,7 @@
         const corridor=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
         if(fans.some(f=>f!==fan&&(f.activity==="returning to seat"||["to restroom","to concession"].includes(f.activity)||
           fan.tripFromArrival&&(f.activity==="arriving"||f.activity==="taking in the view"))&&
-          f.route.slice(f.index).some(p=>corridor.has(p.node))))continue;
+          f.walkingRoute.some(p=>corridor.has(p.node))))continue;
         room.using.delete(fan);if(room.kind==="restroom")fan.bathroomNeed=0;fan.activity="returning to seat";fan.insideAmenity=false;
         fan.route=laneRoute(fan.returnRoute);fan.index=0;
         if(room.line){
