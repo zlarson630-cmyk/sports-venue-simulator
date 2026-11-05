@@ -1953,7 +1953,15 @@
       const walkingRoute=slot.routeFor(routeTraffic);
       for(const p of walkingRoute)traffic.set(p.node,(traffic.get(p.node)||0)+1);
       const route=laneRoute(seatRoute(arrival,walkingRoute,target)),initialNeed=20+Math.random()*40;
-      fans.push({walkingRoute,scenicCandidate:i%17===6,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:needsRate===0?0:i%13===4?82:initialNeed,bathroomVisits:0,hunger:needsRate===0?0:i%13===8?82:20+(i%7)*5,foodVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
+      fans.push({walkingRoute,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:needsRate===0?0:i%13===4?82:initialNeed,bathroomVisits:0,hunger:needsRate===0?0:i%13===8?82:20+(i%7)*5,foodVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
+    }
+    // A pause must not let another fan overtake into the same narrow stair
+    // or row. Only the last arrival assigned to a corridor may stop.
+    const laterCorridors=new Set();
+    for(let i=fans.length-1;i>=0;i--){
+      const fan=fans[i],corridor=fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node));
+      fan.scenicCandidate=!corridor.some(p=>laterCorridors.has(p.node));
+      for(const p of corridor)laterCorridors.add(p.node);
     }
     happinessFinal=false;happinessNext=0;nextNeedsDispatch=0;
     happinessAttractions=[...Object.entries(tiles),...Object.entries(underlays)].flatMap(([k,item])=>{
@@ -2073,7 +2081,7 @@
     }))return;
     // Wait for a lull before stepping across a lane into a viewing spot.
     if(nearbySome(here,f=>f!==fan&&f.spawned&&!f.seated&&!f.exited&&!f.insideAmenity&&fanDistance(f,here)<0.65))return;
-    const routes=fans.filter(f=>f!==fan&&!f.exited).flatMap(f=>[f.route,f.returnRoute].filter(Boolean));
+    const routes=fans.filter(f=>f!==fan&&!f.exited&&!f.seated).flatMap(f=>[f.route,f.returnRoute].filter(Boolean));
     const trafficUses=spot=>routes.some(route=>route.some((a,i)=>{
       const b=route[i+1];
       if(!b||Math.abs(a.feet-spot.feet)>0.5||Math.abs(b.feet-spot.feet)>0.5||
