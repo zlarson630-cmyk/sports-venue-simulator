@@ -1656,7 +1656,7 @@
     const report={connected:false,message:cause,block,suggestion,plan};accessCache={key:k,revision:accessRevision,report};return report;
   }
   // Amenities share the seating access graph, ground routes, and bounded trip batches.
-  let amenityServices=[], selectedFan=null, followFan=false, completedBathroomTrips=0, visitorsReturning=false;
+  let amenityServices=[], selectedFan=null, followFan=false, completedBathroomTrips=0;
   let happinessAttractions=[], happinessNext=0, happinessFinal=false;
 
   function recordFanExperience(fan,step){
@@ -1795,18 +1795,25 @@
     }
   }
   function startAmenityTrip(fan,kind="restroom",arrivalNode=null){
-    const food=kind==="concession",retry=food?"hungerRetry":"bathroomRetry",blocked=food?"hungerBlocked":"bathroomBlocked";
-    if(visitorsReturning){fan[retry]=0.5;return false;}
+    const food=kind==="concession",retry=food?"hungerRetry":"bathroomRetry",blocked=food?"hungerBlocked":"bathroomBlocked",wait=food?"foodWaitReason":"bathroomWaitReason";
+    fan[wait]=null;
     const groundIndex=arrivalNode?fan.walkingRoute.findIndex(p=>p.node===arrivalNode):fan.walkingRoute.findLastIndex(p=>p.node?.startsWith("g:"));
     if(groundIndex<0)return false;
     const groundNode=fan.walkingRoute[groundIndex].node;
     const reachable=amenityServices.filter(r=>r.kind===kind&&r.parents.has(groundNode)&&(!arrivalNode||r.parents.get(groundNode)===null));
     if(arrivalNode&&!reachable.length)return false;
-    if(reachable.length&&reachable.every(r=>r.active>=r.capacity)){fan[retry]=1;return false;}
+    if(reachable.length&&reachable.every(r=>r.active>=r.capacity||r.earlyFood)){fan[wait]="waiting for space at a "+(food?"food stand":"restroom");fan[retry]=1;return false;}
     const choices=reachable.filter(r=>r.active<r.capacity&&!r.earlyFood&&(!arrivalNode||r.active<(r.line?1:RESTROOM_STALLS))).map(room=>({room,cost:room.costs.get(groundNode)+(room.queue.length+room.using.size)*2})).sort((a,b)=>a.cost-b.cost);
-    if(!choices.length){fan[blocked]=true;fan[retry]=10;return false;}
+    if(!choices.length){fan[blocked]=true;fan[wait]="no reachable "+(food?"food stand":"restroom");fan[retry]=10;return false;}
     const rowNodes=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
-    if(!arrivalNode&&fans.some(f=>f!==fan&&(f.activity==="returning to seat"||f.activity==="arriving"&&f.route.slice(f.index).some(p=>rowNodes.has(p.node))||["to restroom","to concession"].includes(f.activity)&&!f.route.slice(0,f.index+1).some(p=>p.node?.startsWith("g:")))&&f.walkingRoute?.some(p=>rowNodes.has(p.node)))){fan[retry]=0.5;return false;}
+    if(!arrivalNode&&fans.some(f=>f!==fan&&
+      (f.activity==="returning to seat"||f.activity==="arriving"||
+       ["to restroom","to concession"].includes(f.activity)&&!f.route.slice(0,f.index+1).some(p=>p.node?.startsWith("g:")))&&
+      (f.activity==="arriving"?f.route.slice(f.index):f.walkingRoute).some(p=>rowNodes.has(p.node))||
+      f!==fan&&["using restroom","buying food"].includes(f.activity)&&f.serviceSeconds<=0&&
+      f.walkingRoute?.some(p=>rowNodes.has(p.node)))){
+      fan[wait]="waiting for traffic in this seating aisle";fan[retry]=0.5;return false;
+    }
     const room=choices[0].room;
     const arrivalPoint=arrivalNode?fan.route[fan.index]:null;
     if(arrivalPoint&&food){
@@ -1849,10 +1856,8 @@
     for(const room of amenityServices){
       for(const fan of [...room.using]){fan.serviceSeconds-=step;if(fan.serviceSeconds>0)continue;
         if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;concessionRevenue+=5;pendingFoodRevenue+=5;}
-        visitorsReturning=true;
-        if(fans.some(f=>["to restroom","to concession"].includes(f.activity)))continue;
         const corridor=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
-        if(fans.some(f=>f!==fan&&(f.activity==="returning to seat"||
+        if(fans.some(f=>f!==fan&&(f.activity==="returning to seat"||["to restroom","to concession"].includes(f.activity)||
           fan.tripFromArrival&&(f.activity==="arriving"||f.activity==="taking in the view"))&&
           f.walkingRoute.some(p=>corridor.has(p.node))))continue;
         room.using.delete(fan);if(room.kind==="restroom")fan.bathroomNeed=0;fan.activity="returning to seat";fan.insideAmenity=false;
@@ -1876,7 +1881,6 @@
         fan.serviceSeconds=SERVICE_SECONDS;room.using.add(fan);
       }
     }
-    if(visitorsReturning&&amenityServices.every(r=>r.active===0))visitorsReturning=false;
     if(fanPhase!=="game"||needsRate===0)return;
     for(const fan of fans){
       if(!Number.isFinite(fan.bathroomNeed)||fan.exited||fan.insideAmenity)continue;
@@ -1910,7 +1914,9 @@
     document.getElementById("bathroomValue").textContent=need+"%";
     document.getElementById("hungerMeter").value=hunger;
     document.getElementById("hungerValue").textContent=hunger+"%";
-    const activity=fan.seated&&needsRate>0?(need>=NEED_THRESHOLD&&!fan.bathroomBlocked?"waiting for a clear restroom route":hunger>=NEED_THRESHOLD&&!fan.hungerBlocked?"waiting for a clear food route":fan.activity):fan.activity;
+    const activity=fan.seated&&needsRate>0?
+      need>=NEED_THRESHOLD?(fan.bathroomWaitReason||"looking for a restroom"):
+      hunger>=NEED_THRESHOLD?(fan.foodWaitReason||"looking for food"):fan.activity:fan.activity;
     const details=`Fan ${fans.indexOf(fan)+1} · Party ${fan.partyId+1} (${fan.partySize} people) · ${fan.exited?"Left the park":activity}. Row ${fan.row+1}, seat ${fan.col+1}. Restroom visits: ${fan.bathroomVisits}. Food visits: ${fan.foodVisits||0}. `+(fan.exited||fanPhase==="exiting"?"Heading home after the game.":"Keeps the same reserved seat with their party. ")+(fan.bathroomBlocked?"No reachable restroom. Connect a ground walkway beside a restroom. ":"")+(fan.hungerBlocked?"No reachable food stand. Connect a ground walkway beside a concession stand.":"");
     const detailPanel=document.getElementById("fanDetails");if(detailPanel.textContent!==details)detailPanel.textContent=details;
   }
@@ -1971,7 +1977,7 @@
       return [{key:k,x:x+0.5,y:y+0.5,dx,dy,board,feet:(item.type==="videoScoreboard"?35:26)/FT}];
     });
     updateHappiness();
-    prepareAmenities();completedBathroomTrips=0;visitorsReturning=false;selectedFan=null;concessionRevenue=0;foodSales=0;pendingFoodRevenue=0;
+    prepareAmenities();completedBathroomTrips=0;selectedFan=null;concessionRevenue=0;foodSales=0;pendingFoodRevenue=0;
     document.getElementById("fanPicker").innerHTML=`<option value="">Choose a fan…</option>`+fans.map((f,i)=>`<option value="${i}">Fan ${i+1} · Party ${f.partyId+1}</option>`).join("");
     document.getElementById("fanPicker").value="";
     fanActive=true;fanStatus(`Game on · ${GAME_SECONDS/60}:00 remaining · $5 admission. Fans are walking to their seats.`);
