@@ -255,9 +255,12 @@
   const isPlatform = item => isStand(item)||isDeck(item)||isRamp(item);
   const isHollow=item=>isPlatform(item)&&item.hollow===true&&item.baseFeet>0;
   const groundTypes=["path","halfPath",...amenityTypes,...decorationTypes];
-  const groundHeight=item=>isPath(item)?8:item.type==="tree"?20:12;
+  const groundHeight=item=>isPath(item)?8:item.type==="tree"?20:amenityTypes.includes(item.type)?10:12;
   const groundLayout=()=>({...Object.fromEntries(Object.entries(tiles).filter(([,v])=>!isPlatform(v))),...underlays});
-  const separated=(a,b)=>isHollow(a)&&!isPlatform(b)&&a.baseFeet-0.5>=groundHeight(b)||isHollow(b)&&!isPlatform(a)&&b.baseFeet-0.5>=groundHeight(a);
+  const undersideClearance=item=>item.baseFeet-0.5+(isSeatSection(item)?0.625:0);
+  const clearsGround=(upper,lower)=>isHollow(upper)&&!isPlatform(lower)&&
+    (amenityTypes.includes(lower.type)?undersideClearance(upper):upper.baseFeet-0.5)>=groundHeight(lower);
+  const separated=(a,b)=>clearsGround(a,b)||clearsGround(b,a);
   const visiblePiece=item=>!workUnder||!isPlatform(item)||item.baseFeet===0;
   function columnError(x,y,item,layout=tiles,below=underlays,extras=infillDecks){
     const shape=footprint(x,y,item);
@@ -265,7 +268,7 @@
       if(v===item)continue;const [a,b]=k.split(",").map(Number);
       if(!overlaps(shape,footprint(a,b,v)))continue;
       if(isPlatform(item)&&isPlatform(v))continue; // Existing platform-footprint rules handle upper pieces.
-      if(!separated(item,v))return isPlatform(item)||isPlatform(v)?"Not enough open space below this section. Use Open underneath and enough height (10 ft for paths, 15 ft for shops).":"Ground tile is already occupied.";
+      if(!separated(item,v))return isPlatform(item)||isPlatform(v)?"Not enough open space below this section. Use Open underneath and enough height (10 ft base for paths, 10 ft clear for shops).":"Ground tile is already occupied.";
     }
     if(isHollow(item))for(const [a,b] of entrancePaving)if(automaticPath(a,b)&&overlaps(shape,footprint(a,b,{type:"path"}))&&item.baseFeet-0.5<8)return "Keep at least 8 ft of headroom over the entrance walkway.";
     return null;
@@ -1653,9 +1656,106 @@
     const report={connected:false,message:cause,block,suggestion,plan};accessCache={key:k,revision:accessRevision,report};return report;
   }
   // Amenities share the seating access graph, ground routes, and bounded trip batches.
-  let amenityServices=[], selectedFan=null, completedBathroomTrips=0, visitorsReturning=false;
+  let amenityServices=[], selectedFan=null, followFan=false, completedBathroomTrips=0, visitorsReturning=false;
+  let happinessAttractions=[], happinessNext=0, happinessFinal=false;
+
+  function recordFanExperience(fan,step){
+    if(!fan.paid||fan.exited)return;
+    fan.experienceTime=(fan.experienceTime||0)+step;
+    if(fan.seated)fan.seatTime=(fan.seatTime||0)+step;
+    if(fan.activity==="waiting for food"||fan.activity==="waiting restroom"){
+      const waitKey=fan.activity==="waiting for food"?"foodWait":"restroomWait";
+      fan[waitKey]=(fan[waitKey]||0)+step;
+    }else if(fan.blockedFor>3)fan.trafficWait=(fan.trafficWait||0)+step;
+  }
+  function updateHappiness(final=false){
+    const meter=document.getElementById("fanHappiness"),score=document.getElementById("fanHappinessValue");
+    const reason=document.getElementById("fanHappinessReason"),admitted=fans.filter(f=>f.paid);
+    if(!admitted.length){
+      meter.value=0;score.textContent="—";reason.textContent=final?"No fans entered":"Waiting for fans";return;
+    }
+    let total=0,seat=0,food=0,restroom=0,traffic=0,sights=0;
+    for(const fan of admitted){
+      const time=Math.max(15,fan.experienceTime||0);
+      const watching=(fan.seatTime||0)/time*30;
+      const foodCost=Math.max(0,(fan.foodWait||0)-4)/time*55;
+      const restroomCost=Math.max(0,(fan.restroomWait||0)-4)/time*55;
+      const trafficCost=(fan.trafficWait||0)/time*45;
+      const bonus=(fan.sawStatue?3:0)+(fan.sawScoreboard?4:0)+(fan.scenicPauseDone?2:0);
+      seat+=watching;food+=foodCost;restroom+=restroomCost;traffic+=trafficCost;sights+=bonus;
+      total+=Math.max(0,Math.min(100,65+watching+bonus-foodCost-restroomCost-trafficCost));
+    }
+    const rating=Math.round(total/admitted.length);
+    const drivers=[[food,"Fans are waiting for food"],[restroom,"Restroom lines are costing game time"],[traffic,"Crowds are slowing fans down"]];
+    drivers.sort((a,b)=>b[0]-a[0]);
+    const note=drivers[0][0]>=admitted.length?drivers[0][1]:seat>0?"Fans are enjoying the game from their seats":sights?"Fans are taking in the ballpark":"Fans are finding their seats";
+    meter.value=rating;score.textContent=rating+"%";reason.textContent=(final?"Final · ":"")+note;
+  }
+  function noticeAttractions(){
+    for(const fan of fans){
+      if(!fan.paid||fan.exited||fan.insideAmenity)continue;
+      for(const sight of happinessAttractions){
+        const dx=fan.x-sight.x,dy=fan.y-sight.y;
+        if(!sight.board){
+          if(dx*dx+dy*dy<=4&&fan.feet<5)fan.sawStatue=true;
+        }else if(fan.seated&&!fan.checkedScoreboard&&dx*dx+dy*dy<=45*45&&dx*sight.dy-dy*sight.dx>0){
+          const steps=Math.ceil(Math.hypot(dx,dy)*2);
+          let visible=true;
+          for(let i=1;i<steps;i++){
+            const t=i/steps,x=fan.x-dx*t,y=fan.y-dy*t,k=key(Math.floor(x),Math.floor(y)),item=tiles[k];
+            if(!item||k===fan.sectionKey||k===sight.key||isPath(item))continue;
+            const eye=(fan.feet+4)*(1-t)+sight.feet*t;
+            const top=isPlatform(item)?item.baseFeet+(isDeck(item)?0:5):groundHeight(item);
+            if(eye<top&&(!isHollow(item)||eye>=undersideClearance(item))){visible=false;break;}
+          }
+          if(visible){fan.sawScoreboard=true;break;}
+        }
+      }
+      if(fan.seated)fan.checkedScoreboard=true;
+    }
+  }
+
+  function fanScreenPoint(fan){
+    const p=project(fan.x,fan.y);
+    p.y-=(fan.standSeat?fan.feet*FT:fan.seated?4+fan.row*3:0)*zoom;
+    return p;
+  }
+  function setFollowFan(value){
+    followFan=value;
+    document.getElementById("followFan").setAttribute?.("aria-pressed",String(value));
+  }
+  function centerOnFan(fan,deadZone=0){
+    if(!fan?.spawned||fan.exited)return;
+    const p=fanScreenPoint(fan),dx=wrap.clientWidth/2-p.x,dy=wrap.clientHeight/2-p.y;
+    if(Math.abs(dx)<=deadZone&&Math.abs(dy)<=deadZone)return;
+    panX+=dx;panY+=dy;
+  }
+  function drawSelectedFan(){
+    const fan=selectedFan;
+    if(!fan?.spawned||fan.exited)return;
+    const p=fanScreenPoint(fan),r=Math.max(7,4*zoom);
+    ctx.beginPath();ctx.ellipse(p.x,p.y,r,r*0.52,0,0,Math.PI*2);
+    ctx.strokeStyle="#182c3e";ctx.lineWidth=5;ctx.stroke();
+    ctx.strokeStyle="#ffe36a";ctx.lineWidth=2.5;ctx.stroke();
+  }
   let concessionRevenue=0,foodSales=0,pendingFoodRevenue=0;
-  const BATHROOM_THRESHOLD=75, RESTROOM_STALLS=2, SERVICE_SECONDS=6;
+  const NEED_THRESHOLD=75, RESTROOM_STALLS=2, SERVICE_SECONDS=6;
+  const needsControl=document.getElementById("fanNeedsRate");
+  let needsRate=1, nextNeedsDispatch=0;
+  function showNeedsRate(){
+    needsControl.value=String(needsRate);
+    document.getElementById("fanNeedsRateValue").textContent=needsRate===0?"Off":needsRate+"×";
+  }
+  try{
+    const saved=localStorage.getItem("svs.needsRate");
+    if(saved!=null&&Number(saved)>=0&&Number(saved)<=2)needsRate=Number(saved);
+  }catch{}
+  showNeedsRate();
+  needsControl.oninput=()=>{
+    needsRate=Math.max(0,Math.min(2,Number(needsControl.value)||0));
+    showNeedsRate();
+    try{localStorage.setItem("svs.needsRate",String(needsRate));}catch{}
+  };
   // Keep the line on the paved frontage beside the stand. A future queue
   // divider can supply a different ordered list of standing positions.
   function concessionLine(x,y,id){
@@ -1694,23 +1794,37 @@
       amenityServices.push({kind:item.type,key:k,parents,costs,line,capacity:line?.length||4,queue:[],using:new Set(),active:0});
     }
   }
-  function startAmenityTrip(fan,kind="restroom"){
+  function startAmenityTrip(fan,kind="restroom",arrivalNode=null){
     const food=kind==="concession",retry=food?"hungerRetry":"bathroomRetry",blocked=food?"hungerBlocked":"bathroomBlocked";
     if(visitorsReturning){fan[retry]=0.5;return false;}
-    const groundIndex=fan.walkingRoute.findLastIndex(p=>p.node?.startsWith("g:")),groundNode=fan.walkingRoute[groundIndex]?.node;
-    const reachable=amenityServices.filter(r=>r.kind===kind&&r.parents.has(groundNode));
+    const groundIndex=arrivalNode?fan.walkingRoute.findIndex(p=>p.node===arrivalNode):fan.walkingRoute.findLastIndex(p=>p.node?.startsWith("g:"));
+    if(groundIndex<0)return false;
+    const groundNode=fan.walkingRoute[groundIndex].node;
+    const reachable=amenityServices.filter(r=>r.kind===kind&&r.parents.has(groundNode)&&(!arrivalNode||r.parents.get(groundNode)===null));
+    if(arrivalNode&&!reachable.length)return false;
     if(reachable.length&&reachable.every(r=>r.active>=r.capacity)){fan[retry]=1;return false;}
-    const choices=reachable.filter(r=>r.active<r.capacity).map(room=>({room,cost:room.costs.get(groundNode)+(room.queue.length+room.using.size)*2})).sort((a,b)=>a.cost-b.cost);
+    const choices=reachable.filter(r=>r.active<r.capacity&&!r.earlyFood&&(!arrivalNode||r.active<(r.line?1:RESTROOM_STALLS))).map(room=>({room,cost:room.costs.get(groundNode)+(room.queue.length+room.using.size)*2})).sort((a,b)=>a.cost-b.cost);
     if(!choices.length){fan[blocked]=true;fan[retry]=10;return false;}
     const rowNodes=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
-    if(fans.some(f=>f!==fan&&(f.activity==="returning to seat"||["to restroom","to concession"].includes(f.activity)&&!f.route.slice(0,f.index+1).some(p=>p.node?.startsWith("g:")))&&f.walkingRoute?.some(p=>rowNodes.has(p.node)))){fan[retry]=0.5;return false;}
-    const room=choices[0].room;room.active++;
+    if(!arrivalNode&&fans.some(f=>f!==fan&&(f.activity==="returning to seat"||f.activity==="arriving"&&f.route.slice(f.index).some(p=>rowNodes.has(p.node))||["to restroom","to concession"].includes(f.activity)&&!f.route.slice(0,f.index+1).some(p=>p.node?.startsWith("g:")))&&f.walkingRoute?.some(p=>rowNodes.has(p.node)))){fan[retry]=0.5;return false;}
+    const room=choices[0].room;
+    const arrivalPoint=arrivalNode?fan.route[fan.index]:null;
+    if(arrivalPoint&&food){
+      const [x,y]=room.key.split(",").map(Number),[a,b]=groundNode.slice(2).split(",").map(Number);
+      const counter=room.line[0],shoulder={x:a===x?arrivalPoint.x:counter.x,y:b===y?arrivalPoint.y:counter.y,feet:0};
+      if(!halfContains(groundItem(a,b),shoulder.x-a,shoulder.y-b))return false;
+      fan.foodShoulder=shoulder;
+      room.earlyFood=true;
+    }
+    room.active++;
     const ids=[];for(let at=groundNode;at!==null;at=room.parents.get(at))ids.unshift(at);
     const path=ids.map(id=>({...walkingGraph.nodes.get(id),node:id}));
     const returning=seatRoute([path[0]],[...path,...fan.walkingRoute.slice(groundIndex+1)],fan.seatTarget);
-    fan.returnRoute=returning;fan.amenity=room;fan.activity=food?"to concession":"to restroom";fan.tripKind=kind;fan[blocked]=false;
-    fan.route=laneRoute(returning.slice().reverse());
+    fan.returnRoute=returning;fan.amenity=room;fan.activity=food?"to concession":"to restroom";fan.tripKind=kind;fan.tripFromArrival=!!arrivalNode;fan[blocked]=false;
+    fan.route=laneRoute(arrivalNode?path.slice().reverse():returning.slice().reverse());
+    if(arrivalNode)fan.route.unshift({x:fan.x,y:fan.y,feet:fan.feet});
     if(food)fan.route[fan.route.length-1]=returning[0];
+    if(arrivalPoint&&food)fan.route=[arrivalPoint,fan.foodShoulder,room.line[0]];
     fan.index=0;fan.seated=false;return true;
   }
   function finishFanRoute(fan){
@@ -1718,7 +1832,7 @@
     if(["to restroom","to concession"].includes(fan.activity)){
       fan.activity=fan.tripKind==="concession"?"waiting for food":"waiting restroom";fan.insideAmenity=fan.tripKind!=="concession";fan.amenity.queue.push(fan);return;
     }
-    if(fan.activity==="returning to seat"){if(fan.tripKind==="concession")fan.foodVisits++;else{fan.bathroomVisits++;completedBathroomTrips++;}fan.amenity.active--;}
+    if(fan.activity==="returning to seat"){if(fan.tripKind==="concession"){fan.foodVisits++;if(fan.tripFromArrival)fan.amenity.earlyFood=false;}else{fan.bathroomVisits++;completedBathroomTrips++;}fan.amenity.active--;}
     fan.activity="watching game";fan.seated=true;
   }
   function advanceConcessionLine(room,step,moveFan){
@@ -1746,7 +1860,8 @@
           const [a,b]=entry.node.slice(2).split(",").map(Number);
           const shoulder={x:fan.x+0.30*(a-x),y:fan.y+0.30*(b-y),feet:0};
           const walkway=groundItem(a,b);
-          if(halfContains(walkway,shoulder.x-a,shoulder.y-b))fan.route.unshift(shoulder);
+          if(fan.tripFromArrival)fan.route.unshift(fan.foodShoulder);
+          else if(halfContains(walkway,shoulder.x-a,shoulder.y-b))fan.route.unshift(shoulder);
           fan.route.unshift({x:fan.x,y:fan.y,feet:fan.feet});
         }
         else {Object.assign(fan,fan.route[0]);fan.spawned=false;}
@@ -1760,33 +1875,50 @@
       }
     }
     if(visitorsReturning&&amenityServices.every(r=>r.active===0))visitorsReturning=false;
-    const arrivalsDone=fans.every(f=>f.activity!=="arriving");
+    if(fanPhase!=="game"||needsRate===0)return;
     for(const fan of fans){
       if(!Number.isFinite(fan.bathroomNeed)||fan.exited||fan.insideAmenity)continue;
-      if(fanPhase==="game"&&fan.spawned)fan.bathroomNeed=Math.min(100,fan.bathroomNeed+step*0.8);
-      if(fanPhase==="game"&&fan.spawned)fan.hunger=Math.min(100,(fan.hunger||0)+step*0.65);
+      if(fan.spawned){
+        fan.bathroomNeed=Math.min(100,fan.bathroomNeed+step*0.8*needsRate);
+        fan.hunger=Math.min(100,(fan.hunger||0)+step*0.65*needsRate);
+      }
       fan.hungerRetry=Math.max(0,(fan.hungerRetry||0)-step);
       fan.bathroomRetry=Math.max(0,(fan.bathroomRetry||0)-step);
-      if(fanPhase==="game"&&arrivalsDone&&fan.seated&&fan.bathroomNeed>=BATHROOM_THRESHOLD&&!fan.bathroomRetry)startAmenityTrip(fan);
-      if(fanPhase==="game"&&arrivalsDone&&fan.seated&&fan.hunger>=75&&!fan.hungerRetry)startAmenityTrip(fan,"concession");
+    }
+    if(fanElapsed<nextNeedsDispatch)return;
+    nextNeedsDispatch=fanElapsed+0.25;
+    const ready=fans.filter(f=>f.seated&&Math.max(f.bathroomNeed,f.hunger)>=NEED_THRESHOLD);
+    ready.sort((a,b)=>Math.max(b.bathroomNeed,b.hunger)-Math.max(a.bathroomNeed,a.hunger));
+    for(const fan of ready){
+      const bathroom=fan.bathroomNeed>=NEED_THRESHOLD&&!fan.bathroomRetry;
+      const food=fan.hunger>=NEED_THRESHOLD&&!fan.hungerRetry;
+      if(bathroom&&(!food||fan.bathroomNeed>=fan.hunger)&&startAmenityTrip(fan))continue;
+      if(food&&startAmenityTrip(fan,"concession"))continue;
+      if(bathroom&&!fan.bathroomRetry)startAmenityTrip(fan);
     }
   }
   function updateFanPanel(){
     const panel=document.getElementById("fanPanel"),fan=selectedFan;panel.hidden=!fanActive||!fan;
     document.getElementById("fanPicker").hidden=!fanActive;
     if(!fanActive||!fan)return;
+    document.getElementById("centerFan").disabled=!fan.spawned||fan.exited;
+    document.getElementById("followFan").disabled=fan.exited;
     const need=Math.round(fan.bathroomNeed),hunger=Math.round(fan.hunger||0);
     document.getElementById("bathroomMeter").value=need;
     document.getElementById("bathroomValue").textContent=need+"%";
     document.getElementById("hungerMeter").value=hunger;
     document.getElementById("hungerValue").textContent=hunger+"%";
-    const activity=fan.seated?(need>=75&&!fan.bathroomBlocked?"waiting for a clear restroom route":hunger>=75&&!fan.hungerBlocked?"waiting for a clear food route":fan.activity):fan.activity;
+    const activity=fan.seated&&needsRate>0?(need>=NEED_THRESHOLD&&!fan.bathroomBlocked?"waiting for a clear restroom route":hunger>=NEED_THRESHOLD&&!fan.hungerBlocked?"waiting for a clear food route":fan.activity):fan.activity;
     const details=`Fan ${fans.indexOf(fan)+1} · Party ${fan.partyId+1} (${fan.partySize} people) · ${fan.exited?"Left the park":activity}. Row ${fan.row+1}, seat ${fan.col+1}. Restroom visits: ${fan.bathroomVisits}. Food visits: ${fan.foodVisits||0}. `+(fan.exited||fanPhase==="exiting"?"Heading home after the game.":"Keeps the same reserved seat with their party. ")+(fan.bathroomBlocked?"No reachable restroom. Connect a ground walkway beside a restroom. ":"")+(fan.hungerBlocked?"No reachable food stand. Connect a ground walkway beside a concession stand.":"");
     const detailPanel=document.getElementById("fanDetails");if(detailPanel.textContent!==details)detailPanel.textContent=details;
   }
+  document.getElementById("centerFan").onclick=()=>{centerOnFan(selectedFan);draw();};
+  document.getElementById("followFan").onclick=()=>{setFollowFan(!followFan);if(followFan)centerOnFan(selectedFan);draw();};
   document.getElementById("fanPicker").onchange=e=>{selectedFan=e.target.value===""?null:fans[Number(e.target.value)]||null;updateFanPanel();};
-  document.getElementById("closeFanPanel").onclick=()=>{selectedFan=null;document.getElementById("fanPicker").value="";updateFanPanel();};
+  document.getElementById("closeFanPanel").onclick=()=>{setFollowFan(false);selectedFan=null;document.getElementById("fanPicker").value="";updateFanPanel();};
   function endFanTest(message) {
+    if(!happinessFinal){updateHappiness(true);happinessFinal=true;}
+    setFollowFan(false);
     fanActive=false;fanPhase="idle";fans=[];selectedFan=null;amenityServices=[];trafficIndex=null;disconnectedSections.clear();fanFrame++;
     fanStatus(message||`Game ended early. ${gateAdmissions} admissions · $${gateRevenue} gate revenue · $${concessionRevenue} food revenue (${foodSales} sales). Adjust your park, then open gates again.`);draw();
   }
@@ -1818,9 +1950,17 @@
       if(i===0||partyId!==plan[i-1].partyId)routeTraffic=new Map(traffic);
       const walkingRoute=slot.routeFor(routeTraffic);
       for(const p of walkingRoute)traffic.set(p.node,(traffic.get(p.node)||0)+1);
-      const route=laneRoute(seatRoute(arrival,walkingRoute,target));
-      fans.push({walkingRoute,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:20+Math.random()*40,bathroomVisits:0,hunger:20+(i%7)*5,foodVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
+      const route=laneRoute(seatRoute(arrival,walkingRoute,target)),initialNeed=20+Math.random()*40;
+      fans.push({walkingRoute,scenicCandidate:i%17===6,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:needsRate===0?0:i%13===4?82:initialNeed,bathroomVisits:0,hunger:needsRate===0?0:i%13===8?82:20+(i%7)*5,foodVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
     }
+    happinessFinal=false;happinessNext=0;nextNeedsDispatch=0;
+    happinessAttractions=[...Object.entries(tiles),...Object.entries(underlays)].flatMap(([k,item])=>{
+      const board=scoreboardTypes.includes(item.type);
+      if(!board&&item.type!=="baseballStatue")return [];
+      const [x,y]=k.split(",").map(Number),[dx,dy]=directions[item.rot];
+      return [{key:k,x:x+0.5,y:y+0.5,dx,dy,board,feet:(item.type==="videoScoreboard"?35:26)/FT}];
+    });
+    updateHappiness();
     prepareAmenities();completedBathroomTrips=0;visitorsReturning=false;selectedFan=null;concessionRevenue=0;foodSales=0;pendingFoodRevenue=0;
     document.getElementById("fanPicker").innerHTML=`<option value="">Choose a fan…</option>`+fans.map((f,i)=>`<option value="${i}">Fan ${i+1} · Party ${f.partyId+1}</option>`).join("");
     document.getElementById("fanPicker").value="";
@@ -1905,6 +2045,49 @@
   }
   const FAN_SPACE=0.16, FAN_SPEED=2.8;
   const fanDistance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,((a.feet||0)-(b.feet||0))/10);
+  function considerArrivalStop(fan){
+    if(!fan.paid||fan.activity!=="arriving"||fan.arrivalStop||fanPhase!=="game"||needsRate===0)return false;
+    const node=fan.route[fan.index]?.node;
+    if(!node?.startsWith("g:"))return false;
+    const kind=fan.bathroomNeed>=NEED_THRESHOLD&&!fan.bathroomRetry?"restroom":fan.hunger>=NEED_THRESHOLD&&!fan.hungerRetry?"concession":null;
+    if(!kind||fans.some(f=>f.arrivalStop&&!f.seated))return false;
+    if(!startAmenityTrip(fan,kind,node))return false;
+    fan.arrivalStop=true;
+    return true;
+  }
+
+  function considerScenicPause(fan,nearbySome){
+    if(fanPhase!=="game"||fan.activity!=="arriving"||!fan.paid||!fan.scenicCandidate||
+      needsRate>0&&Math.max(fan.bathroomNeed,fan.hunger)>=NEED_THRESHOLD)return;
+    const here=fan.route[fan.index],next=fan.route[fan.index+1];
+    if(!here?.node?.startsWith("c:")||!next||Math.abs(next.feet-here.feet)>0.01)return;
+    const cell=here.node.slice(2),item=tiles[cell];
+    if(item?.type!=="concourse"||item.baseFeet<5)return;
+    const [x,y]=cell.split(",").map(Number);
+    if(next.x<x-0.04||next.x>x+1.04||next.y<y-0.04||next.y>y+1.04)return;
+    if(![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>{
+      const k=key(x+dx,y+dy),other=tiles[k];
+      return other?.type==="concourse"&&other.baseFeet===item.baseFeet&&!wallBlocks(cell,k);
+    }))return;
+    const routes=fans.filter(f=>f!==fan&&!f.exited).flatMap(f=>[f.route,f.returnRoute].filter(Boolean));
+    const trafficUses=spot=>routes.some(route=>route.some((a,i)=>{
+      const b=route[i+1];
+      if(!b||Math.abs(a.feet-spot.feet)>0.5||Math.abs(b.feet-spot.feet)>0.5||
+        Math.abs(a.x-spot.x)>1.6||Math.abs(a.y-spot.y)>1.6)return false;
+      const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((spot.x-a.x)*dx+(spot.y-a.y)*dy)/(dx*dx+dy*dy||1)));
+      return Math.hypot(spot.x-a.x-t*dx,spot.y-a.y-t*dy)<0.24;
+    }));
+    for(const u of [0.21,0.79])for(const v of [0.21,0.79]){
+      const spot={x:x+u,y:y+v,feet:item.baseFeet};
+      if((spot.x-here.x)*(next.x-here.x)+(spot.y-here.y)*(next.y-here.y)<0.03||
+        trafficUses(spot)||nearbySome(spot,f=>f!==fan&&f.spawned&&!f.exited&&!f.insideAmenity&&fanDistance(f,spot)<0.25))continue;
+      // Merge downstream after looking at the field.
+      fan.route.splice(fan.index+1,0,{...spot,pause:true});
+      fan.scenicCandidate=false;
+      return;
+    }
+  }
+
   function beginDepartures() {
     fanPhase="exiting";departureElapsed=0;
     // Use a common low-resistance exit tree to avoid opposing flows around
@@ -1922,7 +2105,7 @@
           exit=[fan.insideAmenity?{...from}:current,...path,...arrival.slice().reverse().slice(1)];
         }
       }
-      fan.insideAmenity=false;fan.activity="leaving park";
+      fan.insideAmenity=false;fan.pauseUntil=0;fan.activity="leaving park";
       fan.route=laneRoute(exit);fan.index=0;
       fan.remaining=fan.route.map(()=>0);
       for(let i=fan.route.length-2;i>=0;i--)fan.remaining[i]=fan.remaining[i+1]+fanDistance(fan.route[i],fan.route[i+1]);
@@ -1957,6 +2140,10 @@
         Object.assign(fan,point);
         indexFan(fan);
       });
+      if(fanPhase==="game"){
+        for(const fan of fans)recordFanExperience(fan,step);
+        if(fanElapsed>=happinessNext){noticeAttractions();updateHappiness();happinessNext=fanElapsed+0.75;}
+      }
       collected+=pendingFoodRevenue;pendingFoodRevenue=0;
       // Leaders move first; followers can use the space they just vacated.
       const moving=fans.filter(f=>!f.exited&&!f.insideAmenity&&!["waiting for food","buying food"].includes(f.activity)&&(fanPhase==="exiting"?departureElapsed>=f.exitStart:!f.seated&&arrivalElapsed>=f.start)).sort((a,b)=>fanPhase==="exiting"?
@@ -1985,14 +2172,17 @@
       const corridors=new Map();
       for(const fan of moving) {
         if(fanPhase==="exiting"?departureElapsed<fan.exitStart:arrivalElapsed<fan.start||fan.seated)continue;
+        if(fan.pauseUntil>arrivalElapsed)continue;
+        if(fan.activity==="taking in the view")fan.activity="arriving";
         // Restroom visitors disappear through their doorway. Food customers
         // reach the walkway before joining the visible line.
         if(fan.activity==="to restroom"&&fan.index>=fan.route.length-2&&fanDistance(fan,fan.route.at(-1))<0.35){finishFanRoute(fan);continue;}
-        const occupied=p=>nearbySome(p,other=>other!==fan&&other.spawned&&!other.exited&&!other.insideAmenity&&(!other.seated||other.standSeat)&&
+        const leavingChair=fan.standSeat&&!fan.tripFromArrival&&(fan.activity==="to restroom"||fan.activity==="to concession");
+        const occupied=p=>nearbySome(p,other=>other!==fan&&!(leavingChair&&fan.index===0&&other.seated&&other.sectionKey===fan.sectionKey&&other.row===fan.row)&&other.spawned&&!other.exited&&!other.insideAmenity&&(!other.seated||other.standSeat)&&
           // Fans still sitting during their staggered release occupy seats,
           // not the walking aisle in front of that row.
           !(fanPhase==="exiting"&&departureElapsed<other.exitStart)&&(fanDistance(p,other)<(other.seated?0.03:FAN_SPACE)-1e-8||
-            (!other.seated&&!["to restroom","to concession","returning to seat"].includes(fan.activity)&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
+            (!other.seated&&!["to restroom","to concession","returning to seat"].includes(fan.activity)&&!["to restroom","to concession","returning to seat"].includes(other.activity)&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
               corridorDistance(p,corridors.get(other)||lookAhead(other))<FAN_SPACE-1e-8)));
         if(fanPhase==="exiting"&&fan.seated) {
           if(occupied(fan))continue;
@@ -2009,21 +2199,29 @@
           const length=fanDistance(fan,next),travel=Math.min(distance,length);
           const ratio=length>1e-9?travel/length:1;
           const proposed={x:fan.x+(next.x-fan.x)*ratio,y:fan.y+(next.y-fan.y)*ratio,feet:fan.feet+((next.feet||0)-fan.feet)*ratio};
-          if(occupied(proposed))break;
+          if(occupied(proposed)){fan.blockedFor=(fan.blockedFor||0)+step;break;}
+          fan.blockedFor=0;
           Object.assign(fan,proposed);indexFan(fan);distance-=travel;
           if(length<=travel+1e-9) {
             fan.index++;
             if(fanPhase!=="exiting"&&!fan.paid&&fan.index>=fan.gateIndex) {
               fan.paid=true;gateAdmissions++;gateRevenue+=TICKET_PRICE;collected+=TICKET_PRICE;
             }
+            if(next.pause&&fanPhase==="game"){
+              fan.scenicPauseDone=true;fan.pauseUntil=arrivalElapsed+2.5;fan.activity="taking in the view";break;
+            }
+            if(considerArrivalStop(fan))break;
+            considerScenicPause(fan,nearbySome);
             if(fan.index===fan.route.length-1){finishFanRoute(fan);break;}
           } else break;
         }
         corridors.set(fan,lookAhead(fan));
       }
-      if(fanElapsed>=GAME_SECONDS&&fanPhase==="game")fanPhase="finishing arrivals";
+      if(fanElapsed>=GAME_SECONDS&&fanPhase==="game"){
+        fanPhase="finishing arrivals";updateHappiness(true);happinessFinal=true;
+      }
       // Late/queued arrivals finish before reversing flow on narrow stairs.
-      if(fanPhase==="finishing arrivals"&&fans.every(f=>f.seated||f.activity&&f.activity!=="arriving")&&!fans.some(f=>f.activity==="buying food"&&!f.foodPaid))beginDepartures();
+      if(fanPhase==="finishing arrivals"&&fans.every(f=>f.seated||f.activity&&f.activity!=="arriving"&&f.activity!=="taking in the view")&&!fans.some(f=>f.activity==="buying food"&&!f.foodPaid))beginDepartures();
       if(fanPhase==="exiting"&&fans.every(f=>f.exited)) {
         endFanTest(`Game complete! ${GAME_SECONDS/60}:00 played · ${gateAdmissions} admissions · $${gateRevenue} gate revenue · $${concessionRevenue} food revenue (${foodSales} sales). All fans returned to the spawn point. ${completedBathroomTrips} restroom round trips completed. Ready to build or open gates for another game.`);
       }
@@ -2211,6 +2409,7 @@
     requestAnimationFrame(()=>{drawPending=false;if(!fanActive)draw();});
   }
   function draw(){
+    if(followFan)centerOnFan(selectedFan,Math.min(wrap.clientWidth,wrap.clientHeight)*0.15);
     if(pointer)hover=inverse(pointer.x,pointer.y);
     const cw=canvas.clientWidth,ch=canvas.clientHeight;
     const signature=[worldRevision,canvas.width,canvas.height,cw,ch,dpr,zoom,panX,panY,cameraRot,fanActive,workUnder,[...disconnectedSections].join(";")].join("|");
@@ -2364,6 +2563,7 @@
   function drawOverlays(){
     updateFanPanel();
     for(const fan of fans.filter(f=>f.spawned&&!f.exited&&!f.insideAmenity&&(!workUnder||f.feet<=5)).sort((a,b)=>{const p=rotated(a.x,a.y),q=rotated(b.x,b.y);return p.x+p.y-q.x-q.y||a.start-b.start;}))drawVisibleFan(fan);
+    if(fanActive)drawSelectedFan();
     if(!fanActive)for(const [k,v] of Object.entries(tiles))if(visiblePiece(v)&&hasStairs(v)&&(isPlatform({type:tool})||isPath({type:tool})||hover&&k===key(hover.x,hover.y))) {
       const [x,y]=k.split(",").map(Number);drawStairEntrance(x,y,v);
     }
@@ -2386,7 +2586,7 @@
       const next=surface||(tool==="erase"||tool==="paint"?null:groundPlacement(hover.x,hover.y));
       const error=next?.error;
       help.hidden=false;
-      help.textContent=error||(surface?"Concrete surface · existing construction is kept.":tool==="erase"&&groundConcrete[k]?"Remove ground concrete.":"Ground layer · upper sections are kept. Shops need 12 ft of clear space; paths need 8 ft.");
+      help.textContent=error||(surface?"Concrete surface · existing construction is kept.":tool==="erase"&&groundConcrete[k]?"Remove ground concrete.":"Ground layer · upper sections are kept. Shops need 10 ft of clear space; paths need 8 ft.");
       if(hover.x>=0&&hover.x<W&&hover.y>=0&&hover.y<H){
         if(!error&&next?.item){ctx.save();ctx.globalAlpha=0.65;drawObject(hover.x,hover.y,next.item);ctx.restore();}
         if(next?.item)drawPlacementGuide(hover.x,hover.y,next.item,!!error);
@@ -2757,6 +2957,7 @@
     pointer = p;
     if (down && Math.hypot(p.x - down.x, p.y - down.y) > 7) {
       dragged = true;
+      if(followFan)setFollowFan(false);
       panX = down.panX + p.x - down.x;
       panY = down.panY + p.y - down.y;
     }
@@ -2792,7 +2993,7 @@
     { passive: false },
   );
   window.addEventListener("keydown", (e) => {
-    if(e.key==="Escape"){selectedFan=null;document.getElementById("fanPicker").value="";updateFanPanel();return;}
+    if(e.key==="Escape"){setFollowFan(false);selectedFan=null;document.getElementById("fanPicker").value="";updateFanPanel();return;}
     if (
       e.ctrlKey ||
       e.metaKey ||
