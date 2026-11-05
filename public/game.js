@@ -1852,7 +1852,9 @@
         visitorsReturning=true;
         if(fans.some(f=>["to restroom","to concession"].includes(f.activity)))continue;
         const corridor=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
-        if(fans.some(f=>f!==fan&&f.activity==="returning to seat"&&f.walkingRoute.some(p=>corridor.has(p.node))))continue;
+        if(fans.some(f=>f!==fan&&(f.activity==="returning to seat"||
+          fan.tripFromArrival&&(f.activity==="arriving"||f.activity==="taking in the view"))&&
+          f.walkingRoute.some(p=>corridor.has(p.node))))continue;
         room.using.delete(fan);if(room.kind==="restroom")fan.bathroomNeed=0;fan.activity="returning to seat";fan.insideAmenity=false;
         fan.route=laneRoute(fan.returnRoute);fan.index=0;
         if(room.line){
