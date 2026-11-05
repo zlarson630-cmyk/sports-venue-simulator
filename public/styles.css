@@ -359,3 +359,32 @@ button:focus-visible {
 #tutorial p { margin: 0 0 8px; }
 #tutorial li { margin-bottom: 14px; }
 #tutorial form { display: flex; justify-content: flex-end; }
+
+#happinessPanel {
+  position: absolute;
+  z-index: 6;
+  left: 15px;
+  bottom: 16px;
+  width: min(235px, calc(100% - 30px));
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid #587184;
+  border-radius: 10px;
+  background: #122c43ed;
+  color: #fff4d6;
+  font-size: 12px;
+  pointer-events: none;
+}
+#happinessPanel > div { display: flex; justify-content: space-between; gap: 8px; }
+#fanHappiness { width: 100%; height: 13px; }
+#fanHappinessValue { font-weight: 800; font-variant-numeric: tabular-nums; }
+#fanHappinessReason { display: block; line-height: 1.25; }
+.fan-tracking { display: flex; gap: 8px; margin: 0 0 8px; }
+#followFan[aria-pressed="true"] { outline: 2px solid #ab6b11; outline-offset: 1px; }
+#fanNeedsRate { display: block; width: 100%; min-height: 28px; accent-color: #b97c1c; }
+#fanNeedsRateValue { font-weight: 800; }
+@media (max-width: 700px) {
+  #happinessPanel { left: 8px; top: 8px; bottom: auto; width: min(170px, calc(100% - 130px)); }
+  #hint { top: 83px; }
+  #fanPanel { top: 116px; max-height: calc(100% - 124px); overflow: auto; box-sizing: border-box; }
+}

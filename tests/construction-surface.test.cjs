@@ -67,11 +67,11 @@ for (const type of ['stand', 'concourse']) {
     const g = game();
     g.click('concession', 12, 10);
     const before = g.snapshot().money;
-    assert.match(g.click(type, 12, 10, '10'), /Not enough open space/);
+    assert.match(g.click(type, 12, 10, type === 'stand' ? '5' : '10'), /Not enough open space/);
     assert.equal(g.snapshot().money, before);
     assert.match(g.click(type, 12, 10, '15', 'solid'), /Not enough open space/);
     assert.equal(g.snapshot().tiles['12,10'].type, 'concession');
-    assert.doesNotMatch(g.click(type, 12, 10, '15'), /Not enough open space|occupied/);
+    assert.doesNotMatch(g.click(type, 12, 10, type === 'stand' ? '10' : '15'), /Not enough open space|occupied/);
     assert.equal(g.snapshot().tiles['12,10'].type, type);
     assert.equal(g.snapshot().underlays['12,10'].type, 'concession');
   });

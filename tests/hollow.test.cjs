@@ -20,7 +20,7 @@ test('new raised seating opens underneath; lower shops persist, undo and remove 
 });
 
 test('underside clearance uses actual elevation and solid legacy foundations stay solid',()=>{
- for(const [base,type,allowed] of [[5,'path',false],[10,'path',true],[10,'concession',false],[15,'restroom',true],[15,'tree',false],[25,'tree',true]]){
+ for(const [base,type,allowed] of [[5,'path',false],[10,'path',true],[10,'concession',true],[15,'restroom',true],[15,'tree',false],[25,'tree',true]]){
   const g=game(saved(base));underneath(g,true);g.select(type);g.clickTile(12,8);
   assert.equal(!!g.api.underlaysState()['12,8'],allowed,`${base} ft ${type}: ${g.element('toast').textContent}`);
  }
@@ -33,7 +33,7 @@ test('underside clearance uses actual elevation and solid legacy foundations sta
 test('raised pieces can be built over existing ground pieces only when their volumes clear',()=>{
  const g=game();g.select('path');g.clickTile(12,8);g.select('concourse');height(g,15);g.clickTile(12,8);
  assert.equal(g.api.state().tiles['12,8'].type,'concourse');assert.equal(g.api.underlaysState()['12,8'].type,'path');
- const invalid=saved(10);invalid.underlays={'12,8':{type:'restroom',rot:0}};
+ const invalid=saved(10);invalid.tiles['12,8'].type='concourse';invalid.underlays={'12,8':{type:'restroom',rot:0}};
  assert.throws(()=>g.api.validatePark(invalid),/open space|conflicts/);
  const valid=saved(15);valid.underlays={'12,8':{type:'restroom',rot:0}};assert.equal(g.api.validatePark(valid).underlays['12,8'].type,'restroom');
 });
