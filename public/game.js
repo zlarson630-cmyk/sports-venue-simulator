@@ -2059,8 +2059,8 @@
   function considerScenicPause(fan,nearbySome){
     if(fanPhase!=="game"||fan.activity!=="arriving"||!fan.paid||!fan.scenicCandidate||
       needsRate>0&&Math.max(fan.bathroomNeed,fan.hunger)>=NEED_THRESHOLD)return;
-    const here=fan.route[fan.index],next=fan.route[fan.index+1];
-    if(!here?.node?.startsWith("c:")||!next||Math.abs(next.feet-here.feet)>0.01)return;
+    const here=fan.route[fan.index],next=fan.route[fan.index+1],previous=fan.route[fan.index-1];
+    if(!here?.node?.startsWith("c:")||!next||!previous||Math.abs(next.feet-here.feet)>0.01)return;
     const cell=here.node.slice(2),item=tiles[cell];
     if(item?.type!=="concourse"||item.baseFeet<5)return;
     const [x,y]=cell.split(",").map(Number);
@@ -2069,6 +2069,8 @@
       const k=key(x+dx,y+dy),other=tiles[k];
       return other?.type==="concourse"&&other.baseFeet===item.baseFeet&&!wallBlocks(cell,k);
     }))return;
+    // Wait for a lull before stepping across a lane into a viewing spot.
+    if(nearbySome(here,f=>f!==fan&&f.spawned&&!f.seated&&!f.exited&&!f.insideAmenity&&fanDistance(f,here)<0.65))return;
     const routes=fans.filter(f=>f!==fan&&!f.exited).flatMap(f=>[f.route,f.returnRoute].filter(Boolean));
     const trafficUses=spot=>routes.some(route=>route.some((a,i)=>{
       const b=route[i+1];
@@ -2080,10 +2082,12 @@
     for(const u of [0.21,0.79])for(const v of [0.21,0.79]){
       const spot={x:x+u,y:y+v,feet:item.baseFeet};
       if((spot.x-here.x)*(next.x-here.x)+(spot.y-here.y)*(next.y-here.y)<0.03||
+        (spot.x-here.x)*(here.x-previous.x)+(spot.y-here.y)*(here.y-previous.y)<0.02||
         trafficUses(spot)||nearbySome(spot,f=>f!==fan&&f.spawned&&!f.exited&&!f.insideAmenity&&fanDistance(f,spot)<0.25))continue;
       // Merge downstream after looking at the field.
       fan.route.splice(fan.index+1,0,{...spot,pause:true});
       fan.scenicCandidate=false;
+      fan.scenicMergeIndex=fan.index+2;
       return;
     }
   }
@@ -2105,6 +2109,7 @@
           exit=[fan.insideAmenity?{...from}:current,...path,...arrival.slice().reverse().slice(1)];
         }
       }
+      delete fan.scenicMergeIndex;
       fan.insideAmenity=false;fan.pauseUntil=0;fan.activity="leaving park";
       fan.route=laneRoute(exit);fan.index=0;
       fan.remaining=fan.route.map(()=>0);
@@ -2182,7 +2187,7 @@
           // Fans still sitting during their staggered release occupy seats,
           // not the walking aisle in front of that row.
           !(fanPhase==="exiting"&&departureElapsed<other.exitStart)&&(fanDistance(p,other)<(other.seated?0.03:FAN_SPACE)-1e-8||
-            (!other.seated&&!["to restroom","to concession","returning to seat"].includes(fan.activity)&&!["to restroom","to concession","returning to seat"].includes(other.activity)&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
+            (!other.seated&&fan.scenicMergeIndex===undefined&&other.scenicMergeIndex===undefined&&!["to restroom","to concession","returning to seat"].includes(fan.activity)&&!["to restroom","to concession","returning to seat"].includes(other.activity)&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
               corridorDistance(p,corridors.get(other)||lookAhead(other))<FAN_SPACE-1e-8)));
         if(fanPhase==="exiting"&&fan.seated) {
           if(occupied(fan))continue;
@@ -2199,7 +2204,11 @@
           const length=fanDistance(fan,next),travel=Math.min(distance,length);
           const ratio=length>1e-9?travel/length:1;
           const proposed={x:fan.x+(next.x-fan.x)*ratio,y:fan.y+(next.y-fan.y)*ratio,feet:fan.feet+((next.feet||0)-fan.feet)*ratio};
-          if(occupied(proposed)){fan.blockedFor=(fan.blockedFor||0)+step;break;}
+          if(occupied(proposed)){
+            if(next.pause){fan.route.splice(fan.index+1,1);delete fan.scenicMergeIndex;}
+            fan.blockedFor=(fan.blockedFor||0)+step;
+            break;
+          }
           fan.blockedFor=0;
           Object.assign(fan,proposed);indexFan(fan);distance-=travel;
           if(length<=travel+1e-9) {
@@ -2207,6 +2216,7 @@
             if(fanPhase!=="exiting"&&!fan.paid&&fan.index>=fan.gateIndex) {
               fan.paid=true;gateAdmissions++;gateRevenue+=TICKET_PRICE;collected+=TICKET_PRICE;
             }
+            if(fan.index===fan.scenicMergeIndex)delete fan.scenicMergeIndex;
             if(next.pause&&fanPhase==="game"){
               fan.scenicPauseDone=true;fan.pauseUntil=arrivalElapsed+2.5;fan.activity="taking in the view";break;
             }
