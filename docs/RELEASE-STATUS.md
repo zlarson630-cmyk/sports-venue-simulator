@@ -1,4 +1,10 @@
-# Release status — v0.43
+# Release status — current build
+
+Latest pass: **building beneath the stands**. Work underneath now ghosts elevated pieces instead of hiding them. Available/required ground clearance is visible on placement previews. Steel framing/posts are refined, and shop names are painted onto clipped wall planes below the roof. Existing collision rules, saved park data, revenue and fan routing are retained. Automatic support posts are visual and stay off ground walkways. See [the player checklist](UNDER-STAND-BUILDING-TESTING.md).
+
+The v0.43 release checkpoint below is historical; later published passes added visible concession queues, first-time guidance, fan happiness, individual needs trips at 75%, fan centering/following and local aisle reservations.
+
+## v0.43 foundation checkpoint
 
 Open undersides and ground facilities beneath elevated construction are the latest published pass. Food concessions, floating fan inspection, trees and bronze baseball-player statues remain available. Hunger grows independently of bathroom need. Hungry seated fans visit connected ground-level concessions after arrivals finish, queue inside, buy a $5 meal after six seconds, and return to the same seat. One server per stand, at most four visitors in flight. Admission and food revenue are separate; both persist and survive construction undo. Food and bathroom trips share ground-route preparation, corridor reservations and bounded return batches. No new need or routing calculations are added to canvas drawing.
 
