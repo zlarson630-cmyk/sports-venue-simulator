@@ -262,13 +262,34 @@
     (amenityTypes.includes(lower.type)?undersideClearance(upper):upper.baseFeet-0.5)>=groundHeight(lower);
   const separated=(a,b)=>clearsGround(a,b)||clearsGround(b,a);
   const visiblePiece=item=>!workUnder||!isPlatform(item)||item.baseFeet===0;
+  const ghostPiece=item=>workUnder&&isPlatform(item)&&item.baseFeet>0;
+  const clearFeet=(upper,lower)=>amenityTypes.includes(lower.type)?undersideClearance(upper):upper.baseFeet-0.5;
+  const feetLabel=n=>String(Math.floor(Math.max(0,n)*10)/10);
+  function groundClearance(x,y,item,layout=tiles,extras=infillDecks){
+    const shape=footprint(x,y,item),above=[...Object.entries(layout),...Object.entries(extras)].filter(([k,v])=>{
+      if(!isPlatform(v))return false;const [a,b]=k.split(',').map(Number);
+      return overlaps(shape,footprint(a,b,v));
+    }).map(([,v])=>v);
+    const required=groundHeight(item),solid=above.some(v=>!isHollow(v));
+    const available=above.length?Math.min(...above.map(v=>clearFeet(v,item))):null;
+    return {covered:above.length>0,required,available,solid,fits:!solid&&(available===null||available>=required)};
+  }
+  function clearanceMessage(report){
+    if(!report.covered)return `Open sky · ${report.required} ft needed for this piece.`;
+    if(report.solid)return 'Solid foundation above · change it to Open underneath before building here.';
+    return `${feetLabel(report.available)} ft clear · ${report.required} ft needed · ${report.fits?'Fits underneath.':'Raise the section or choose a lower piece.'}`;
+  }
   function columnError(x,y,item,layout=tiles,below=underlays,extras=infillDecks){
     const shape=footprint(x,y,item);
     for(const [k,v] of [...Object.entries(layout),...Object.entries(below),...Object.entries(extras)]){
       if(v===item)continue;const [a,b]=k.split(",").map(Number);
       if(!overlaps(shape,footprint(a,b,v)))continue;
       if(isPlatform(item)&&isPlatform(v))continue; // Existing platform-footprint rules handle upper pieces.
-      if(!separated(item,v))return isPlatform(item)||isPlatform(v)?"Not enough open space below this section. Use Open underneath and enough height (10 ft base for paths, 10 ft clear for shops).":"Ground tile is already occupied.";
+      if(!separated(item,v)){
+        if(!isPlatform(item)&&!isPlatform(v))return "Ground tile is already occupied.";
+        const upper=isPlatform(item)?item:v,lower=isPlatform(item)?v:item;
+        return "Not enough open space below this section. "+clearanceMessage({covered:true,solid:!isHollow(upper),available:clearFeet(upper,lower),required:groundHeight(lower),fits:false});
+      }
     }
     if(isHollow(item))for(const [a,b] of entrancePaving)if(automaticPath(a,b)&&overlaps(shape,footprint(a,b,{type:"path"}))&&item.baseFeet-0.5<8)return "Keep at least 8 ft of headroom over the entrance walkway.";
     return null;
@@ -584,15 +605,39 @@
     return spans.filter(([lo,hi])=>hi-lo>epsilon).map(([lo,hi])=>[at(lo),at(hi)]);
   }
 
+  // Shallow steel stays above the usable headroom; posts avoid walking surfaces.
   function drawUndersideSteel(at,a,b,top,clearance=12) {
     const bottom=Math.max(clearance,top-1.8);
     if(top-bottom<0.45)return;
     const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
-    const steel="#506879";
-    line(at(a,top),at(b,top),steel,1.4);
-    line(at(a,bottom),at(b,bottom),steel,1);
-    line(at(a,bottom),at(mid,top),steel,1);
-    line(at(mid,top),at(b,bottom),steel,1);
+    line(at(a,top),at(b,top),"#334b5b",2.2);
+    line(at(a,top+0.12),at(b,top+0.12),"#8fa3ae",0.7);
+    line(at(a,bottom),at(b,bottom),"#334b5b",1.7);
+    line(at(a,bottom),at(mid,top),"#506879",1.1);
+    line(at(mid,top),at(b,bottom),"#506879",1.1);
+    for(const p of [a,b])line(at(p,bottom),at(p,top),"#506879",1);
+  }
+  function supportColumns(x,y,item){
+    if(!isHollow(item)||isRamp(item))return [];
+    return footprint(x,y,item).filter(([a,b])=>{
+      // A corner touching any paved approach is kept free of decorative posts.
+      for(const dx of [-0.06,0.06])for(const dy of [-0.06,0.06]){
+        const cx=Math.floor(a+dx),cy=Math.floor(b+dy),path=groundItem(cx,cy);
+        if(path&&halfContains(path,a+dx-cx,b+dy-cy))return false;
+      }
+      return true;
+    }).map(([a,b])=>({x:a,y:b,feet:item.baseFeet-0.5}));
+  }
+  function drawSupportColumn(post){
+    const at=(a,b,h)=>raisedWorld({x:post.x+a,y:post.y+b,feet:h}),w=0.025,top=post.feet;
+    const cs=[[-w,-w],[w,-w],[w,w],[-w,w]];
+    polygon(cs.map(([a,b])=>at(a*2,b*2,0.12)),"#6b7c84",null);
+    for(let i=0;i<4;i++){
+      const a=cs[i],b=cs[(i+1)%4];
+      if((project(post.x+a[0],post.y+a[1]).y+project(post.x+b[0],post.y+b[1]).y)/2<project(post.x,post.y).y)continue;
+      polygon([at(...a,0.12),at(...b,0.12),at(...b,top),at(...a,top)],i%2?"#334b5b":"#506879",null);
+    }
+    line(at(-w,-w,0.12),at(-w,-w,top),"#a1b0b7",0.6);
   }
 
   function drawConcourse(x,y,item,rails=false,patch=null,railIndex=null) {
@@ -1003,28 +1048,49 @@
           food ? palette.primary : "#56819b",
           food ? palette.secondary : "#8fb4cb",
         );
-        polygon(
-          [
-            local(-0.23, -0.325, food ? 5 : 2),
-            local(0.23, -0.325, food ? 5 : 2),
-            local(0.23, -0.325, 11),
-            local(-0.23, -0.325, 11),
-          ],
-          "#183a55",
-          "#fff0c9",
-          1,
-        );
-        if(food) {
-          polygon([local(-0.36,-0.55,12),local(0.36,-0.55,12),local(0.36,-0.20,17),local(-0.36,-0.20,17)],palette.primary,palette.accent,0.7);
-          for(let stripe=0;stripe<4;stripe++)segment([-0.32+stripe*0.2,-0.5],[-0.32+stripe*0.2,-0.22],15,palette.secondary,2);
-          segment([-0.32,-0.35],[0.32,-0.35],12,palette.accent,3);
-          // An automatically staffed counter; no individual hiring system.
-          const staff=local(0,-0.34,7);ctx.beginPath();ctx.arc(staff.x,staff.y,1.5*z,0,Math.PI*2);ctx.fillStyle="#ecc29a";ctx.fill();
-          line({x:staff.x,y:staff.y+2*z},{x:staff.x,y:staff.y+5*z},palette.accent,2);
+        const frontVisible=local(0,-0.32).y>local(0,0.32).y+1e-8;
+        // All lettering is painted onto a physical wall face, below the roof.
+        const label={concession:"FOOD",drinks:"DRINKS",iceCream:"ICE CREAM",souvenir:"GEAR",restroom:"RESTROOMS"}[item.type];
+        const wallSign=(face,start,end,bottom,top,text)=>{
+          let tl=face(start,top),tr=face(end,top),bl=face(start,bottom),br=face(end,bottom);
+          if(tr.x<tl.x){[tl,tr]=[tr,tl];[bl,br]=[br,bl];}
+          const area=(tr.x-tl.x)*(bl.y-tl.y)-(tr.y-tl.y)*(bl.x-tl.x);
+          if(Math.abs(area)<1e-6)return;
+          polygon([tl,tr,br,bl],"#183a55",palette.accent,0.5);
+          ctx.save();ctx.beginPath();[tl,tr,br,bl].forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.clip();
+          ctx.transform((tr.x-tl.x)/240,(tr.y-tl.y)/240,(bl.x-tl.x)/60,(bl.y-tl.y)/60,tl.x,tl.y);
+          ctx.font=`bold ${Math.min(40,210/(text.length*0.62))}px sans-serif`;ctx.textAlign="center";ctx.fillStyle=palette.accent;ctx.fillText(text,120,43);
+          ctx.restore();
+        };
+        if(frontVisible){
+          polygon(
+            [
+              local(-0.23, -0.325, food ? 5 : 2),
+              local(0.23, -0.325, food ? 5 : 2),
+              local(0.23, -0.325, 11),
+              local(-0.23, -0.325, 11),
+            ],
+            "#183a55",
+            "#fff0c9",
+            1,
+          );
+          if(food) {
+            polygon([local(-0.36,-0.55,12),local(0.36,-0.55,12),local(0.36,-0.20,17),local(-0.36,-0.20,17)],palette.primary,palette.accent,0.7);
+            for(let stripe=0;stripe<4;stripe++)segment([-0.32+stripe*0.2,-0.5],[-0.32+stripe*0.2,-0.22],15,palette.secondary,2);
+            segment([-0.32,-0.35],[0.32,-0.35],12,palette.accent,3);
+            // An automatically staffed counter; no individual hiring system.
+            const staff=local(0,-0.34,7);ctx.beginPath();ctx.arc(staff.x,staff.y,1.5*z,0,Math.PI*2);ctx.fillStyle="#ecc29a";ctx.fill();
+            line({x:staff.x,y:staff.y+2*z},{x:staff.x,y:staff.y+5*z},palette.accent,2);
+          }
+          wallSign((u,h)=>local(u,-0.329,h),-0.29,0.29,food?13:12,16.5,label);
         }
+        if(!frontVisible)wallSign((u,h)=>local(u,0.329,h),-0.25,0.25,12,16.5,label);
+        const side=local(0.32,0).y>local(-0.32,0).y?1:-1;
+        // A second wall sign identifies tucked-under shops from the side.
+        wallSign((u,h)=>local(side*0.324,side*u,h),-0.22,0.22,11.8,15.5,label);
         // Paint the sign in the plane of the service face, below the window.
-        if(local(0,-0.32).y>local(0,0.32).y){
-          const mark=(points,fill)=>polygon(points.map(([u,h])=>local(u,-0.327,h+(food?0:11.5))),fill);
+        if(frontVisible){
+          const mark=(points,fill)=>polygon(points.map(([u,h])=>local(u,-0.327,h+(food?0:2))),fill);
           mark([[-0.20,0.4],[0.20,0.4],[0.20,4.8],[-0.20,4.8]],"#183a55");
           const ink=palette.accent;
           switch(item.type){
@@ -2506,7 +2572,7 @@
     let all=worldGeometry.all;
     if(!all||worldGeometry.cameraRot!==cameraRot){
     all = [...Object.entries(tiles),...Object.entries(infillDecks),...Object.entries(underlays)]
-      .filter(([,v])=>!isPath(v)&&visiblePiece(v))
+      .filter(([,v])=>!isPath(v))
       .flatMap(([k, v]) => {
         const [x,y]=k.split(",").map(Number);
         if(isRamp(v))return Array.from({length:24},(_,n)=>{const p=rampPoint(x,y,v,(n+0.5)/4);return {x:p.x-0.5,y:p.y-0.5,v,rampPatch:n,originX:x,originY:y};});
@@ -2522,7 +2588,7 @@
         }
         return isStand(v)?[0,1,2,3].map(row=>{const p=standPoint(x,y,v,0,-0.3125+row/4);return {x:p.x-0.5,y:p.y-0.5,v,standRow:row,originX:x,originY:y};}):[{x,y,v}];
       })
-      .concat(Object.entries(tiles).filter(([,v])=>hasStairs(v)&&visiblePiece(v)).flatMap(([k,v])=>{const [x,y]=k.split(",").map(Number),{bx,by}=standAxes(v.rot),p=standPoint(x,y,v,stairCenter(v),0.5);return [{x:(p.x+x+bx+0.5)/2-0.5,y:(p.y+y+by+0.5)/2-0.5,v,apron:true,originX:x,originY:y}];}))
+      .concat(Object.entries(tiles).filter(([,v])=>hasStairs(v)).flatMap(([k,v])=>{const [x,y]=k.split(",").map(Number),{bx,by}=standAxes(v.rot),p=standPoint(x,y,v,stairCenter(v),0.5);return [{x:(p.x+x+bx+0.5)/2-0.5,y:(p.y+y+by+0.5)/2-0.5,v,apron:true,originX:x,originY:y}];}))
       .concat(Object.keys(edges).map(edge => {
         const p = edgePanel(edge);
         return {x:(p.a[0]+p.b[0])/2-0.5, y:(p.a[1]+p.b[1])/2-0.5, edge};
@@ -2541,10 +2607,23 @@
         const depth=aa.x+aa.y-(bb.x+bb.y);
         return Math.abs(depth)>1e-8?depth:(a.fan?1:0)-(b.fan?1:0);
       });
+    const posts=new Map();
+    for(const [k,v] of [...Object.entries(tiles),...Object.entries(infillDecks)]){
+      const [x,y]=k.split(',').map(Number);
+      for(const post of supportColumns(x,y,v)){
+        const id=`${post.x.toFixed(4)},${post.y.toFixed(4)}`,old=posts.get(id);
+        if(!old||old.post.feet<post.feet)posts.set(id,{x:post.x-0.5,y:post.y-0.5,post});
+      }
+    }
+    all.push(...posts.values());
+    all.sort((a,b)=>{const p=rotated(a.x,a.y),q=rotated(b.x,b.y);return p.x+p.y-q.x-q.y;});
     worldGeometry.all=all;worldGeometry.cameraRot=cameraRot;
     }
     for (let e of all) {
-      if(e.apron)drawStairApron(e.originX,e.originY,e.v);
+      const ghost=ghostPiece(e.v)||workUnder&&!!e.post;
+      if(ghost){ctx.save();ctx.globalAlpha=0.14;captureFaces=false;}
+      if(e.post)drawSupportColumn(e.post);
+      else if(e.apron)drawStairApron(e.originX,e.originY,e.v);
       else if(e.partialPatch)drawPartialDeck(e.originX,e.originY,e.v,e.partialPatch);
       else if(e.partialRail!==undefined)drawPartialDeck(e.originX,e.originY,e.v,null,e.partialRail);
       else if(e.rampPatch!==undefined)drawRampPatch(e.originX,e.originY,e.v,e.rampPatch);
@@ -2560,6 +2639,7 @@
       else if (e.edge) drawWall(e.edge);
       else if (e.panel) drawFieldFence(e.panel);
       else drawObject(e.x, e.y, e.v);
+      if(ghost){ctx.restore();captureFaces=true;}
     }
     captureFaces=false;surfaceFrame=null;seamFrame=null;
   }
@@ -2585,6 +2665,19 @@
     line(start,end,color,2);
     polygon([end,{x:end.x-size*(ux+uy*0.55),y:end.y-size*(uy-ux*0.55)},
       {x:end.x-size*(ux-uy*0.55),y:end.y-size*(uy+ux*0.55)}],color,"#504128",0.6);
+  }
+  function drawClearanceGuide(x,y,report){
+    const point=project(x+0.08,y+0.08),top=point.y-Math.max(0,report.available)*FT*zoom;
+    const color=report.fits?"#267361":"#a33932";
+    ctx.save();
+    line(point,{x:point.x,y:top},color,1.3);
+    for(const h of [point.y,top])line({x:point.x-3,y:h},{x:point.x+3,y:h},color,1.3);
+    const text=report.solid?'SOLID ABOVE':`${feetLabel(report.available)} ft CLEAR / ${report.required} ft NEEDED`;
+    ctx.font='bold 12px sans-serif';
+    const width=text.length*7.5+16,left=Math.max(6,Math.min(canvas.clientWidth-width-6,point.x+8)),y1=Math.max(24,Math.min(canvas.clientHeight-8,top));
+    ctx.fillStyle='#fff5db';ctx.fillRect(left,y1-18,width,24);
+    ctx.fillStyle=color;ctx.textAlign='left';ctx.fillText(text,left+8,y1-2);
+    ctx.restore();
   }
   function drawOverlays(){
     updateFanPanel();
@@ -2612,7 +2705,9 @@
       const next=surface||(tool==="erase"||tool==="paint"?null:groundPlacement(hover.x,hover.y));
       const error=next?.error;
       help.hidden=false;
-      help.textContent=error||(surface?"Concrete surface · existing construction is kept.":tool==="erase"&&groundConcrete[k]?"Remove ground concrete.":"Ground layer · upper sections are kept. Shops need 10 ft of clear space; paths need 8 ft.");
+      const clearance=next?.item&&groundTypes.includes(next.item.type)&&!surface?groundClearance(hover.x,hover.y,next.item):null;
+      help.textContent=error||(surface?"Concrete surface · existing construction is kept.":tool==="erase"&&groundConcrete[k]?"Remove ground concrete.":clearance?clearanceMessage(clearance):"Ground layer · upper sections are kept.");
+      if(clearance?.covered)drawClearanceGuide(hover.x,hover.y,clearance);
       if(hover.x>=0&&hover.x<W&&hover.y>=0&&hover.y<H){
         if(!error&&next?.item){ctx.save();ctx.globalAlpha=0.65;drawObject(hover.x,hover.y,next.item);ctx.restore();}
         if(next?.item)drawPlacementGuide(hover.x,hover.y,next.item,!!error);
@@ -2780,7 +2875,7 @@
     if(error){toast(error+" Remove the pieces below before making a section solid.");return;}
     history.push(snapshot());map[k]=next;update();store();draw();toast(next.hollow?"Open underneath · lower pieces need enough headroom.":"Solid foundation restored.");
   }
-  document.getElementById("workUnder").onchange=e=>{workUnder=!!e.target.checked;update();draw();toast(workUnder?"Ground layer: upper pieces are hidden. Paths and amenities still need ground access.":"All sections visible.");};
+  document.getElementById("workUnder").onchange=e=>{workUnder=!!e.target.checked;update();draw();toast(workUnder?"Ground layer: upper pieces are faint ghosts. Edit their ground footprint; paths and amenities still need ground access.":"All sections visible.");};
   document.getElementById("placementHeight").innerHTML='<option value="auto">Auto: match neighbors</option>'+Array.from({length:61},(_,n)=>`<option value="${n*5}">${n*5} ft base height</option>`).join("");
   document.getElementById("placementHeight").value="auto";
   document.getElementById("placementHeight").onchange=e=>{const n=Number(e.target.value);if(e.target.value!=="auto"&&(!Number.isInteger(n)||n<0||n>300||n%5))return;placementHeight=e.target.value;draw();};

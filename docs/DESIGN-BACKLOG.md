@@ -2,7 +2,16 @@
 
 Current baseline: v0.43. Historical decisions and release checkpoints follow below. Keep it simple, make it work, then expand.
 
-## Latest published pass — open undersides (v0.43)
+## November 5 — building beneath the stands
+
+- Work underneath keeps raised seating, stairs, ramps and concourses as faint ghosts at their real elevation. Ground editing still targets the lower footprint, and ghost geometry does not occlude ground fans.
+- Ground placement previews show available/required headroom, a vertical clearance guide, and specific solid-foundation or insufficient-height explanations. The established 10 ft shop rule and saved-park validation remain unchanged.
+- Refined dark steel flanges/bracing and automatic perimeter posts. Posts are visual, deduplicated at shared corners, omitted wherever they touch a ground walkway, and add no construction cost or route obstacles.
+- Shop names are clipped onto front/side/rear wall planes below the roof. Existing service-face artwork remains; front counters and awnings no longer paint over the hidden back wall.
+- Checks cover ghosts/occlusion/cache, clearance-preview agreement, walkway-safe supports, all item/camera facings and existing crowd/save regressions. Player acceptance on the user’s park remains pending; see UNDER-STAND-BUILDING-TESTING.md.
+- Still queued: independently stacked upper floors, named level groups and amenities on upper concourses.
+
+## Prior published foundation — open undersides (v0.43)
 
 - New elevated construction defaults open underneath; ground sections stay solid. Existing saved foundations remain solid unless explicitly changed.
 - Independent ground paths, shops, bathrooms and decorations can occupy the space beneath open raised sections when clearance permits. Base heights of 10 ft clear paths; 15 ft clear shops; trees require 25 ft.
