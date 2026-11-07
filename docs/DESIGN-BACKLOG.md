@@ -222,3 +222,26 @@ Implemented the requested attendance dropdown (100/200/400, saved, seat-capped, 
 - **Incremental delivery:** (1) rotated/infield-facing sections, (2) fence-trimmed rows, (3) more sophisticated wedge/curved transitions. Test wall collision, saved parks, rotated camera views, aisle links and actual fan seating/exits at each step.
 
 This extends the already implemented v0.33–v0.35 corner pieces; those do **not** yet constitute general-purpose, automatically wall-trimmed, freely oriented seating. Prioritize after the current crowd/construction acceptance work.
+
+
+## Long-term stadium architecture inspiration — November 7, 2026 (design capture only)
+
+**Status: reference / aspirational backlog; no implementation authorized in this capture.** Six screenshots supplied by the player from a stadium-physics animation (r/Amazing). These are inspiration for architectural possibilities, **not** an art-style directive, exact part specification, or a request for physical structural simulation.
+
+### Ideas to preserve
+
+1. **Multi-tier grandstands:** upper and lower seating decks with usable concourses between them, preserving genuine seat access and distinct elevations.
+2. **Structural framing:** visible support columns, beams and diagonal trusses beneath stands and roofs; keep structural appearance coherent without promising real engineering calculations.
+3. **Cantilevered roof modules:** roof sections with overhangs and exposed trusses; support joining neighboring sections into continuous canopies. Avoid arbitrary supports blocking spectators or circulation.
+4. **Covered public spaces:** fans should still navigate concourses, food/restroom areas and stairs under roofs and elevated seating.
+5. **Whole-stadium roof:** eventual partial/continuous stadium-scale canopy or enclosed roof over a complete venue, including a central field opening where appropriate.
+6. **Construction visibility:** preserve ghosted upper levels while editing underneath; eventually extend selective transparency/visibility to roofs and named stadium levels.
+7. **Sightlines and fan experience:** roof/column geometry should eventually influence views, shading and shelter, but such mechanics require separate design.
+
+### Architecture compatibility principle
+
+Make future seating, elevation, access, camera, collision, and saved-park decisions compatible with deeper multi-level stadiums. Do **not** introduce heavy structural physics or change current game systems merely to imitate the reference video. Develop in stages: independent upper levels and access → modular framing and canopy sections → continuous roof assemblies → whole-stadium venue options. Validate accessibility, visibility, saved parks, performance and rendering at each stage.
+
+### Reference screenshot index
+
+Six original screenshots were provided in the November 7 conversation. The visual references show (a) grandstand roof and upper deck from two angles, (b) covered lower grandstand, (c) side view of a cantilevered truss and support, (d) crowd-level underside of a roof, and (e) an aerial full-stadium canopy. Originals are retained in the conversation; a separately downloadable reference bundle may accompany this note. No externally sourced artwork is required.
