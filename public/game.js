@@ -191,6 +191,26 @@
       ctx.stroke();
     }
   }
+  // Classic isometric material pass: deterministic, world-anchored marks. No
+  // sprites, randomness per frame, gameplay collision, or save-format changes.
+  const textureHash=(x,y,n=0)=>{
+    let h=(Math.imul(Math.floor(x*997)+31,73856093)^Math.imul(Math.floor(y*991)+17,19349663)^Math.imul(n+1,83492791))>>>0;
+    h^=h>>>13;h=Math.imul(h,1274126177);return ((h^(h>>>16))>>>0)/4294967295;
+  };
+  function materialTexture(x,y,kind){
+    // Textures are drawn only inside the projected tile, in local world units.
+    // A few fine, low-contrast strokes suggest grass fibers or concrete grain.
+    const grass=kind==="grass",count=grass?5:3;
+    ctx.save();ctx.lineCap="round";ctx.lineWidth=Math.max(0.45,0.55*zoom);
+    for(let i=0;i<count;i++){
+      const u=0.13+0.74*textureHash(x,y,i*3),v=0.13+0.74*textureHash(x,y,i*3+1);
+      const a=project(x+u,y+v),length=(grass?0.075:0.045)*(0.7+textureHash(x,y,i*3+2));
+      const b=project(x+Math.min(0.92,u+length),y+Math.min(0.92,v+(grass?length*0.25:-length)));
+      ctx.strokeStyle=grass?(i%2?"#315b322b":"#f0dfad30"):(i%2?"#77726728":"#fff8df40");
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    }
+    ctx.restore();
+  }
   function diamond(x, y, fill, stroke) {
     polygon(
       [
@@ -203,6 +223,7 @@
       stroke,
       0.8 * zoom,
     );
+    if(fill===PAVEMENT || fill==="#dedbc9")materialTexture(x-0.5,y-0.5,"concrete");
   }
   function line(a, b, color, width = 2) {
     ctx.beginPath();
@@ -985,6 +1006,11 @@
           box(-0.38, b, 0.76, 0.18, h - 1, "#526779", "#91a6b6");
           // Thin silver bench planks and individual seat divisions.
           box(-0.39, b, 0.78, 0.11, h, "#8da1af", colors(item).primary);
+          // Brushed metal glints stay on the same physical bench surface.
+          for(let grain=0;grain<5;grain++){
+            const a=-0.35+grain*0.14+textureHash(x,y,i*7+grain)*0.035;
+            segment([a,b+0.035],[a+0.045,b+0.035],h+0.12,grain%2?"#ffffff36":"#24384944",0.45);
+          }
           for (let seat = 1; seat < 8; seat++)
             segment([-0.39 + seat * 0.0975, b], [-0.39 + seat * 0.0975, b + 0.11], h + 0.1, "#748b9b", 0.6);
         }
@@ -1048,6 +1074,11 @@
           food ? palette.primary : "#56819b",
           food ? palette.secondary : "#8fb4cb",
         );
+        // Subtle painted-panel seams on visible walls, below the roofline.
+        for(const u of [-0.19,-0.06,0.07,0.20]){
+          line(local(u,-0.326,2),local(u,-0.326,15),"#20384630",0.55);
+          line(local(u,0.326,2),local(u,0.326,15),"#20384630",0.55);
+        }
         const frontVisible=local(0,-0.32).y>local(0,0.32).y+1e-8;
         // All lettering is painted onto a physical wall face, below the roof.
         const label={concession:"FOOD",drinks:"DRINKS",iceCream:"ICE CREAM",souvenir:"GEAR",restroom:"RESTROOMS"}[item.type];
@@ -2554,6 +2585,7 @@
               : "#94bf83",
           isField ? "#73a56a" : "#7da972",
         );
+        materialTexture(x,y,"grass");
       }
     }
     drawStreets();
