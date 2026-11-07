@@ -1006,6 +1006,11 @@
           box(-0.38, b, 0.76, 0.18, h - 1, "#526779", "#91a6b6");
           // Thin silver bench planks and individual seat divisions.
           box(-0.39, b, 0.78, 0.11, h, "#8da1af", colors(item).primary);
+          // Brushed metal glints stay on the same physical bench surface.
+          for(let grain=0;grain<5;grain++){
+            const a=-0.35+grain*0.14+textureHash(x,y,i*7+grain)*0.035;
+            segment([a,b+0.035],[a+0.045,b+0.035],h+0.12,grain%2?"#ffffff36":"#24384944",0.45);
+          }
           for (let seat = 1; seat < 8; seat++)
             segment([-0.39 + seat * 0.0975, b], [-0.39 + seat * 0.0975, b + 0.11], h + 0.1, "#748b9b", 0.6);
         }
@@ -1069,6 +1074,11 @@
           food ? palette.primary : "#56819b",
           food ? palette.secondary : "#8fb4cb",
         );
+        // Subtle painted-panel seams on visible walls, below the roofline.
+        for(const u of [-0.19,-0.06,0.07,0.20]){
+          line(local(u,-0.326,2),local(u,-0.326,15),"#20384630",0.55);
+          line(local(u,0.326,2),local(u,0.326,15),"#20384630",0.55);
+        }
         const frontVisible=local(0,-0.32).y>local(0,0.32).y+1e-8;
         // All lettering is painted onto a physical wall face, below the roof.
         const label={concession:"FOOD",drinks:"DRINKS",iceCream:"ICE CREAM",souvenir:"GEAR",restroom:"RESTROOMS"}[item.type];
