@@ -191,6 +191,26 @@
       ctx.stroke();
     }
   }
+  // Classic isometric material pass: deterministic, world-anchored marks. No
+  // sprites, randomness per frame, gameplay collision, or save-format changes.
+  const textureHash=(x,y,n=0)=>{
+    let h=(Math.imul(Math.floor(x*997)+31,73856093)^Math.imul(Math.floor(y*991)+17,19349663)^Math.imul(n+1,83492791))>>>0;
+    h^=h>>>13;h=Math.imul(h,1274126177);return ((h^(h>>>16))>>>0)/4294967295;
+  };
+  function materialTexture(x,y,kind){
+    // Textures are drawn only inside the projected tile, in local world units.
+    // A few fine, low-contrast strokes suggest grass fibers or concrete grain.
+    const grass=kind==="grass",count=grass?5:3;
+    ctx.save();ctx.lineCap="round";ctx.lineWidth=Math.max(0.45,0.55*zoom);
+    for(let i=0;i<count;i++){
+      const u=0.13+0.74*textureHash(x,y,i*3),v=0.13+0.74*textureHash(x,y,i*3+1);
+      const a=project(x+u,y+v),length=(grass?0.075:0.045)*(0.7+textureHash(x,y,i*3+2));
+      const b=project(x+Math.min(0.92,u+length),y+Math.min(0.92,v+(grass?length*0.25:-length)));
+      ctx.strokeStyle=grass?(i%2?"#315b322b":"#f0dfad30"):(i%2?"#77726728":"#fff8df40");
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    }
+    ctx.restore();
+  }
   function diamond(x, y, fill, stroke) {
     polygon(
       [
@@ -203,6 +223,7 @@
       stroke,
       0.8 * zoom,
     );
+    if(fill===PAVEMENT || fill==="#dedbc9")materialTexture(x-0.5,y-0.5,"concrete");
   }
   function line(a, b, color, width = 2) {
     ctx.beginPath();
@@ -2554,6 +2575,7 @@
               : "#94bf83",
           isField ? "#73a56a" : "#7da972",
         );
+        materialTexture(x,y,"grass");
       }
     }
     drawStreets();
