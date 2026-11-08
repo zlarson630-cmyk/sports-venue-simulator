@@ -17,7 +17,24 @@ function list(storage){
 }
 function apply(state,park){
  const p=analyze(park);
- return {...state,linkedPark:{capacity:p.capacity,shops:p.shops,restrooms:p.restrooms}};
+ return {...state,linkedPark:{capacity:p.capacity,shops:p.shops,restrooms:p.restrooms},linkedParkSnapshot:true};
 }
-return {SEATS,analyze,list,apply};
+function sync(state,storage){
+ if(!state.linkedParkId)return state;
+ const raw=storage.getItem("svs.parks.v1");
+ const records=raw?JSON.parse(raw):[];
+ if(!Array.isArray(records))throw Error("Invalid park records");
+ const record=records.find(x=>x&&x.id===state.linkedParkId);
+ if(!record||!record.data)return {...state,linkedParkMissing:true};
+ const info=analyze(record.data);
+ return {...state,linkedPark:{capacity:info.capacity,shops:info.shops,restrooms:info.restrooms},linkedParkMissing:false,linkedParkSnapshot:false};
+}
+function link(state,id,storage){
+ if(typeof id!=="string"||!id)throw Error("Select a saved ballpark");
+ const next=sync({...state,linkedParkId:id},storage);
+ if(next.linkedParkMissing)throw Error("Saved ballpark no longer exists");
+ return next;
+}
+function unlink(state){const next={...state};delete next.linkedPark;delete next.linkedParkId;delete next.linkedParkMissing;delete next.linkedParkSnapshot;return next;}
+return {SEATS,analyze,list,apply,sync,link,unlink};
 });
