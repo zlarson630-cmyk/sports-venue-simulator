@@ -2,6 +2,13 @@
 
 Current baseline: v0.43. Historical decisions and release checkpoints follow below. Keep it simple, make it work, then expand.
 
+### Concession inventory and waste — later phase
+- Give each food/drink stand a separate pregame stock quantity for its offered products. Track sales, remaining stock, sold-out items, unit costs and unsold/wasted perishable food.
+- Stockouts should reduce revenue and create grounded fan thoughts; excessive stocking should increase waste and lower operating profit.
+- Use the planned eighth-inning food closure as the stock-planning cutoff; finish serving existing lines, with restrooms open throughout departure and souvenirs optionally available after the game.
+- Surface these metrics in per-facility reports and the postgame financial summary. Introduce restocking/deliveries only after basic inventory is stable.
+- **Not part of guest-management MVP.**
+
 ## November 5 — building beneath the stands
 
 - Work underneath keeps raised seating, stairs, ramps and concourses as faint ghosts at their real elevation. Ground editing still targets the lower footprint, and ghost geometry does not occlude ground fans.
