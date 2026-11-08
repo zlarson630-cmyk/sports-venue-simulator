@@ -3067,7 +3067,7 @@
   let activeParkId=null,parkRecords=[];
   const parkPayload=()=>({version:2,fieldRevision:7,entranceRevision:1,seatingRevision:2,wallFinishRevision:1,gameMinutes,requestedFans,tiles,edges,infillDecks,underlays,groundConcrete,money,team});
   let parkSerial=0;
-  const parkId=()=> "park-"+Date.now().toString(36)+"-"+(++parkSerial).toString(36)+"-"+Math.random().toString(36).slice(2,9);
+  const parkId=()=> "park-"+Date.now().toString(36)+"-"+(++parkSerial).toString(36);
   function saveRecords(records=parkRecords){
     localStorage.setItem(PARKS_KEY,JSON.stringify(records));
   }
