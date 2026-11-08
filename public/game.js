@@ -1823,6 +1823,7 @@
     for(const fan of fans){
       if(!fan.paid||fan.exited)continue;
       const engaged=fan.seated||fan.activity==="watching game";
+      if(engaged)fan.celebrateUntil=fanElapsed+3;
       if(engaged)fanThought(fan,moment.label,Math.round(moment.impact*(fan.persona==="diehard"?1.5:fan.persona==="family"?0.7:1)),"game");
     }
     nextExcitement=fanElapsed+22+Math.random()*22;
@@ -2044,7 +2045,7 @@
   function advanceNeeds(step,moveFan=()=>{}){
     for(const room of amenityServices){
       for(const fan of [...room.using]){fan.serviceSeconds-=step;if(fan.serviceSeconds>0)continue;
-        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;concessionRevenue+=5;pendingFoodRevenue+=5;fanThought(fan,fanFoodType(fan)===room.product?"Found a favorite ballpark snack!":room.product==="iceCream"?"Enjoyed some ice cream!":room.product==="drinks"?"Got a refreshing drink!":"Enjoyed the ballpark food",fan.persona==="foodie"?6:4,"food");}
+        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;fan.carrying=room.product==="iceCream"?"iceCream":room.product==="drinks"?"drinks":"food";foodSales++;concessionRevenue+=5;pendingFoodRevenue+=5;fanThought(fan,fanFoodType(fan)===room.product?"Found a favorite ballpark snack!":room.product==="iceCream"?"Enjoyed some ice cream!":room.product==="drinks"?"Got a refreshing drink!":"Enjoyed the ballpark food",fan.persona==="foodie"?6:4,"food");}
         const corridor=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
         if(fans.some(f=>f!==fan&&(f.activity==="returning to seat"||["to restroom","to concession"].includes(f.activity)||
           fan.tripFromArrival&&(f.activity==="arriving"||f.activity==="taking in the view"))&&
@@ -2152,7 +2153,7 @@
       const walkingRoute=slot.routeFor(routeTraffic);
       for(const p of walkingRoute)traffic.set(p.node,(traffic.get(p.node)||0)+1);
       const route=laneRoute(seatRoute(arrival,walkingRoute,target)),initialNeed=20+Math.random()*40;
-      fans.push({persona:FAN_PERSONAS[(partyId+i)%FAN_PERSONAS.length],favoriteFood:FAN_FOODS[(partyId+i)%FAN_FOODS.length],moodImpact:0,thoughts:[],walkingRoute,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:needsRate===0?0:i%13===4?82:initialNeed,bathroomVisits:0,hunger:needsRate===0?0:i%13===8?82:20+(i%7)*5,foodVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
+      fans.push({...fanAppearance(i,partyId),persona:FAN_PERSONAS[(partyId+i)%FAN_PERSONAS.length],favoriteFood:FAN_FOODS[(partyId+i)%FAN_FOODS.length],moodImpact:0,thoughts:[],walkingRoute,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:needsRate===0?0:i%13===4?82:initialNeed,bathroomVisits:0,hunger:needsRate===0?0:i%13===8?82:20+(i%7)*5,foodVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
     }
     // A pause must not let another fan overtake into the same narrow stair
     // or row. Only the last arrival assigned to a corridor may stop.
@@ -2359,6 +2360,7 @@
         simulateGameExcitement();
         if(fanElapsed>=happinessNext){noticeAttractions();updateHappiness();happinessNext=fanElapsed+0.75;}
       }
+      for(const fan of fans)if(fan.spawned&&!fan.exited){fan.visualX=fan.x;fan.visualY=fan.y;}
       collected+=pendingFoodRevenue;pendingFoodRevenue=0;
       // Leaders move first; followers can use the space they just vacated.
       const moving=fans.filter(f=>!f.exited&&!f.insideAmenity&&!["waiting for food","buying food"].includes(f.activity)&&(fanPhase==="exiting"?departureElapsed>=f.exitStart:!f.seated&&arrivalElapsed>=f.start)).sort((a,b)=>fanPhase==="exiting"?
@@ -2444,6 +2446,7 @@
         }
         corridors.set(fan,lookAhead(fan));
       }
+      for(const fan of fans)if(fan.spawned&&!fan.exited)advanceFanAppearance(fan,fan.visualX??fan.x,fan.visualY??fan.y);
       if(fanElapsed>=GAME_SECONDS&&fanPhase==="game"){
         fanPhase="finishing arrivals";updateHappiness(true);happinessFinal=true;
       }
@@ -2495,14 +2498,81 @@
     ctx.font=`bold ${7*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#213c31";
     ctx.fillText(player.position,p.x,p.y+7*z);
   }
+  // Appearance is generated once per visitor. Animation is visual-only:
+  // movement, routing, collision, seat assignments and saves are untouched.
+  const FAN_SHIRTS=["#cf5149","#e7b94e","#5387b4","#f3e9d6","#377b69","#8d6ba2"];
+  const FAN_SKINS=["#f0c7a3","#d69b73","#ad7050","#e7b28b","#85543c"];
+  function fanAppearance(index,partyId){
+    return {shirt:FAN_SHIRTS[(index+partyId)%FAN_SHIRTS.length],
+      pants:["#243d56","#586779","#44474c","#8a806a"][(index+partyId*3)%4],
+      skin:FAN_SKINS[(index+partyId*2)%FAN_SKINS.length],
+      hat:(index+partyId)%4===0,jersey:(index+partyId)%5===0,
+      stride:0,facing:1,carrying:null,celebrateUntil:0};
+  }
+  function fanWalking(fan){
+    return !!fan.spawned&&!fan.seated&&!fan.insideAmenity&&
+      !["waiting for food","waiting restroom","buying food","using restroom","taking in the view"].includes(fan.activity)&&
+      !(fan.pauseUntil>arrivalElapsed);
+  }
+  function advanceFanAppearance(fan,fromX,fromY){
+    const dx=fan.x-fromX,dy=fan.y-fromY,distance=Math.hypot(dx,dy);
+    if(distance<0.00001)return;
+    fan.stride=(fan.stride||0)+distance*18;
+    // Facing follows the projected horizontal direction, including camera rotation.
+    const a=project(fromX,fromY),b=project(fan.x,fan.y);
+    if(Math.abs(b.x-a.x)>0.05)fan.facing=b.x>=a.x?1:-1;
+  }
   function drawFan(fan) {
-    const p=project(fan.x,fan.y),z=zoom,h=fan.standSeat?fan.feet*FT:(fan.seated?4+fan.row*3:0);
-    p.y-=h*z;
-    ctx.beginPath();ctx.ellipse(p.x,p.y,2.7*z,1.3*z,0,0,Math.PI*2);ctx.fillStyle="#203e5240";ctx.fill();
-    line({x:p.x-1*z,y:p.y},{x:p.x-1*z,y:p.y-3*z},"#263c50",1.1);
-    line({x:p.x+1*z,y:p.y},{x:p.x+1*z,y:p.y-3*z},"#263c50",1.1);
-    line({x:p.x,y:p.y-3*z},{x:p.x,y:p.y-7*z},fan.color,3.5);
-    ctx.beginPath();ctx.arc(p.x,p.y-9*z,1.9*z,0,Math.PI*2);ctx.fillStyle="#ecc29a";ctx.fill();
+    const p=fanScreenPoint(fan),z=zoom;
+    const walking=fanWalking(fan),stride=walking?Math.sin(fan.stride||0):0;
+    const facing=fan.facing||1,skin=fan.skin||"#ecc29a";
+    const shirt=fan.shirt||fan.color||"#df5853",pants=fan.pants||"#263c50";
+    const footY=p.y,leg=walking?stride*1.5*z:0;
+    ctx.save();ctx.lineCap="round";ctx.lineJoin="round";
+    ctx.beginPath();ctx.ellipse(p.x,footY,2.8*z,1.3*z,0,0,Math.PI*2);ctx.fillStyle="#203e5240";ctx.fill();
+    // A shorter, bent pose for seated fans, with alternating legs when walking.
+    const hipY=footY-(fan.seated?2.7:3.4)*z;
+    const leftFoot={x:p.x-1.1*z-facing*leg*0.5,y:footY-Math.max(0,leg)*0.25};
+    const rightFoot={x:p.x+1.1*z+facing*leg*0.5,y:footY+Math.min(0,leg)*0.25};
+    ctx.strokeStyle=pants;ctx.lineWidth=Math.max(1,1.25*z);
+    ctx.beginPath();ctx.moveTo(p.x-0.8*z,hipY);ctx.lineTo(leftFoot.x,leftFoot.y);ctx.moveTo(p.x+0.8*z,hipY);ctx.lineTo(rightFoot.x,rightFoot.y);ctx.stroke();
+    const shoulderY=hipY-3.3*z,headY=shoulderY-2.4*z;
+    ctx.strokeStyle=shirt;ctx.lineWidth=Math.max(2,3.7*z);
+    ctx.beginPath();ctx.moveTo(p.x,hipY);ctx.lineTo(p.x,shoulderY);ctx.stroke();
+    if(fan.jersey){
+      ctx.strokeStyle="#f5ead5";ctx.lineWidth=Math.max(0.7,0.65*z);
+      ctx.beginPath();ctx.moveTo(p.x-1.5*z,shoulderY+0.7*z);ctx.lineTo(p.x+1.5*z,shoulderY+0.7*z);ctx.stroke();
+    }
+    const armSwing=walking?stride*1.1*z:0;
+    ctx.strokeStyle=skin;ctx.lineWidth=Math.max(1,0.95*z);
+    ctx.beginPath();
+    ctx.moveTo(p.x-1.65*z,shoulderY+0.5*z);ctx.lineTo(p.x-2.2*z-facing*armSwing,hipY-0.3*z);
+    ctx.moveTo(p.x+1.65*z,shoulderY+0.5*z);ctx.lineTo(p.x+2.2*z+facing*armSwing,hipY-0.3*z);
+    ctx.stroke();
+    ctx.beginPath();ctx.arc(p.x,headY,1.9*z,0,Math.PI*2);ctx.fillStyle=skin;ctx.fill();
+    if(fan.hat){
+      ctx.fillStyle=fan.color||"#b63f39";
+      ctx.beginPath();ctx.ellipse(p.x,headY-1.25*z,2*z,1.05*z,0,Math.PI,2*Math.PI);ctx.fill();
+      ctx.fillRect(p.x-1.9*z,headY-1.4*z,3.8*z,0.75*z);
+      ctx.fillRect(p.x+(facing>0?1.2:-3.1)*z,headY-1.15*z,1.9*z,0.55*z);
+    }
+    // Food is visibly held after a real purchase, not awarded at game start.
+    if(fan.carrying){
+      const handX=p.x+(facing>0?2.8:-2.8)*z,handY=hipY-0.3*z;
+      if(fan.carrying==="drinks"){
+        ctx.fillStyle="#e6f2fb";ctx.fillRect(handX-0.8*z,handY-1.5*z,1.6*z,2.3*z);
+        ctx.strokeStyle="#c94e42";ctx.lineWidth=Math.max(0.5,0.5*z);ctx.beginPath();ctx.moveTo(handX,handY-1.5*z);ctx.lineTo(handX+0.6*z,handY-2.8*z);ctx.stroke();
+      }else{
+        ctx.fillStyle=fan.carrying==="iceCream"?"#f5d7a2":"#d99c51";
+        ctx.beginPath();ctx.ellipse(handX,handY-0.8*z,1.2*z,0.9*z,0,0,Math.PI*2);ctx.fill();
+      }
+    }
+    if(fan.celebrateUntil>fanElapsed&&fan.seated){
+      ctx.strokeStyle=skin;ctx.lineWidth=Math.max(1,0.9*z);ctx.beginPath();
+      ctx.moveTo(p.x-1.5*z,shoulderY);ctx.lineTo(p.x-2.5*z,headY-3*z);
+      ctx.moveTo(p.x+1.5*z,shoulderY);ctx.lineTo(p.x+2.5*z,headY-3*z);ctx.stroke();
+    }
+    ctx.restore();
   }
   function buildFanDemo() {
     if(fanActive&&tool!=="inspect") {toast("End the fan test before building");return;}
