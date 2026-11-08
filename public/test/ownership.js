@@ -150,16 +150,20 @@ function game(state,random=0.5){
  const effectiveShops=linked?linked.shops+(state.upgrades.includes("concession")&&linked.shops<=(state.linkedParkBaselineShops??linked.shops)?1:0):2;
  const amenityFactor=clamp(effectiveShops/2,0,1.25);
  const restroomPenalty=linked&&linked.restrooms===0&&!state.upgrades.includes("restroom")?-2:0;
+ // First-pass crowd flow proxy. It uses actual saved walkable tile counts;
+// full live pathfinding and queue measurements will replace this estimate.
+ const walkwayLoad=linked&&Number.isFinite(linked.paths)?turnout/Math.max(1,linked.paths):0;
+ const crowdFlow=linked?clamp(1-Math.max(0,walkwayLoad-8)*.006,.65,1):1;
  const gate=money(turnout*state.ticketPrice);
  const concessionDemand=clamp(Math.pow(5.5/state.concessionPrice,1.55),0.06,1.5);
- const concessionAvailability=amenityFactor*(linked&&Number.isFinite(linked.accessScore)?clamp(linked.accessScore,0.5,1.12):1);
+ const concessionAvailability=amenityFactor*crowdFlow*(linked&&Number.isFinite(linked.accessScore)?clamp(linked.accessScore,0.5,1.12):1);
  const concessions=money(turnout*state.concessionPrice*concessionDemand*(1+salesBoost)*concessionAvailability);
  const lightingCost=gameTime==="night"?650:gameTime==="sunset"?150:0;
  const expense=fixture.home?state.staffCount*state.staffDailyWage+state.otherPerHomeGame+lightingCost:state.roadExpense;
  const profit=money(gate+concessions-expense);
- const servicePenalty=fixture.home&&state.staffCount<Math.ceil(turnout/85)?-1.5:0;
+ const servicePenalty=(fixture.home&&state.staffCount<Math.ceil(turnout/85)?-1.5:0)+(fixture.home&&linked&&crowdFlow<.9?-1:0);
  const rating=clamp(state.fanRating+(fixture.home?(capacity>0&&turnout>capacity*0.9?-1:1):0)+servicePenalty+(fixture.home?restroomPenalty:0)+(win?0.2:-0.2),0,100);
- const entry={game:fixture.number,home:fixture.home,opponent:fixture.opponent,weekday:fixture.weekday||WEEK_DAYS[(fixture.number-1)%6],week:fixture.week||Math.floor((fixture.number-1)/6)+1,gameTime,win,attendance:turnout,capacity,gate,concessions,expense,lightingCost,profit,cashAfter:money(state.cash+profit)};
+ const entry={game:fixture.number,home:fixture.home,opponent:fixture.opponent,weekday:fixture.weekday||WEEK_DAYS[(fixture.number-1)%6],week:fixture.week||Math.floor((fixture.number-1)/6)+1,gameTime,win,attendance:turnout,capacity,crowdFlow,gate,concessions,expense,lightingCost,profit,cashAfter:money(state.cash+profit)};
  return finishProjects({...state,cash:entry.cashAfter,gameIndex:state.gameIndex+1,wins:state.wins+Number(win),losses:state.losses+Number(!win),fanRating:rating,history:[...state.history,entry],ledger:[...(state.ledger||[]),{year:state.year,day:state.day,type:fixture.home?"home-game":"away-game",description:"Game "+fixture.number+" vs "+fixture.opponent,amount:profit}],status:state.gameIndex+1===SEASON_GAMES?"offseason":"active"},state.day+1);
 }
 function advance(state,count=1,random=Math.random){
