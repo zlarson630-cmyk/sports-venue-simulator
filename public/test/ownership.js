@@ -216,5 +216,16 @@ function summary(state){
  const total=k=>money(h.reduce((n,x)=>n+x[k],0));
  return {gamesPlayed:state.gameIndex,homeGames:h.filter(x=>x.home).length,wins:state.wins,losses:state.losses,cash:state.cash,gate:total("gate"),concessions:total("concessions"),expenses:total("expense"),operatingProfit:total("profit"),attendance:h.reduce((n,x)=>n+x.attendance,0),fanRating:Math.round(state.fanRating),status:state.status};
 }
-return {SEASON_GAMES,STARTING_CASH,UPGRADES,WEEK_DAYS,newCampaign,makeSeason,currentSeries,playSeries,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,advanceToOpeningDay,game,advance,forecast,applyOperatingPlan,previewHomeGame,summary};
+function applyLiveExperience(state,report){
+ state=normalize(validate(state));
+ if(!state.linkedParkId||!report||report.completed!==true||report.parkId!==state.linkedParkId)throw Error("Complete a fan test for your linked park first");
+ if(!Number.isFinite(report.recordedAt)||!Number.isFinite(report.averageHappiness)||!Number.isFinite(report.admissions)||report.admissions<=0)throw Error("Incomplete fan experience report");
+ if(state.lastExperienceApplied===report.recordedAt)throw Error("This fan test was already applied");
+ const happiness=clamp(report.averageHappiness,0,100);
+ // A sampled fan test informs reputation modestly, without overwriting the campaign's longer-term rating.
+ const change=clamp(Math.round((happiness-state.fanRating)*.12),-5,5);
+ return {...state,fanRating:clamp(state.fanRating+change,0,100),lastExperienceApplied:report.recordedAt,
+ ledger:[...(state.ledger||[]),{year:state.year,day:state.day,type:"fan-feedback",description:"Fan test feedback ("+Math.round(happiness)+"% happiness, "+(change>=0?"+":"")+change+" reputation)",amount:0}]};
+}
+return {SEASON_GAMES,STARTING_CASH,UPGRADES,WEEK_DAYS,newCampaign,makeSeason,currentSeries,playSeries,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,advanceToOpeningDay,game,advance,forecast,applyOperatingPlan,previewHomeGame,applyLiveExperience,summary};
 });
