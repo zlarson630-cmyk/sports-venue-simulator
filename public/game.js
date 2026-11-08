@@ -3063,16 +3063,147 @@
     clearTimeout(toast.timer);
     toast.timer = setTimeout(() => t.classList.remove("on"), 1800);
   }
+  const PARKS_KEY="svs.parks.v1",ACTIVE_KEY="svs.activePark.v1";
+  let activeParkId=null,parkRecords=[];
+  const parkPayload=()=>({version:2,fieldRevision:7,entranceRevision:1,seatingRevision:2,wallFinishRevision:1,gameMinutes,requestedFans,tiles,edges,infillDecks,underlays,groundConcrete,money,team});
+  const parkId=()=> "park-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,9);
+  function saveRecords(records=parkRecords){
+    localStorage.setItem(PARKS_KEY,JSON.stringify(records));
+  }
   function store() {
     try {
-      localStorage.setItem(
-        "svs01",
-        JSON.stringify({ version: 2, fieldRevision: 7, entranceRevision:1, seatingRevision:2, wallFinishRevision:1, gameMinutes, requestedFans, tiles, edges, infillDecks, underlays, groundConcrete, money, team }),
-      );
+      const data=parkPayload(),serialized=JSON.stringify(data);
+      // Keep the legacy key as an active-park backup for older versions.
+      localStorage.setItem("svs01",serialized);
+      if(activeParkId){
+        const record=parkRecords.find(p=>p.id===activeParkId);
+        if(record){
+          record.data=data;record.updatedAt=Date.now();
+          saveRecords();
+        }
+      }
       return true;
-    } catch (e) {
+    } catch(e) {
       toast("Browser storage unavailable. Export a park backup.");
       return false;
+    }
+  }
+  function loadParkData(data){
+    const park=validatePark(data);
+    if(fanActive)endFanTest("Changed parks; fan test ended.");
+    tiles=park.tiles;infillDecks=park.infillDecks;underlays=park.underlays;
+    groundConcrete=park.groundConcrete;edges=park.edges;money=park.money;team=park.team;
+    gameMinutes=park.gameMinutes;gameMinutesControl.value=String(gameMinutes);
+    requestedFans=park.requestedFans;fanCountControl.value=String(requestedFans);
+    history=[];
+    if(!park.entranceRevision&&Object.values(tiles).some(isPath))connectLegacyGate();
+    update();draw();
+  }
+  const parkMenu=document.getElementById("parkMenu");
+  const hideParkMenu=()=>{parkMenu.hidden=true;};
+  const showParkMenu=()=>{
+    renderParkMenu();
+    parkMenu.hidden=false;
+    document.getElementById("closeParkMenu").focus();
+  };
+  function renderParkMenu(){
+    const list=document.getElementById("parkSaveList");
+    if(typeof list.replaceChildren!=="function")return; // Headless test DOM lacks list mutation APIs.
+    list.replaceChildren();
+    for(const record of parkRecords.slice().sort((a,b)=>b.updatedAt-a.updatedAt)){
+      const row=document.createElement("div");row.className="park-save-card";
+      if(record.id===activeParkId)row.classList.add("current");
+      const info=document.createElement("div");info.className="park-save-info";
+      const heading=document.createElement("strong");heading.textContent=record.name;
+      const meta=document.createElement("small");
+      const built=Object.keys(record.data.tiles||{}).length;
+      meta.textContent=(record.id===activeParkId?"● Current park · ":"")+built+" objects · "+new Date(record.updatedAt).toLocaleString();
+      info.append(heading,meta);
+      const actions=document.createElement("div");actions.className="park-save-actions";
+      const add=(label,handler)=>{const button=document.createElement("button");button.type="button";button.textContent=label;button.addEventListener("click",handler);actions.append(button);};
+      add("Load",()=>{
+        if(record.id===activeParkId){hideParkMenu();return;}
+        if(!store())return;
+        try {
+          loadParkData(record.data);
+          activeParkId=record.id;localStorage.setItem(ACTIVE_KEY,activeParkId);
+          if(!store())return;
+          hideParkMenu();toast("Loaded "+record.name);
+        }catch(e){toast("This park could not be loaded");}
+      });
+      add("Rename",()=>{
+        const name=prompt("Name this ballpark:",record.name);
+        if(name===null)return;
+        if(!name.trim()){toast("Park name cannot be empty");return;}
+        record.name=name.trim().slice(0,70);
+        try{saveRecords();renderParkMenu();}catch{toast("Could not rename park");}
+      });
+      add("Duplicate",()=>{
+        if(!store())return;
+        const copy={id:parkId(),name:record.name+" (copy)",updatedAt:Date.now(),data:JSON.parse(JSON.stringify(record.data))};
+        parkRecords.push(copy);
+        try{saveRecords();renderParkMenu();}catch{parkRecords.pop();toast("Browser storage full — export a backup");}
+      });
+      add("Delete",()=>{
+        if(record.id===activeParkId){toast("Switch parks before deleting the current one");return;}
+        if(!confirm('Delete "'+record.name+'"? This cannot be undone.'))return;
+        parkRecords=parkRecords.filter(p=>p.id!==record.id);
+        try{saveRecords();renderParkMenu();}catch{toast("Unable to delete park");}
+      });
+      row.append(info,actions);list.append(row);
+    }
+  }
+  document.getElementById("openParkMenu").onclick=showParkMenu;
+  document.getElementById("closeParkMenu").onclick=hideParkMenu;
+  document.getElementById("newPark").onclick=()=>{
+    const name=prompt("Name your new ballpark:","New Ballpark");
+    if(name===null)return;
+    if(!name.trim()){toast("Park name cannot be empty");return;}
+    if(!store())return;
+    const record={id:parkId(),name:name.trim().slice(0,70),updatedAt:Date.now(),
+      data:{...parkPayload(),tiles:{},edges:{},infillDecks:{},underlays:{},groundConcrete:{},money:500000}};
+    try {
+      // Persist the new slot before changing the currently loaded park.
+      validatePark(record.data);parkRecords.push(record);saveRecords();
+      loadParkData(record.data);
+      activeParkId=record.id;localStorage.setItem(ACTIVE_KEY,activeParkId);
+      store();hideParkMenu();toast("New park created");
+    }catch(e){parkRecords=parkRecords.filter(p=>p.id!==record.id);toast("Couldn't create park — check browser storage");}
+  };
+  function initializeParkMenu(){
+    try {
+      const existing=JSON.parse(localStorage.getItem(PARKS_KEY)||"null");
+      if(Array.isArray(existing))parkRecords=existing.filter(p=>
+        p&&typeof p.id==="string"&&typeof p.name==="string"&&
+        Number.isFinite(p.updatedAt)&&p.data&&typeof p.data==="object");
+      const legacy=localStorage.getItem("svs01");
+      if(!parkRecords.length&&legacy){
+        const parsed=JSON.parse(legacy);validatePark(parsed);
+        parkRecords=[{id:parkId(),name:"My Original Ballpark",updatedAt:Date.now(),data:parsed}];
+        saveRecords();
+      }
+      if(!parkRecords.length){
+        parkRecords=[{id:parkId(),name:"Starter Ballpark",updatedAt:Date.now(),data:parkPayload()}];
+        saveRecords();
+      }
+      const preferred=localStorage.getItem(ACTIVE_KEY);
+      let current=parkRecords.find(p=>p.id===preferred)||parkRecords[0];
+      // Prefer the old active save if the registry is stale (e.g. interrupted write).
+      if(current.id===preferred&&legacy){
+        try{const parsed=JSON.parse(legacy);validatePark(parsed);current.data=parsed;}catch{}
+      }
+      activeParkId=current.id;localStorage.setItem(ACTIVE_KEY,activeParkId);
+      // Startup must not draw before the existing resize/bootstrap sequence.
+      const park=validatePark(current.data);
+      tiles=park.tiles;infillDecks=park.infillDecks;underlays=park.underlays;
+      groundConcrete=park.groundConcrete;edges=park.edges;money=park.money;team=park.team;
+      gameMinutes=park.gameMinutes;gameMinutesControl.value=String(gameMinutes);
+      requestedFans=park.requestedFans;fanCountControl.value=String(requestedFans);
+      if(!park.entranceRevision&&Object.values(tiles).some(isPath))connectLegacyGate();
+      store();renderParkMenu();parkMenu.hidden=false;
+    } catch(e) {
+      toast("Could not read saved parks; export your existing backup.");
+      parkMenu.hidden=true;
     }
   }
   function concreteError(x,y){
@@ -3559,20 +3690,7 @@
       e.target.value = "";
     }
   };
-  try {
-    const raw = localStorage.getItem("svs01");
-    if (raw) {
-      const saved = validatePark(JSON.parse(raw));
-      tiles = saved.tiles;infillDecks=saved.infillDecks;underlays=saved.underlays;groundConcrete=saved.groundConcrete;
-      edges = saved.edges;
-      money = saved.money;
-      team=saved.team;gameMinutes=saved.gameMinutes;gameMinutesControl.value=String(gameMinutes);requestedFans=saved.requestedFans;fanCountControl.value=String(requestedFans);
-      if(!saved.entranceRevision&&Object.values(tiles).some(isPath))connectLegacyGate();
-      store();
-    }
-  } catch (e) {
-    toast("Saved park could not be loaded. Import a backup if available.");
-  }
+  initializeParkMenu();
   update();
   resize();
 })();
