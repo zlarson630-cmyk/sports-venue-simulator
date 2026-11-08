@@ -2117,7 +2117,7 @@
   function advanceNeeds(step,moveFan=()=>{}){
     for(const room of amenityServices){
       for(const fan of [...room.using]){fan.serviceSeconds-=step;if(fan.serviceSeconds>0)continue;
-        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;concessionRevenue+=5;pendingFoodRevenue+=5;fanThought(fan,fanFoodType(fan)===room.product?"Found a favorite ballpark snack!":room.product==="iceCream"?"Enjoyed some ice cream!":room.product==="drinks"?"Got a refreshing drink!":"Enjoyed the ballpark food",fan.persona==="foodie"?6:4,"food");}
+        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;fan.foodPurchases=(fan.foodPurchases||0)+1;concessionRevenue+=5;pendingFoodRevenue+=5;fanThought(fan,fanFoodType(fan)===room.product?"Found a favorite ballpark snack!":room.product==="iceCream"?"Enjoyed some ice cream!":room.product==="drinks"?"Got a refreshing drink!":"Enjoyed the ballpark food",fan.persona==="foodie"?6:4,"food");}
         const corridor=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
         if(fans.some(f=>f!==fan&&(f.activity==="returning to seat"||["to restroom","to concession"].includes(f.activity)||
           fan.tripFromArrival&&(f.activity==="arriving"||f.activity==="taking in the view"))&&
@@ -2168,6 +2168,67 @@
       if(bathroom&&!fan.bathroomRetry)startAmenityTrip(fan);
     }
   }
+  // Live guest management: action / thought / needs / spending views.
+  let guestView="actions",guestViewTick=-1;
+  const guestFilterMatch=(fan,filter)=>{
+    if(filter==="walking")return !fan.seated&&!fan.exited&&["arriving","taking in the view","returning to seat"].includes(fan.activity);
+    if(filter==="seated")return !!fan.seated;
+    if(filter==="amenity")return !!fan.insideAmenity||["to concession","to restroom","buying food","using restroom","waiting for food","waiting restroom"].includes(fan.activity);
+    if(filter==="waiting")return (fan.blockedFor||0)>2||String(fan.activity).startsWith("waiting");
+    if(filter==="exited")return !!fan.exited;
+    return true;
+  };
+  const guestAction=fan=>fan.exited?"Leaving the stadium":fan.seated?"Watching the game":({
+    "arriving":"Walking to seat","taking in the view":"Enjoying the concourse",
+    "to restroom":"Heading to restroom","to concession":"Heading to food stand",
+    "waiting restroom":"Waiting for restroom","waiting for food":"In concession line",
+    "using restroom":"Using restroom","buying food":"Buying food",
+    "returning to seat":"Returning to seat"
+  }[fan.activity]||fan.activity||"Exploring");
+  const guestSpending=fan=>({admission:fan.paid?TICKET_PRICE:0,food:(fan.foodPurchases||0)*5});
+  function renderGuestManager(force=false){
+    const panel=document.getElementById("guestManager");
+    if(!panel||panel.hidden)return;
+    const tick=Math.floor(fanElapsed*2);
+    if(!force&&guestViewTick===tick)return;
+    guestViewTick=tick;
+    const chosen=document.getElementById("guestFilter").value||"all";
+    const matches=fans.map((fan,i)=>({fan,i})).filter(({fan})=>guestFilterMatch(fan,chosen));
+    const count=document.getElementById("guestManagerCount");
+    if(count)count.textContent=matches.length+" shown / "+fans.length+" total";
+    const rowHost=document.getElementById("guestManagerRows");
+    if(!rowHost)return;
+    // Generated messages are internal simulator strings; place them as text
+    // rather than HTML to keep guest thoughts safe to display.
+    rowHost.replaceChildren();
+    for(const {fan,i} of matches){
+      const row=document.createElement("button");
+      row.type="button";row.className="guest-row";
+      row.setAttribute("aria-selected",String(selectedFan===fan));
+      const name=document.createElement("strong");name.textContent="Fan "+(i+1);
+      const activity=document.createElement("span");activity.className="guest-state";
+      if(guestView==="actions")activity.textContent=guestAction(fan);
+      else if(guestView==="thoughts")activity.textContent=fan.thoughts?.at(-1)?.message||"No thoughts recorded yet";
+      else if(guestView==="needs")activity.textContent="Happy "+fanHappinessScore(fan)+"% · Food "+Math.round(fan.hunger||0)+"% · Restroom "+Math.round(fan.bathroomNeed||0)+"%";
+      else {const spent=guestSpending(fan);activity.textContent="Entry $"+spent.admission+" · Food $"+spent.food;}
+      row.appendChild(name);row.appendChild(activity);
+      row.onclick=()=>{selectedFan=fan;document.getElementById("fanPicker").value=String(i);updateFanPanel();centerOnFan(fan);renderGuestManager(true);draw();};
+      rowHost.appendChild(row);
+    }
+    document.getElementById("guestManagerInfo").textContent=matches.length?"Select any fan to highlight, center and inspect them.":"No guests match this filter.";
+  }
+  document.getElementById("openGuestList").onclick=()=>{
+    const panel=document.getElementById("guestManager");panel.hidden=false;guestViewTick=-1;renderGuestManager(true);
+  };
+  document.getElementById("closeGuestList").onclick=()=>document.getElementById("guestManager").hidden=true;
+  document.getElementById("guestFilter").onchange=()=>renderGuestManager(true);
+  for(const [key,id] of [["actions","guestViewActions"],["thoughts","guestViewThoughts"],["needs","guestViewNeeds"],["spending","guestViewSpending"]]){
+    document.getElementById(id).onclick=()=>{
+      guestView=key;
+      for(const [k,button] of [["actions","guestViewActions"],["thoughts","guestViewThoughts"],["needs","guestViewNeeds"],["spending","guestViewSpending"]])document.getElementById(button).setAttribute("aria-pressed",String(k===guestView));
+      renderGuestManager(true);
+    };
+  }
   function updateFanPanel(){
     const panel=document.getElementById("fanPanel"),fan=selectedFan;panel.hidden=!fanActive||!fan;
     document.getElementById("fanPicker").hidden=!fanActive;
@@ -2188,6 +2249,8 @@
     if(mood)mood.textContent=`${fan.persona||"fan"} · Happiness ${fanHappinessScore(fan)}/100 · Favorite: ${fan.favoriteFood||"hot dog"}`;
     const thoughts=document.getElementById("selectedFanThoughts");
     if(thoughts)thoughts.textContent=(fan.thoughts||[]).slice(-3).reverse().map(t=>t.message).join(" · ")||"Taking in the ballpark";
+    const spending=document.getElementById("selectedFanSpending"),spent=guestSpending(fan);
+    if(spending)spending.textContent="Admission $"+spent.admission+" · Food $"+spent.food+" · Total $"+(spent.admission+spent.food);
   }
   document.getElementById("centerFan").onclick=()=>{centerOnFan(selectedFan);draw();};
   document.getElementById("followFan").onclick=()=>{setFollowFan(!followFan);if(followFan)centerOnFan(selectedFan);draw();};
@@ -2199,6 +2262,7 @@
     if(naturallyFinished)lastPostgameReport=buildPostgameReport(fans.filter(f=>f.paid));
     setFollowFan(false);
     fanActive=false;fanPhase="idle";fans=[];selectedFan=null;amenityServices=[];trafficIndex=null;disconnectedSections.clear();fanFrame++;updateGameDayDisplay();
+    document.getElementById("guestManager").hidden=true;guestViewTick=-1;
     fanStatus(message||`Game ended early. ${gateAdmissions} admissions · ${gateRevenue} gate revenue · ${concessionRevenue} food revenue (${foodSales} sales). Adjust your park, then open gates again.`);draw();
     if(naturallyFinished)showPostgameReport();
   }
@@ -2252,7 +2316,7 @@
     prepareAmenities();completedBathroomTrips=0;selectedFan=null;concessionRevenue=0;foodSales=0;pendingFoodRevenue=0;
     document.getElementById("fanPicker").innerHTML=`<option value="">Choose a fan…</option>`+fans.map((f,i)=>`<option value="${i}">Fan ${i+1} · Party ${f.partyId+1}</option>`).join("");
     document.getElementById("fanPicker").value="";
-    fanActive=true;updateGameDayDisplay();fanStatus(`Gates open · Pregame · ${GAME_SECONDS/60}:00 remaining · $5 admission. Fans are walking to their seats.`);
+    fanActive=true;guestViewTick=-1;updateGameDayDisplay();renderGuestManager(true);fanStatus(`Gates open · Pregame · ${GAME_SECONDS/60}:00 remaining · $5 admission. Fans are walking to their seats.`);
     let last=null;const run=++fanFrame;
     const frame=now=>{
       if(!fanActive||run!==fanFrame)return;
@@ -2543,6 +2607,7 @@
     }
     if(!fanActive)return;
     const stage=updateGameDayDisplay();
+    renderGuestManager();
     if(fanPhase==="exiting") {
       fanStatus(`Postgame · Fans exiting: ${fans.filter(f=>f.exited).length}/${fanPlanned}. Fans queue at stairs and the gate, then return to the street.`);return;
     }
