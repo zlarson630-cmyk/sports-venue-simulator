@@ -3375,38 +3375,11 @@
           const raw=localStorage.getItem("svs-marinelli-preview-v1");
           const campaign=raw?JSON.parse(raw):null;
           if(campaign&&campaign.linkedParkId===activeParkId){
-            const majorSeating=new Set(["bleacher","stand","stairStand","backstopStand","backstopStair","cornerStandLeft","cornerStandRight","backstopCornerFirst","backstopCornerThird"]);
-            const foodTypes=new Set(["concession","drinks","iceCream"]);
-            const permit=majorSeating.has(next.item.type)?"bleachers":
-              foodTypes.has(next.item.type)?"concession":
-              next.item.type==="restroom"?"restroom":null;
-            if(permit&&!campaign.upgrades?.includes(permit)){
-              const project=campaign.projects?.find(p=>p.key===permit);
-              const status=project?.status==="building"?"Construction underway":
-                project?.status==="queued"?"Construction queued":"Approve and complete the project in the owner's office";
-              toast("Campaign construction locked: "+status+" ("+permit+").");
-              return;
-            }
-            // A completed project grants a finite allowance, not unlimited new buildings.
-            // Compare current park inventory with its linked baseline. This is read-only:
-            // the actual placement still follows the editor's existing undo/save rules.
-            if(permit==="bleachers"){
-              const baseline=Number(campaign.linkedParkBaselineCapacity);
-              const existing=Object.values(tiles).reduce((n,item)=>n+(isStand(item)?seatCapacity(item):item?.type==="bleacher"?24:0),0);
-              const added=isStand(next.item)?seatCapacity(next.item):24;
-              if(Number.isFinite(baseline)&&existing+added-baseline>250){
-                toast("Campaign seating allowance exhausted: this renovation covers 250 additional seats.");
-                return;
-              }
-            }
-            if(permit==="concession"||permit==="restroom"){
-              const baseline=permit==="concession"?Number(campaign.linkedParkBaselineShops):Number(campaign.linkedParkBaselineRestrooms);
-              const count=Object.values(tiles).filter(item=>permit==="concession"?foodTypes.has(item?.type):item?.type==="restroom").length;
-              if(Number.isFinite(baseline)&&count+1-baseline>1){
-                toast("Campaign construction allowance exhausted: this project authorizes one new "+permit+" facility.");
-                return;
-              }
-            }
+            const verdict=window.VenuePermits.evaluate({
+              campaign,parkId:activeParkId,tiles,item:next.item,
+              seatCapacity:item=>item.type==="bleacher"?24:isStand(item)?seatCapacity(item):0
+            });
+            if(!verdict.allowed){toast(verdict.reason);return;}
           }
         }catch(e){toast("Campaign status unavailable; construction paused to protect your save.");return;}
       }
