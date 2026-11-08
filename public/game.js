@@ -1886,7 +1886,7 @@
       `Latest moment: ${excitementEvents.at(-1).label}`:"Game moments: awaiting first pitch";
   }
   function simulateGameExcitement(){
-    if(fanPhase!=="game"||fanElapsed<nextExcitement)return;
+    if(fanPhase!=="game"||gameDayStage(fanElapsed).kind!=="inning"||fanElapsed<nextExcitement)return;
     const moments=[{label:"Home run!",impact:7},{label:"Great defensive play!",impact:4},
       {label:"Rally in progress!",impact:5},{label:"Close game!",impact:4},
       {label:"Home team takes the lead!",impact:6}];
@@ -2241,7 +2241,7 @@
       fan.scenicCandidate=!corridor.some(p=>laterCorridors.has(p.node));
       for(const p of corridor)laterCorridors.add(p.node);
     }
-    happinessFinal=false;happinessNext=0;nextNeedsDispatch=0;excitementEvents=[];nextExcitement=24;venueFeedback={};
+    happinessFinal=false;happinessNext=0;nextNeedsDispatch=0;excitementEvents=[];nextExcitement=GAME_SECONDS*PREGAME_FRACTION+Math.max(3,GAME_SECONDS*0.035);venueFeedback={};
     happinessAttractions=[...Object.entries(tiles),...Object.entries(underlays)].flatMap(([k,item])=>{
       const board=scoreboardTypes.includes(item.type);
       if(!board&&item.type!=="baseballStatue")return [];
