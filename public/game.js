@@ -1485,6 +1485,32 @@
     if(label)label.textContent=fanActive?stage.label:"READY";
     if(inning)inning.textContent=fanActive?(stage.kind==="inning"?stage.inning+" / 9":stage.kind==="postgame"?"9 / 9":"—"):"—";
     if(progress)progress.value=fanActive?Math.min(100,Math.round(fanElapsed/GAME_SECONDS*100)):0;
+    const visible=stadiumStage();
+    const title=document.getElementById("stadiumPhase");
+    if(title)title.textContent=fanActive?visible.label:"READY";
+    const remaining=fanActive?Math.max(0,Math.ceil(GAME_SECONDS-fanElapsed)):GAME_SECONDS;
+    const clock=document.getElementById("stadiumClock");
+    if(clock)clock.textContent=Math.floor(remaining/60)+":"+String(remaining%60).padStart(2,"0");
+    const seated=fans.filter(f=>f.seated).length,admitted=gateAdmissions;
+    const seatEl=document.getElementById("stadiumSeated"),gateEl=document.getElementById("stadiumGateCount");
+    if(seatEl)seatEl.textContent=admitted?Math.round(100*seated/admitted)+"% seated":"Waiting for fans";
+    if(gateEl)gateEl.textContent=admitted+" admitted";
+    const targetEl=document.getElementById("stadiumTarget");
+    if(targetEl)targetEl.textContent=visible.kind==="pregame"?"Goal: 75% at first pitch":visible.kind==="inning"&&visible.inning===1?"Goal: 90% by end of 1st":visible.kind==="inning"?"Fans visit amenities between plays":"Pregame → 9 innings → Postgame";
+    const fill=document.getElementById("stadiumClockFill");
+    if(fill)fill.style.width=(fanActive?Math.min(100,Math.round(100*fanElapsed/GAME_SECONDS)):0)+"%";
+    for(const chip of document.querySelectorAll(".inning-chip")){
+      const n=Number(chip.dataset.inning);
+      chip.classList.toggle("is-current",fanActive&&visible.kind==="inning"&&n===visible.inning);
+      chip.classList.toggle("is-complete",fanActive&&(visible.kind==="inning"&&n<visible.inning||visible.kind==="postgame"));
+    }
+    const banner=document.getElementById("phaseAnnouncement");
+    const key=visible.label;
+    if(banner){
+      if(fanActive&&lastDisplayedStage!==key){banner.textContent=stadiumBanner(visible);banner.hidden=false;banner.dataset.until=String(fanElapsed+2.5);}
+      if(!fanActive||fanElapsed>=Number(banner.dataset.until||0))banner.hidden=true;
+    }
+    lastDisplayedStage=fanActive?key:"ready";
     return stage;
   }
   const TICKET_PRICE=5;
