@@ -14,7 +14,7 @@ function capacityFor(item){
  }
  if(item.type==="stairStand"||item.type==="backstopStair"){
   const diagonal=(item.rot||0)%2!==0;
-  return diagonal?24:8;
+  return diagonal?16:8;
  }
  return SEATS[item.type]||0;
 }
