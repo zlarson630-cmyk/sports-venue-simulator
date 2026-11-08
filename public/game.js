@@ -1796,6 +1796,51 @@
       happy:scores.filter(v=>v>=75).length,unhappy:scores.filter(v=>v<45).length,
       praise:top(praise),complaint:top(complaints),admitted:admitted.length};
   }
+  // Postgame summaries are snapshots, retained until the next completed event.
+  let lastPostgameReport=null;
+  function buildPostgameReport(admitted){
+    const experience=venueExperienceReport(admitted);
+    const thoughts=admitted.flatMap(f=>f.thoughts||[]);
+    const tally=(items)=>Object.entries(items.reduce((out,item)=>(out[item]=(out[item]||0)+1,out),{})).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+    const complaints=tally(thoughts.filter(t=>t.impact<0).map(t=>t.message));
+    const praise=tally(thoughts.filter(t=>t.impact>0).map(t=>t.message));
+    const favorites=tally(admitted.flatMap(f=>[
+      ...(f.sawScoreboard?["Scoreboard view"]:[]),
+      ...(f.sawStatue?["Ballpark statue"]:[]),
+      ...(f.scenicPauseDone?["Concourse viewpoints"]:[]),
+      ...((f.seatTime||0)>=(f.experienceTime||0)*0.5&&f.experienceTime>0?["Watching from the seats"]:[])
+    ]));
+    const average=key=>admitted.length?admitted.reduce((sum,f)=>sum+(f[key]||0),0)/admitted.length:0;
+    return {experience,complaints,praise,favorites,
+      admissions:gateAdmissions,gateRevenue,concessionRevenue,foodSales,bathroomTrips:completedBathroomTrips,
+      avgFoodWait:average("foodWait"),avgRestroomWait:average("restroomWait"),avgTrafficWait:average("trafficWait"),
+      completed:fanPhase==="exiting"&&fans.every(f=>f.exited)};
+  }
+  function showPostgameReport(){
+    if(!lastPostgameReport)return;
+    const report=lastPostgameReport,dialog=document.getElementById("postgameDialog");
+    const set=(id,value)=>{document.getElementById(id).textContent=value;};
+    const list=(id,items,empty)=>{
+      const element=document.getElementById(id);element.replaceChildren();
+      if(!items.length){const li=document.createElement("li");li.textContent=empty;element.appendChild(li);return;}
+      for(const [name,count] of items.slice(0,3)){
+        const li=document.createElement("li");li.textContent=`${name} · ${count} ${count===1?"fan":"fans"}`;element.appendChild(li);
+      }
+    };
+    set("postgameScore",report.experience.admitted?`${report.experience.average}%`:"—");
+    set("postgameAttendance",report.admissions.toLocaleString());
+    set("postgameRevenue",`${(report.gateRevenue+report.concessionRevenue).toLocaleString()}`);
+    set("postgameMood",`${report.experience.happy} happy · ${report.experience.unhappy} unhappy · ${report.experience.admitted} admitted`);
+    set("postgameEconomy",`Gate ${report.gateRevenue.toLocaleString()} · Concessions ${report.concessionRevenue.toLocaleString()} (${report.foodSales} sales)`);
+    set("postgameWaits",`Average per admitted fan: food ${report.avgFoodWait.toFixed(1)}s · restroom ${report.avgRestroomWait.toFixed(1)}s · congestion ${report.avgTrafficWait.toFixed(1)}s`);
+    list("postgameFavorites",report.favorites,"No favorite features recorded this game.");
+    list("postgamePraise",report.praise,"No positive guest comments recorded.");
+    list("postgameProblems",report.complaints,"No specific complaints recorded.");
+    document.getElementById("reopenPostgame").hidden=false;
+    if(!dialog.open)dialog.showModal();
+  }
+  document.getElementById("reopenPostgame").onclick=showPostgameReport;
+  document.getElementById("closePostgame").onclick=()=>document.getElementById("postgameDialog").close();
   function updateExperienceDashboard(final=false){
     const admitted=fans.filter(f=>f.paid);
     venueFeedback=venueExperienceReport(admitted);
@@ -2118,10 +2163,13 @@
   document.getElementById("fanPicker").onchange=e=>{selectedFan=e.target.value===""?null:fans[Number(e.target.value)]||null;updateFanPanel();};
   document.getElementById("closeFanPanel").onclick=()=>{setFollowFan(false);selectedFan=null;document.getElementById("fanPicker").value="";updateFanPanel();};
   function endFanTest(message) {
+    const naturallyFinished=fanPhase==="exiting"&&fans.every(f=>f.exited);
     if(!happinessFinal){updateHappiness(true);happinessFinal=true;}
+    if(naturallyFinished)lastPostgameReport=buildPostgameReport(fans.filter(f=>f.paid));
     setFollowFan(false);
     fanActive=false;fanPhase="idle";fans=[];selectedFan=null;amenityServices=[];trafficIndex=null;disconnectedSections.clear();fanFrame++;
-    fanStatus(message||`Game ended early. ${gateAdmissions} admissions · $${gateRevenue} gate revenue · $${concessionRevenue} food revenue (${foodSales} sales). Adjust your park, then open gates again.`);draw();
+    fanStatus(message||`Game ended early. ${gateAdmissions} admissions · ${gateRevenue} gate revenue · ${concessionRevenue} food revenue (${foodSales} sales). Adjust your park, then open gates again.`);draw();
+    if(naturallyFinished)showPostgameReport();
   }
   function startFanTest() {
     if(fanActive) {toast("Fans are already arriving");return;}
