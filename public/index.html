@@ -7,7 +7,7 @@
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
     <title>Sports Venue Simulator — Sandbox 0.43.0</title>
-    <link rel="stylesheet" href="styles.css?v=0.43.0-fans" />
+    <link rel="stylesheet" href="styles.css?v=0.44.0-saves" />
   </head>
   <body>
     <header>
@@ -16,12 +16,20 @@
         <h1>SPORTS VENUE<br />SIMULATOR</h1>
         <small>BUILD SANDBOX · v0.43</small>
       </div>
+      <button class="smallbtn" id="openParkMenu" type="button">☰ My Parks</button>
       <div class="topstats">
         <div class="stat">💵 <strong id="money">$500,000</strong></div>
         <div class="stat optional">🪑 <strong id="seats">0</strong> seats</div>
         <div class="stat optional">🧱 <strong id="placed">0</strong> built</div>
       </div>
     </header>
+    <div id="parkMenu" class="park-menu" role="dialog" aria-modal="true" aria-labelledby="parkMenuTitle" hidden>
+      <div class="park-menu-panel">
+        <div class="park-menu-heading"><span>SPORTS VENUE SIMULATOR</span><h2 id="parkMenuTitle">My Ballparks</h2><p>Build a new venue or continue an existing one. Saves stay in this browser; export backups to move devices.</p></div>
+        <div class="park-menu-actions"><button id="newPark" type="button">＋ New ballpark</button><button id="closeParkMenu" type="button">Continue current park</button></div>
+        <div id="parkSaveList" class="park-save-list" aria-live="polite"></div>
+      </div>
+    </div>
     <main id="app">
       <aside>
         <details class="identity"><summary>TEAM COLORS &amp; FINISHES</summary>
@@ -250,7 +258,7 @@
       </ol>
       <form method="dialog"><button class="smallbtn">Got it</button></form>
     </dialog>
-    <script src="game.js?v=0.43.0-fans" defer></script>
+    <script src="game.js?v=0.44.0-saves" defer></script>
     <script src="tutorial.js" defer></script>
   </body>
 </html>
