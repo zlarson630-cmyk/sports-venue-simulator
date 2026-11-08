@@ -19,7 +19,7 @@ function clamp(x,min,max){return Math.max(min,Math.min(max,x));}
 function money(n){return Math.round(n*100)/100;}
 function makeSeason(){return Array.from({length:SEASON_GAMES},(_,i)=>({number:i+1,home:i%2===0,opponent:i%2===0?"River City Rivals":"Association Opponent"}));}
 function newCampaign(){
- return {schema:1,id:"marinelli-sock-monkeys",name:"Screw City Sock Monkeys",venue:"Marinelli Field",league:"American Association",cash:STARTING_CASH,gameIndex:0,wins:0,losses:0,fanRating:45,baseCapacity:900,upgrades:[],ticketPrice:9,staffPerHomeGame:2100,otherPerHomeGame:1150,roadExpense:1850,baseAttendance:460,concessionPrice:5.5,staffCount:7,staffDailyWage:300,day:0,projects:[],history:[],season:makeSeason(),status:"active"};
+ return {schema:1,id:"marinelli-sock-monkeys",name:"Screw City Sock Monkeys",venue:"Marinelli Field",league:"American Association",cash:STARTING_CASH,year:1,gameIndex:0,wins:0,losses:0,fanRating:45,baseCapacity:900,upgrades:[],ticketPrice:9,staffPerHomeGame:2100,otherPerHomeGame:1150,roadExpense:1850,baseAttendance:460,concessionPrice:5.5,staffCount:7,staffDailyWage:300,day:0,projects:[],history:[],season:makeSeason(),status:"active"};
 }
 function validate(state){
  if(!state||state.id!=="marinelli-sock-monkeys"||!Array.isArray(state.season)||state.season.length!==SEASON_GAMES||!Number.isFinite(state.cash)||!Number.isInteger(state.gameIndex)||state.gameIndex<0||state.gameIndex>SEASON_GAMES) throw Error("Invalid campaign");
@@ -55,11 +55,13 @@ function setStaffCount(state,count){
 }
 function advanceDays(state,days){
  state=normalize(validate(state));if(!Number.isInteger(days)||days<1||days>365)throw Error("Days must be between 1 and 365");
+ if(state.status==="active")throw Error("During the season, the calendar advances when games are played");
  return finishProjects(state,state.day+days);
 }
 function nextSeason(state){
  state=normalize(validate(state));if(state.status!=="offseason")throw Error("Finish current season first");
- return {...state,gameIndex:0,wins:0,losses:0,history:[],season:makeSeason(),status:"active"};
+ if(state.projects.some(p=>p.status==="building"&&UPGRADES[p.key].major))throw Error("Finish major construction before Opening Day");
+ return {...state,year:(state.year||1)+1,gameIndex:0,wins:0,losses:0,history:[],season:makeSeason(),status:"active"};
 }
 function setTicketPrice(state,price){
  validate(state);
@@ -80,10 +82,11 @@ function game(state,random=0.5){
  const turnout=fixture.home?clamp(Math.round(state.baseAttendance*(0.65+state.fanRating/100*0.65)*ticketDemand*momentum*staffingFactor*(0.8+random*0.4)),0,capacity):0;
  const salesBoost=state.upgrades.reduce((sum,key)=>sum+UPGRADES[key].concession,0);
  const amenityFactor=linked?clamp(linked.shops/2,0,1.25):1;
- const restroomPenalty=linked&&linked.restrooms===0?-2:0;
+ const restroomPenalty=linked&&linked.restrooms===0&&!state.upgrades.includes("restroom")?-2:0;
  const gate=money(turnout*state.ticketPrice);
- const concessionDemand=clamp(1-(state.concessionPrice-5.5)*0.065,0.25,1.35);
- const concessions=money(turnout*state.concessionPrice*concessionDemand*(1+salesBoost)*amenityFactor);
+ const concessionDemand=clamp(Math.pow(5.5/state.concessionPrice,1.55),0.06,1.5);
+ const concessionAvailability=linked&&linked.shops===0&&state.upgrades.includes("concession")?0.5:amenityFactor;
+ const concessions=money(turnout*state.concessionPrice*concessionDemand*(1+salesBoost)*concessionAvailability);
  const expense=fixture.home?state.staffCount*state.staffDailyWage+state.otherPerHomeGame:state.roadExpense;
  const profit=money(gate+concessions-expense);
  const servicePenalty=fixture.home&&state.staffCount<Math.ceil(turnout/85)?-1.5:0;
