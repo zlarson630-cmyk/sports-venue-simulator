@@ -2,6 +2,26 @@
 
 Current baseline: v0.43. Historical decisions and release checkpoints follow below. Keep it simple, make it work, then expand.
 
+## New requested management features — November 7
+
+- **Guest manager:** Inspired by the classic theme-park management list. Tabs for actions, thoughts, needs and spending; activity filters, selection and camera centering. Use recorded simulation state only.
+- **Facility management windows — next separate pass:** Click an individual concession, drinks stand, ice cream shop, restroom or souvenir shop to inspect it. Show current users/line, customers served, mean wait, guest satisfaction, and transactions/revenue where relevant. Distinguish tracked metrics from future estimates. Maintain independent records per building.
+- **Prices — next separate pass:** Make food/drink and merchandise prices editable per establishment with safe defaults. Demand, spending, and happiness should react to pricing, not merely change displayed revenue. Keep restrooms free by default, preserve economy and old saves, and record price changes reliably.
+- **Queue stanchions — later pass:** Straight, corner and end pieces for physical lines. The pieces must affect pathfinding, usable queue capacity and collision handling, not just appearance; support player-created queue layouts without blocking entrances and exits.
+- **RCT references are interaction inspiration**, not a request to duplicate copyrighted game artwork.
+
+### Staffing and game-day operations — upcoming system
+
+- Introduce a hire/assign/manage staff panel with job coverage, shift or per-game cost, placement/coverage area, visible uniforms and job activity. Staff should physically move and work rather than just grant an unexplained bonus.
+- **Ticket takers:** staff future ticket windows/turnstiles; queue throughput, entrance delays, ticketing revenue. Don't make turnstiles operational until placed.
+- **Security:** assign gate/section/concourse coverage; monitor crowds and respond to issues once actual issue events exist.
+- **Ushers:** help arrivals navigate seating entrances, relieve access bottlenecks and assist with seat finding; preserve valid routes.
+- **Vendors:** assigned to specific concession/drinks/ice cream/souvenir locations; service rate, transactions and sales only where actual stores function.
+- **Mascot:** scheduled pregame and between-inning entertainment, guest happiness from real encounters.
+- **Custodians:** pick up real litter, maintain concourses/restrooms and respond to messes once cleanliness is simulated.
+- Per-game wages and staffing budgets need integration with the existing economy. Add operating reports (labor spend, staffed stations, queues, services completed, coverage gaps) to postgame results.
+- Phase in after building-level reports, adjustable prices and queue behavior are instrumented. Preserve existing gate and amenity functionality during transition: understaffing should produce believable operating constraints, not instant softlocks.
+
 ## November 5 — building beneath the stands
 
 - Work underneath keeps raised seating, stairs, ramps and concourses as faint ghosts at their real elevation. Ground editing still targets the lower footprint, and ghost geometry does not occlude ground fans.
