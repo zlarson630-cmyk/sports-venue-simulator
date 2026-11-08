@@ -4,14 +4,15 @@
 const SEATING=new Set(["bleacher","stand","stairStand","backstopStand","backstopStair","cornerStandLeft","cornerStandRight","backstopCornerFirst","backstopCornerThird"]);
 const FOOD=new Set(["concession","drinks","iceCream"]);
 function permitFor(type){return SEATING.has(type)?"bleachers":FOOD.has(type)?"concession":type==="restroom"?"restroom":null;}
-function evaluate({campaign,parkId,tiles,item,seatCapacity}){
+function evaluate({campaign,parkId,tiles,item,seatCapacity,replacingKey=null}){
  if(!campaign||!parkId||campaign.linkedParkId!==parkId)return {allowed:true};
  const permit=permitFor(item.type);
  if(!permit)return {allowed:true};
  const baseline=permit==="bleachers"?campaign.linkedParkBaselineCapacity:
   permit==="concession"?campaign.linkedParkBaselineShops:campaign.linkedParkBaselineRestrooms;
  if(!Number.isFinite(baseline))return {allowed:false,reason:"Re-link the park to establish its construction baseline."};
- const items=Object.values(tiles||{}).filter(Boolean);
+ // Replacement uses net new capacity; otherwise a like-for-like rebuild could be rejected.
+ const items=Object.entries(tiles||{}).filter(([key,value])=>key!==replacingKey&&value).map(([,value])=>value);
  const seats=x=>SEATING.has(x.type)?Math.max(0,Number(seatCapacity(x))||0):0;
  const current=permit==="bleachers"?items.reduce((n,x)=>n+seats(x),0):
   items.filter(x=>permit==="concession"?FOOD.has(x.type):x.type==="restroom").length;
