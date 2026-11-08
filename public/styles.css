@@ -394,3 +394,38 @@ button:focus-visible {
 .experience-report strong{font-size:12px;color:#ffdb75}
 .experience-report span{display:block;color:#e5eefa}
 .fan-experience-text{font-size:12px;line-height:1.4;color:#284861;margin:6px 0}
+
+/* Postgame experience report — designed to stay readable on desktop and phone. */
+#postgameDialog {
+  width: min(620px, calc(100% - 28px));
+  max-height: min(86dvh, 760px);
+  padding: 24px;
+  color: #20344a;
+  background: #f5f1e8;
+  border: 2px solid #3c556c;
+  border-radius: 16px;
+  box-shadow: 0 20px 65px #071722aa;
+  overflow-y: auto;
+}
+#postgameDialog::backdrop { background: #081723b9; }
+.postgame-header { display:flex; justify-content:space-between; gap:12px; align-items:start; }
+.postgame-header h2 { font-size: 25px; margin:4px 0; line-height:1.2; }
+.postgame-header p { font-size:13px; margin:4px 0 16px; color:#537084; }
+.postgame-kicker { color:#526f85; font-weight:800; letter-spacing:1.6px; font-size:10px; }
+.postgame-dismiss { font-size:25px; background:transparent; border:0; color:#365069; padding:0 6px; }
+.postgame-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
+.postgame-metrics > div { display:flex; flex-direction:column; align-items:center; gap:5px; background:white; border:1px solid #d1d8d7; border-radius:10px; padding:13px 5px; text-align:center; }
+.postgame-metrics strong { font-size:clamp(20px,4vw,31px); color:#175967; font-variant-numeric:tabular-nums; }
+.postgame-metrics span { font-size:11px; color:#597082; }
+.postgame-mood { margin:11px 0 15px; color:#546779; font-size:12px; }
+.postgame-section { border-top:1px solid #cbd4d3; padding:13px 0 4px; }
+.postgame-section h3 { font-size:14px; margin:0 0 9px; }
+.postgame-section ul { margin:0 0 7px; padding-left:20px; font-size:13px; line-height:1.7; }
+.postgame-section p { margin:4px 0 8px; font-size:12px; line-height:1.6; }
+.postgame-footnote { font-size:11px; color:#62798c; line-height:1.5; }
+.postgame-action { width:100%; margin-top:10px; }
+@media (max-width: 540px) {
+  #postgameDialog { padding:16px; max-height:92dvh; }
+  .postgame-header h2 { font-size:21px; }
+  .postgame-metrics strong { font-size:20px; }
+}
