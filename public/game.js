@@ -2161,7 +2161,7 @@
   function advanceNeeds(step,moveFan=()=>{}){
     for(const room of amenityServices){
       for(const fan of [...room.using]){fan.serviceSeconds-=step;if(fan.serviceSeconds>0)continue;
-        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;concessionRevenue+=5;pendingFoodRevenue+=5;fanThought(fan,fanFoodType(fan)===room.product?"Found a favorite ballpark snack!":room.product==="iceCream"?"Enjoyed some ice cream!":room.product==="drinks"?"Got a refreshing drink!":"Enjoyed the ballpark food",fan.persona==="foodie"?6:4,"food");}
+        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;fan.foodPurchases=(fan.foodPurchases||0)+1;concessionRevenue+=5;pendingFoodRevenue+=5;fanThought(fan,fanFoodType(fan)===room.product?"Found a favorite ballpark snack!":room.product==="iceCream"?"Enjoyed some ice cream!":room.product==="drinks"?"Got a refreshing drink!":"Enjoyed the ballpark food",fan.persona==="foodie"?6:4,"food");}
         const corridor=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
         if(fans.some(f=>f!==fan&&(f.activity==="returning to seat"||["to restroom","to concession"].includes(f.activity)||
           fan.tripFromArrival&&(f.activity==="arriving"||f.activity==="taking in the view"))&&
@@ -2229,7 +2229,7 @@
     "using restroom":"Using restroom","buying food":"Buying food",
     "returning to seat":"Returning to seat"
   }[fan.activity]||fan.activity||"Exploring");
-  const guestSpending=fan=>({admission:fan.paid?TICKET_PRICE:0,food:(fan.foodVisits||0)*5});
+  const guestSpending=fan=>({admission:fan.paid?TICKET_PRICE:0,food:(fan.foodPurchases||0)*5});
   function renderGuestManager(force=false){
     const panel=document.getElementById("guestManager");
     if(!panel||panel.hidden)return;
