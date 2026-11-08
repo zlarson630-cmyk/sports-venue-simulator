@@ -1842,6 +1842,9 @@
   }
   function recordFanExperience(fan,step){
     if(!fan.paid||fan.exited)return;
+    if(fan.blockedFor>6&&!fan.reportedTraffic){fan.reportedTraffic=true;fanThought(fan,"Too crowded to get around",-5,"traffic");}
+    if((fan.foodWait||0)>10&&!fan.reportedFoodLine){fan.reportedFoodLine=true;fanThought(fan,"The food line is too long",-6,"food");}
+    if((fan.restroomWait||0)>10&&!fan.reportedRestroomLine){fan.reportedRestroomLine=true;fanThought(fan,"The restroom line is too long",-5,"restroom");}
     fan.experienceTime=(fan.experienceTime||0)+step;
     if(fan.seated)fan.seatTime=(fan.seatTime||0)+step;
     if(fan.activity==="waiting for food"||fan.activity==="waiting restroom"){
@@ -1923,6 +1926,7 @@
     ctx.strokeStyle="#ffe36a";ctx.lineWidth=2.5;ctx.stroke();
   }
   let concessionRevenue=0,foodSales=0,pendingFoodRevenue=0;
+  let foodOptionsAvailable=[];
   const NEED_THRESHOLD=75, RESTROOM_STALLS=2, SERVICE_SECONDS=6;
   const needsControl=document.getElementById("fanNeedsRate");
   let needsRate=1, nextNeedsDispatch=0;
@@ -1950,7 +1954,8 @@
     })).filter(p=>halfContains(walkway,p.x-a,p.y-b)&&!solidBuildingAt(p.x,p.y));
   }
   function prepareAmenities(){
-    amenityServices=[];if(!walkingGraph)return;
+    amenityServices=[];foodOptionsAvailable=Object.values(groundLayout()).filter(item=>["concession","drinks","iceCream"].includes(item.type)).map(item=>item.type);
+    if(!walkingGraph)return;
     const {nodes,links,routeCost}=walkingGraph;
     for(const [k,item] of Object.entries(groundLayout()))if(item.type==="restroom"||item.type==="concession"){
       const [x,y]=k.split(",").map(Number);let entries=[];
@@ -2039,7 +2044,7 @@
   function advanceNeeds(step,moveFan=()=>{}){
     for(const room of amenityServices){
       for(const fan of [...room.using]){fan.serviceSeconds-=step;if(fan.serviceSeconds>0)continue;
-        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;concessionRevenue+=5;pendingFoodRevenue+=5;fanThought(fan,fan.favoriteFood==="hot dog"?"Got my favorite hot dog!":"Enjoyed the ballpark food",fan.persona==="foodie"?6:4,"food");}
+        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;concessionRevenue+=5;pendingFoodRevenue+=5;fanThought(fan,foodOptionsAvailable.includes(fanFoodType(fan))?"Found a favorite ballpark snack!":"Enjoyed the ballpark food",fan.persona==="foodie"?6:4,"food");}
         const corridor=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
         if(fans.some(f=>f!==fan&&(f.activity==="returning to seat"||["to restroom","to concession"].includes(f.activity)||
           fan.tripFromArrival&&(f.activity==="arriving"||f.activity==="taking in the view"))&&
