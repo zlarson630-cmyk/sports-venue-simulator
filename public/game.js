@@ -3376,8 +3376,8 @@
           const campaign=raw?JSON.parse(raw):null;
           if(campaign&&campaign.linkedParkId===activeParkId){
             const verdict=window.VenuePermits.evaluate({
-              campaign,parkId:activeParkId,tiles,item:next.item,
-              seatCapacity:item=>item.type==="bleacher"?24:isStand(item)?seatCapacity(item):0
+              campaign,parkId:activeParkId,tiles,item:next.item,replacingKey:next.kind?null:(tiles[k]?k:null),
+              seatCapacity:item=>seatCapacity(item)
             });
             if(!verdict.allowed){toast(verdict.reason);return;}
           }
