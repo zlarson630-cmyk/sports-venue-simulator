@@ -49,6 +49,24 @@ function upgrade(state,key){
  const project={key,cost:u.cost,startDay,finishDay:startDay+u.days,status:startDay>state.day?"queued":"building"};
  return {...state,cash:money(state.cash-u.cost),projects:[...state.projects,project]};
 }
+function cancelProject(state,key){
+ state=normalize(validate(state));
+ const project=state.projects.find(p=>p.key===key);
+ if(!project)throw Error("Project not found");
+ if(project.status!=="queued")throw Error("Only queued projects can be canceled");
+ // No work has started; refund the full reserved budget and close the schedule gap.
+ const remaining=state.projects.filter(p=>p!==project);
+ let cursor=state.day;
+ const projects=remaining.map(p=>{
+  if(p.status==="complete")return p;
+  if(p.status==="building"){cursor=Math.max(cursor,p.finishDay);return p;}
+  const duration=UPGRADES[p.key].days;
+  const next={...p,startDay:cursor,finishDay:cursor+duration,status:cursor>state.day?"queued":"building"};
+  cursor=next.finishDay;
+  return next;
+ });
+ return {...state,cash:money(state.cash+project.cost),projects};
+}
 function setConcessionPrice(state,price){
  state=normalize(validate(state));if(!Number.isFinite(price)||price<1||price>50)throw Error("Concession price must be between $1 and $50");
  return {...state,concessionPrice:money(price)};
@@ -125,5 +143,5 @@ function summary(state){
  const total=k=>money(h.reduce((n,x)=>n+x[k],0));
  return {gamesPlayed:state.gameIndex,homeGames:h.filter(x=>x.home).length,wins:state.wins,losses:state.losses,cash:state.cash,gate:total("gate"),concessions:total("concessions"),expenses:total("expense"),operatingProfit:total("profit"),attendance:h.reduce((n,x)=>n+x.attendance,0),fanRating:Math.round(state.fanRating),status:state.status};
 }
-return {SEASON_GAMES,STARTING_CASH,UPGRADES,newCampaign,validate,normalize,upgrade,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,game,advance,summary};
+return {SEASON_GAMES,STARTING_CASH,UPGRADES,newCampaign,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,game,advance,summary};
 });
