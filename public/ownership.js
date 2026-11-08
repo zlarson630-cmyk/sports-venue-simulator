@@ -17,7 +17,24 @@ const UPGRADES=Object.freeze({
 });
 function clamp(x,min,max){return Math.max(min,Math.min(max,x));}
 function money(n){return Math.round(n*100)/100;}
-function makeSeason(){return Array.from({length:SEASON_GAMES},(_,i)=>({number:i+1,home:i%2===0,opponent:i%2===0?"River City Rivals":"Association Opponent"}));}
+const WEEK_DAYS=["Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+function makeSeason(){return Array.from({length:SEASON_GAMES},(_,i)=>{const week=Math.floor(i/6),day=i%6;const home=week%2===0;return {number:i+1,week:week+1,weekday:WEEK_DAYS[day],home,opponent:home?"River City Rivals":"Association Opponent"};});}
+function currentSeries(state){validate(state);if(state.gameIndex>=SEASON_GAMES)return null;const first=state.season[state.gameIndex],week=first.week??Math.floor(state.gameIndex/6)+1;const games=state.season.slice(state.gameIndex).filter((g,i)=>i<6&&((g.week??Math.floor((state.gameIndex+i)/6)+1)===week));return {week,home:first.home,games,remaining:games.length};}
+function playSeries(state,watchGame=null,random=Math.random){
+ state=normalize(validate(state));const series=currentSeries(state);
+ if(!series)throw Error("Season complete");
+ if(watchGame!==null&&(!series.home||!series.games.some(g=>g.number===watchGame)))throw Error("Select a game in this homestand");
+ let next=state,watched=null,entries=[];
+ // Freeze prices, staff, and scheduled atmosphere for the whole series.
+ const plan={ticketPrice:state.ticketPrice,concessionPrice:state.concessionPrice,staffCount:state.staffCount,gameTime:state.gameTime};
+ for(const fixture of series.games){
+  next=game({...next,...plan},random());
+  const entry=next.history.at(-1);entries.push(entry);
+  if(fixture.number===watchGame)watched=entry;
+ }
+ return {state:next,series:{week:series.week,home:series.home,games:entries},watched};
+}
+
 function newCampaign(){
  return {schema:1,id:"marinelli-sock-monkeys",name:"Screw City Sock Monkeys",venue:"Marinelli Field",league:"American Association",cash:STARTING_CASH,year:1,gameIndex:0,wins:0,losses:0,fanRating:45,baseCapacity:900,upgrades:[],ticketPrice:9,staffPerHomeGame:2100,otherPerHomeGame:1150,roadExpense:1850,baseAttendance:460,concessionPrice:5.5,gameTime:"day",staffCount:7,staffDailyWage:300,day:0,projects:[],ledger:[],history:[],seasonRecords:[],season:makeSeason(),status:"active"};
 }
@@ -127,7 +144,8 @@ function game(state,random=0.5){
  const ticketDemand=clamp(1-(state.ticketPrice-9)*0.035,0.45,1.3);
  const momentum=1+clamp((state.wins-state.losses)*0.008,-0.2,0.3);
  const staffingFactor=clamp(state.staffCount/7,0.55,1.12);
- const turnout=fixture.home?clamp(Math.round(state.baseAttendance*(0.65+state.fanRating/100*0.65)*ticketDemand*momentum*staffingFactor*atmosphere*(0.8+random*0.4)),0,capacity):0;
+ const dayFactor=fixture.weekday==="Saturday"?1.38:fixture.weekday==="Friday"?1.17:fixture.weekday==="Sunday"?1.23:fixture.weekday==="Tuesday"?0.78:fixture.weekday==="Wednesday"?0.88:1;
+ const turnout=fixture.home?clamp(Math.round(dayFactor*state.baseAttendance*(0.65+state.fanRating/100*0.65)*ticketDemand*momentum*staffingFactor*atmosphere*(0.8+random*0.4)),0,capacity):0;
  const salesBoost=state.upgrades.reduce((sum,key)=>sum+UPGRADES[key].concession,0);
  const effectiveShops=linked?linked.shops+(state.upgrades.includes("concession")&&linked.shops<=(state.linkedParkBaselineShops??linked.shops)?1:0):2;
  const amenityFactor=clamp(effectiveShops/2,0,1.25);
@@ -141,7 +159,7 @@ function game(state,random=0.5){
  const profit=money(gate+concessions-expense);
  const servicePenalty=fixture.home&&state.staffCount<Math.ceil(turnout/85)?-1.5:0;
  const rating=clamp(state.fanRating+(fixture.home?(capacity>0&&turnout>capacity*0.9?-1:1):0)+servicePenalty+(fixture.home?restroomPenalty:0)+(win?0.2:-0.2),0,100);
- const entry={game:fixture.number,home:fixture.home,opponent:fixture.opponent,gameTime,win,attendance:turnout,capacity,gate,concessions,expense,lightingCost,profit,cashAfter:money(state.cash+profit)};
+ const entry={game:fixture.number,home:fixture.home,opponent:fixture.opponent,weekday:fixture.weekday||WEEK_DAYS[(fixture.number-1)%6],week:fixture.week||Math.floor((fixture.number-1)/6)+1,gameTime,win,attendance:turnout,capacity,gate,concessions,expense,lightingCost,profit,cashAfter:money(state.cash+profit)};
  return finishProjects({...state,cash:entry.cashAfter,gameIndex:state.gameIndex+1,wins:state.wins+Number(win),losses:state.losses+Number(!win),fanRating:rating,history:[...state.history,entry],ledger:[...(state.ledger||[]),{year:state.year,day:state.day,type:fixture.home?"home-game":"away-game",description:"Game "+fixture.number+" vs "+fixture.opponent,amount:profit}],status:state.gameIndex+1===SEASON_GAMES?"offseason":"active"},state.day+1);
 }
 function advance(state,count=1,random=Math.random){
@@ -194,5 +212,5 @@ function summary(state){
  const total=k=>money(h.reduce((n,x)=>n+x[k],0));
  return {gamesPlayed:state.gameIndex,homeGames:h.filter(x=>x.home).length,wins:state.wins,losses:state.losses,cash:state.cash,gate:total("gate"),concessions:total("concessions"),expenses:total("expense"),operatingProfit:total("profit"),attendance:h.reduce((n,x)=>n+x.attendance,0),fanRating:Math.round(state.fanRating),status:state.status};
 }
-return {SEASON_GAMES,STARTING_CASH,UPGRADES,newCampaign,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,advanceToOpeningDay,game,advance,forecast,applyOperatingPlan,previewHomeGame,summary};
+return {SEASON_GAMES,STARTING_CASH,UPGRADES,WEEK_DAYS,newCampaign,makeSeason,currentSeries,playSeries,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,advanceToOpeningDay,game,advance,forecast,applyOperatingPlan,previewHomeGame,summary};
 });
