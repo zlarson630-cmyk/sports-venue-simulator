@@ -455,3 +455,24 @@ button:focus-visible {
 .phase-announcement{position:absolute;z-index:12;top:136px;left:50%;transform:translateX(-50%);background:#152f45ee;color:#ffe7a6;border:1px solid #e4ba60;padding:12px 20px;border-radius:10px;font-size:clamp(17px,3vw,27px);font-weight:900;letter-spacing:.06em;box-shadow:0 4px 16px #0b1d31aa;pointer-events:none;white-space:nowrap}
 .phase-announcement[hidden]{display:none}
 @media(max-width:700px){.stadium-game-clock{top:56px;width:min(330px,calc(100% - 16px));padding:7px 10px}.clock-head{gap:3px}#stadiumPhase{font-size:14px}.clock-brand{font-size:8px}#stadiumClock{font-size:12px}.inning-strip{gap:2px;margin:5px 0}.inning-chip{font-size:10px;padding:3px 0}.clock-bottom{font-size:10px}.clock-target{font-size:9px}.phase-announcement{top:160px;padding:9px 12px}}
+
+/* RCT-inspired guest status window. Uses our own stadium styling. */
+.guest-manager{position:absolute;top:142px;right:14px;z-index:18;width:min(490px,calc(100% - 28px));max-height:calc(100% - 162px);display:flex;flex-direction:column;gap:9px;padding:13px;border:2px solid #af8545;border-radius:10px;background:#f1dfbc;color:#26384b;box-shadow:0 10px 25px #10203088}
+.guest-manager[hidden]{display:none}
+.guest-manager-head{display:flex;justify-content:space-between;align-items:start;border-bottom:1px solid #a8a28e;padding-bottom:7px}
+.guest-manager-head>div{display:flex;flex-direction:column;gap:2px}
+.guest-manager-head strong{font-size:18px}
+.guest-manager-head span{font-size:11px;color:#65717c}
+#closeGuestList{border:0;background:#315168;color:white;border-radius:6px;font-size:22px;width:31px;height:31px}
+.guest-manager-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.guest-manager-tabs button{padding:8px 2px;font-size:11px;border-radius:6px;border:1px solid #c6ac80;background:#f7ecd6;color:#384f5e}
+.guest-manager-tabs button[aria-pressed="true"]{background:#33536e;color:white;border-color:#33536e}
+.guest-manager-filter{display:flex;align-items:center;gap:8px}
+.guest-manager-filter label{font-size:12px}
+#guestFilter{min-width:0;flex:1;padding:7px;border-radius:6px;background:white;border:1px solid #bba67c}
+.guest-manager-rows{min-height:120px;max-height:300px;overflow:auto;border:1px solid #cbb489;background:#fff7e6;border-radius:6px}
+.guest-row{width:100%;display:grid;grid-template-columns:75px minmax(0,1fr);gap:9px;align-items:center;padding:7px 9px;text-align:left;background:transparent;border:0;border-bottom:1px solid #efe3cc;color:#2c4252;font-size:12px}
+.guest-row:hover,.guest-row[aria-selected="true"]{background:#e5f0ed}
+.guest-row .guest-state{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.guest-manager-info{font-size:11px;line-height:1.4;color:#677485}
+@media(max-width:700px){.guest-manager{top:164px;right:8px;max-height:calc(100% - 173px);padding:10px}.guest-manager-rows{max-height:230px}.guest-manager-tabs button{font-size:10px}}
