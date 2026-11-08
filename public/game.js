@@ -1925,7 +1925,7 @@
     const path=ids.map(id=>({...walkingGraph.nodes.get(id),node:id}));
     const returning=seatRoute([path[0]],[...path,...fan.walkingRoute.slice(groundIndex+1)],fan.seatTarget);
     fan.returnRoute=returning;fan.amenity=room;fan.activity=food?"to concession":"to restroom";fan.tripKind=kind;fan.tripFromArrival=!!arrivalNode;fan[blocked]=false;
-    fan.route=laneRoute(arrivalNode?path.slice().reverse():returning.slice().reverse(),fan.partyId%3);
+    fan.route=laneRoute(arrivalNode?path.slice().reverse():returning.slice().reverse());
     if(arrivalNode)fan.route.unshift({x:fan.x,y:fan.y,feet:fan.feet});
     if(food)fan.route[fan.route.length-1]=returning[0];
     if(arrivalPoint&&food)fan.route=[arrivalPoint,fan.foodShoulder,room.line[0]];
@@ -1958,7 +1958,7 @@
           fan.tripFromArrival&&(f.activity==="arriving"||f.activity==="taking in the view"))&&
           f.walkingRoute.some(p=>corridor.has(p.node))))continue;
         room.using.delete(fan);if(room.kind==="restroom")fan.bathroomNeed=0;fan.activity="returning to seat";fan.insideAmenity=false;
-        fan.route=laneRoute(fan.returnRoute,fan.partyId%3);fan.index=0;
+        fan.route=laneRoute(fan.returnRoute);fan.index=0;
         if(room.line){
           const [x,y]=room.key.split(",").map(Number),entry=fan.returnRoute[0];
           const [a,b]=entry.node.slice(2).split(",").map(Number);
@@ -2055,7 +2055,7 @@
       if(i===0||partyId!==plan[i-1].partyId)routeTraffic=new Map(traffic);
       const walkingRoute=slot.routeFor(routeTraffic);
       for(const p of walkingRoute)traffic.set(p.node,(traffic.get(p.node)||0)+1);
-      const route=laneRoute(seatRoute(arrival,walkingRoute,target),partyId%3),initialNeed=20+Math.random()*40;
+      const route=laneRoute(seatRoute(arrival,walkingRoute,target)),initialNeed=20+Math.random()*40;
       fans.push({walkingRoute,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:needsRate===0?0:i%13===4?82:initialNeed,bathroomVisits:0,hunger:needsRate===0?0:i%13===8?82:20+(i%7)*5,foodVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
     }
     // A pause must not let another fan overtake into the same narrow stair
@@ -2133,11 +2133,9 @@
     }
     route.push(target);if(target!==seat)route.push(seat);return route;
   }
-  // Spread unrelated parties over three pedestrian lanes on broad, flat
-  // surfaces. Keep the gate throat, stairs and seating rows constrained.
-  const TRAFFIC_LANE=0.11; // Retained for test harness and elevated-lane compatibility.
-  const TRAFFIC_LANES=[-0.25,0,0.25];
-  function laneRoute(route,lane=1) {
+  // Two directed lanes share a walking surface. Seating-row aisles stay centered.
+  const TRAFFIC_LANE=0.11;
+  function laneRoute(route) {
     const terminal=new Set(route.at(-1)?.node?.startsWith("g:")?[]:route.slice(-2));
     const lanePoint=p=>p&&!terminal.has(p)&&(!p.node||/^(g:|c:|i:|t:|l:|ramp:)/.test(p.node));
     const normal=(a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);return len>1e-6?{x:-dy/len,y:dx/len}:null;};
@@ -2146,17 +2144,7 @@
       const before=lanePoint(route[i-1])?normal(route[i-1],p):null,after=lanePoint(route[i+1])?normal(p,route[i+1]):null;
       const n=before&&after?{x:before.x+after.x,y:before.y+after.y}:before||after;
       if(!n)return {...p};const len=Math.hypot(n.x,n.y);if(len<0.1)return {...p};
-      const ground=(p.feet||0)===0;
-      const nearGate=Math.hypot(p.x-8.5,p.y-4.5)<0.85;
-      // Above grade, the legacy 0.11 lane is retained for deck routing.
-      const desired=ground&&!nearGate?TRAFFIC_LANES[lane]??0:0.11;
-      const scale=desired/len;
-      const candidate={...p,x:p.x+n.x*scale,y:p.y+n.y*scale};
-      // Never widen a ground approach beyond its buildable/paved footprint.
-      // Gate paths that are outside the park are deliberately unchanged.
-      if(ground&&p.x>=5.5&&p.y>=1.5&&p.x<=15&&p.y<=11&&
-         (!entrancePavedAt(candidate.x,candidate.y)||solidBuildingAt(candidate.x,candidate.y)))return {...p};
-      return candidate;
+      const scale=TRAFFIC_LANE/len;return {...p,x:p.x+n.x*scale,y:p.y+n.y*scale};
     });
   }
   function arrivalSchedule(count,random=Math.random) {
@@ -2236,7 +2224,7 @@
       }
       delete fan.scenicMergeIndex;
       fan.insideAmenity=false;fan.pauseUntil=0;fan.activity="leaving park";
-      fan.route=laneRoute(exit,fan.partyId%3);fan.index=0;
+      fan.route=laneRoute(exit);fan.index=0;
       fan.remaining=fan.route.map(()=>0);
       for(let i=fan.route.length-2;i>=0;i--)fan.remaining[i]=fan.remaining[i+1]+fanDistance(fan.route[i],fan.route[i+1]);
     }
