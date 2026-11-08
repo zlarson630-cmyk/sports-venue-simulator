@@ -41,7 +41,9 @@ function analyze(park){
  const items=Object.values(park.tiles).filter(x=>x&&typeof x==="object");
  let capacity=0,shops=0,restrooms=0;
  for(const item of items){capacity+=capacityFor(item);if(SHOPS.has(item.type))shops++;if(item.type==="restroom")restrooms++;}
- return {capacity,shops,restrooms,objects:items.length,accessScore:accessScore(park)};
+ const paths=Object.values(park.tiles).concat(Object.values(park.underlays||{})).filter(x=>x&&["path","concourse","sidewalk"].includes(x.type)).length;
+ const entrances=items.filter(x=>["gate","entrance","turnstile"].includes(x.type)).length;
+ return {capacity,shops,restrooms,paths,entrances,objects:items.length,accessScore:accessScore(park)};
 }
 function list(storage){
  const raw=storage.getItem("svs.parks.v1");const records=raw?JSON.parse(raw):[];
@@ -50,7 +52,7 @@ function list(storage){
 }
 function apply(state,park){
  const p=analyze(park);
- return {...state,linkedPark:{capacity:p.capacity,shops:p.shops,restrooms:p.restrooms,accessScore:p.accessScore},linkedParkBaselineCapacity:p.capacity,linkedParkBaselineShops:p.shops,linkedParkBaselineRestrooms:p.restrooms,linkedParkSnapshot:true};
+ return {...state,linkedPark:{capacity:p.capacity,shops:p.shops,restrooms:p.restrooms,paths:p.paths,entrances:p.entrances,accessScore:p.accessScore},linkedParkBaselineCapacity:p.capacity,linkedParkBaselineShops:p.shops,linkedParkBaselineRestrooms:p.restrooms,linkedParkSnapshot:true};
 }
 function sync(state,storage){
  if(!state.linkedParkId)return state;
@@ -60,7 +62,7 @@ function sync(state,storage){
  const record=records.find(x=>x&&x.id===state.linkedParkId);
  if(!record||!record.data)return {...state,linkedParkMissing:true};
  const info=analyze(record.data);
- return {...state,linkedPark:{capacity:info.capacity,shops:info.shops,restrooms:info.restrooms,accessScore:info.accessScore},linkedParkMissing:false,linkedParkSnapshot:false};
+ return {...state,linkedPark:{capacity:info.capacity,shops:info.shops,restrooms:info.restrooms,paths:info.paths,entrances:info.entrances,accessScore:info.accessScore},linkedParkMissing:false,linkedParkSnapshot:false};
 }
 function link(state,id,storage){
  if(typeof id!=="string"||!id)throw Error("Select a saved ballpark");
