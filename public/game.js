@@ -3368,6 +3368,22 @@
     } else {
       const next=placement(hover.x,hover.y);
       if(next.error){toast(next.error);return;}
+      // Campaign-linked parks cannot bypass the ownership construction calendar.
+      // Ordinary sandbox parks remain completely unrestricted.
+      if(activeParkId){
+        try{
+          const raw=localStorage.getItem("svs-marinelli-preview-v1");
+          const campaign=raw?JSON.parse(raw):null;
+          if(campaign&&campaign.linkedParkId===activeParkId){
+            const majorSeating=new Set(["bleacher","stand","stairStand","backstopStand","backstopStair","cornerStandLeft","cornerStandRight","backstopCornerFirst","backstopCornerThird"]);
+            const permit=majorSeating.has(next.item.type)?"bleachers":null;
+            if(permit&&!campaign.upgrades?.includes(permit)){
+              toast("Campaign construction locked: complete the offseason bleacher project before placing major seating.");
+              return;
+            }
+          }
+        }catch(e){toast("Campaign status unavailable; construction paused to protect your save.");return;}
+      }
       const placed=next.item;
       history.push(snapshot());
       money-=next.cost;
