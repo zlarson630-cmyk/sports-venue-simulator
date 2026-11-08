@@ -2300,7 +2300,14 @@
           // Fans still sitting during their staggered release occupy seats,
           // not the walking aisle in front of that row.
           !(fanPhase==="exiting"&&departureElapsed<other.exitStart)&&(fanDistance(p,other)<(other.seated?0.03:FAN_SPACE)-1e-8||
-            (!other.seated&&fan.scenicMergeIndex===undefined&&other.scenicMergeIndex===undefined&&!["to restroom","to concession","returning to seat"].includes(fan.activity)&&!["to restroom","to concession","returning to seat"].includes(other.activity)&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
+            (!other.seated&&
+              // On open pavement, nearby fans may pass; reserve corridors only
+              // on elevated, narrow or gate-throat approaches.
+              !(fanPhase==="game"&&fan.activity==="arriving"&&other.activity==="arriving"&&
+                (fan.feet||0)===0&&(other.feet||0)===0&&
+                Math.hypot(fan.x-8.5,fan.y-4.5)>0.85&&
+                Math.hypot(other.x-8.5,other.y-4.5)>0.85)&&
+              fan.scenicMergeIndex===undefined&&other.scenicMergeIndex===undefined&&!["to restroom","to concession","returning to seat"].includes(fan.activity)&&!["to restroom","to concession","returning to seat"].includes(other.activity)&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
               corridorDistance(p,corridors.get(other)||lookAhead(other))<FAN_SPACE-1e-8)));
         if(fanPhase==="exiting"&&fan.seated) {
           if(occupied(fan))continue;
