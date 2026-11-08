@@ -7,7 +7,7 @@
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
     <title>Sports Venue Simulator — Sandbox 0.43.0</title>
-    <link rel="stylesheet" href="styles.css?v=0.45.0-happiness" />
+    <link rel="stylesheet" href="styles.css?v=0.46.0-postgame" />
   </head>
   <body>
     <header>
@@ -148,6 +148,7 @@
           <p id="fanCountHelp" class="foot">Limited by reachable seats. Time and fan changes during play apply to the next game.</p>
           <button class="smallbtn" id="openGates" style="width:100%;margin-top:6px">▶ Open gates · $5 admission</button>
           <button class="smallbtn" id="stopFans" style="width:100%;margin-top:6px">■ End game</button>
+          <button class="smallbtn" id="reopenPostgame" style="width:100%;margin-top:6px" hidden>▤ Last game report</button>
           <p id="fanStatus" class="foot" role="status" aria-live="polite">Connect walkways to stair entrances, then open gates. Fans arrive in groups, play for your selected duration, and queue to walk out afterward.</p>
           <label for="fanPicker">Inspect a fan</label>
           <select id="fanPicker" hidden style="width:100%;padding:10px;margin:8px 0" aria-label="Inspect a fan"></select>
@@ -232,6 +233,27 @@
         </div>
       </section>
     </main>
+    <dialog id="postgameDialog" aria-labelledby="postgameTitle">
+      <div class="postgame-header">
+        <div><span class="postgame-kicker">SPORTS VENUE SIMULATOR</span><h2 id="postgameTitle">Game Day Report</h2>
+        <p>Here’s how your guests experienced the ballpark.</p></div>
+        <form method="dialog"><button type="submit" class="postgame-dismiss" aria-label="Close report">×</button></form>
+      </div>
+      <div class="postgame-metrics">
+        <div><strong id="postgameScore">—</strong><span>Fan happiness</span></div>
+        <div><strong id="postgameAttendance">—</strong><span>Attendance</span></div>
+        <div><strong id="postgameRevenue">—</strong><span>Total revenue</span></div>
+      </div>
+      <p id="postgameMood" class="postgame-mood"></p>
+      <section class="postgame-section"><h3>★ Favorite features</h3><ul id="postgameFavorites"></ul></section>
+      <section class="postgame-section"><h3>♥ What fans liked</h3><ul id="postgamePraise"></ul></section>
+      <section class="postgame-section"><h3>⚠ Areas to improve</h3><ul id="postgameProblems"></ul></section>
+      <section class="postgame-section"><h3>Game day operations</h3>
+        <p id="postgameWaits"></p><p id="postgameEconomy"></p>
+      </section>
+      <p class="postgame-footnote">Based on recorded guest experiences and simulated events. Mentions count individual reactions, not a survey of every attendee.</p>
+      <button type="button" class="smallbtn postgame-action" id="closePostgame">Return to stadium</button>
+    </dialog>
     <dialog id="tutorial" aria-labelledby="tutorialTitle">
       <h2 id="tutorialTitle" tabindex="-1" autofocus>Build and run your first game</h2>
       <ol>
@@ -251,7 +273,7 @@
       </ol>
       <form method="dialog"><button class="smallbtn">Got it</button></form>
     </dialog>
-    <script src="game.js?v=0.45.0-happiness" defer></script>
+    <script src="game.js?v=0.46.0-postgame" defer></script>
     <script src="tutorial.js" defer></script>
   </body>
 </html>
