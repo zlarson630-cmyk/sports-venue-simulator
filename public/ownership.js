@@ -101,7 +101,7 @@ function nextSeason(state){
  state=normalize(validate(state));if(state.status!=="offseason")throw Error("Finish current season first");
  if(state.projects.some(p=>p.status!=="complete"&&UPGRADES[p.key].major))throw Error("Finish major construction before Opening Day");
  const report=summary(state);
- const seasonRecord={year:state.year||1,wins:state.wins,losses:state.losses,homeGames:report.homeGames,attendance:report.attendance,gate:report.gate,concessions:report.concessions,expenses:report.expenses,operatingProfit:report.operatingProfit,endingCash:state.cash,fanRating:Math.round(state.fanRating),capitalSpending:money(-(state.ledger||[]).filter(x=>x.year===state.year&&x.type==="construction").reduce((n,x)=>n+x.amount,0)+(state.ledger||[]).filter(x=>x.year===state.year&&x.type==="refund").reduce((n,x)=>n+x.amount,0))};
+ const seasonRecord={year:state.year||1,wins:state.wins,losses:state.losses,homeGames:report.homeGames,attendance:report.attendance,gate:report.gate,concessions:report.concessions,expenses:report.expenses,operatingProfit:report.operatingProfit,endingCash:state.cash,fanRating:Math.round(state.fanRating),capitalSpending:money(-(state.ledger||[]).filter(x=>x.year===state.year&&["construction","refund"].includes(x.type)).reduce((n,x)=>n+x.amount,0))};
  return {...state,year:(state.year||1)+1,gameIndex:0,wins:0,losses:0,history:[],seasonRecords:[...(state.seasonRecords||[]),seasonRecord],season:makeSeason(),status:"active"};
 }
 function setTicketPrice(state,price){
