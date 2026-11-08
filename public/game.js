@@ -1457,7 +1457,7 @@
     const fraction=Math.max(0,elapsed)/total;
     if(fraction<PREGAME_FRACTION)return {kind:"pregame",inning:0,label:"PREGAME",progress:fraction/PREGAME_FRACTION};
     const progress=(fraction-PREGAME_FRACTION)/(1-PREGAME_FRACTION);
-    const inning=Math.min(9,Math.floor(progress*9)+1);
+    const inning=Math.min(9,Math.floor(progress*9+1e-9)+1);
     return {kind:"inning",inning,label:"INNING "+inning,progress:progress*9-(inning-1)};
   };
   let firstPitchSeated=null,firstInningSeated=null;
