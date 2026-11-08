@@ -91,6 +91,7 @@ function game(saved, random=()=>0.5, options={}) {
       setItem: (key, value) => storage.set(key, value),
     },
     confirm: () => true,
+    prompt: options.prompt || (()=>"Test Ballpark"),
     ResizeObserver: class {
       observe() {}
     },
