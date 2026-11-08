@@ -28,6 +28,8 @@ function game(saved, random=()=>0.5, options={}) {
     if (!elements.has(id))
       elements.set(id, {
         id,
+        dataset: {},
+        style: {},
         clientWidth: 1100,
         clientHeight: 800,
         textContent: "",
