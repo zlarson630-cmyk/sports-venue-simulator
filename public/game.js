@@ -1461,6 +1461,18 @@
     return {kind:"inning",inning,label:"INNING "+inning,progress:progress*9-(inning-1)};
   };
   let firstPitchSeated=null,firstInningSeated=null;
+  let lastDisplayedStage="ready";
+  function stadiumStage(){
+    const stage=fanPhase==="exiting"||fanPhase==="finishing arrivals"?{kind:"postgame",label:"POSTGAME",inning:9,progress:1}:gameDayStage(fanElapsed);
+    return {...stage,label:stage.kind==="pregame"&&stage.progress<0.15?"GATES OPEN":stage.label};
+  }
+  function stadiumBanner(stage){
+    if(stage.label==="GATES OPEN")return "GATES OPEN";
+    if(stage.kind==="pregame")return "PREGAME FESTIVITIES";
+    if(stage.kind==="inning"&&stage.inning===1)return "FIRST PITCH";
+    return stage.label;
+  }
+
   function recordSeatingMilestones(previous,current){
     const pregame=GAME_SECONDS*PREGAME_FRACTION,firstEnd=pregame+GAME_SECONDS*(1-PREGAME_FRACTION)/9;
     const seated=()=>({seated:fans.filter(f=>f.seated).length,admitted:fans.filter(f=>f.paid).length});
