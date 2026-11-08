@@ -7,7 +7,7 @@
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
     <title>Sports Venue Simulator — Sandbox 0.43.0</title>
-    <link rel="stylesheet" href="styles.css?v=0.47.0-innings" />
+    <link rel="stylesheet" href="styles.css?v=0.48.0-gameflow" />
   </head>
   <body>
     <header>
@@ -204,6 +204,16 @@
           tabindex="0"
           aria-label="Ballpark construction grid"
         ></canvas>
+        <section id="stadiumGameClock" class="stadium-game-clock" aria-label="Live game day status" aria-live="off">
+          <div class="clock-head"><span class="clock-brand">GAME DAY</span><strong id="stadiumPhase">READY</strong><span id="stadiumClock">0:00</span></div>
+          <div class="inning-strip" id="stadiumInnings" aria-label="Nine innings">
+            <span class="inning-chip" data-inning="1">1</span><span class="inning-chip" data-inning="2">2</span><span class="inning-chip" data-inning="3">3</span><span class="inning-chip" data-inning="4">4</span><span class="inning-chip" data-inning="5">5</span><span class="inning-chip" data-inning="6">6</span><span class="inning-chip" data-inning="7">7</span><span class="inning-chip" data-inning="8">8</span><span class="inning-chip" data-inning="9">9</span>
+          </div>
+          <div class="clock-bottom"><span id="stadiumSeated">0% seated</span><span id="stadiumGateCount">0 admitted</span></div>
+          <div class="clock-target" id="stadiumTarget">Target: 75% seated at first pitch</div>
+          <div class="clock-meter"><div id="stadiumClockFill"></div></div>
+        </section>
+        <div id="phaseAnnouncement" class="phase-announcement" hidden role="status"></div>
         <section id="happinessPanel" aria-label="Fan happiness">
           <div><strong>Fan Happiness</strong> <output id="fanHappinessValue">—</output></div>
           <meter id="fanHappiness" aria-label="Average fan happiness" min="0" max="100" low="45" high="75" optimum="100" value="0"></meter>
@@ -279,7 +289,7 @@
       </ol>
       <form method="dialog"><button class="smallbtn">Got it</button></form>
     </dialog>
-    <script src="game.js?v=0.47.0-innings" defer></script>
+    <script src="game.js?v=0.48.0-gameflow" defer></script>
     <script src="tutorial.js" defer></script>
   </body>
 </html>
