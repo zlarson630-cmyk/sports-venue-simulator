@@ -28,6 +28,7 @@ function game(saved, random=()=>0.5, options={}) {
     if (!elements.has(id))
       elements.set(id, {
         id,
+        hidden: id==="guestManager",
         dataset: {},
         style: {},
         clientWidth: 1100,
