@@ -1475,7 +1475,7 @@
 
   function recordSeatingMilestones(previous,current){
     const pregame=GAME_SECONDS*PREGAME_FRACTION,firstEnd=pregame+GAME_SECONDS*(1-PREGAME_FRACTION)/9;
-    const seated=()=>({seated:fans.filter(f=>f.seated).length,admitted:fans.filter(f=>f.paid).length});
+    const seated=()=>({seated:fans.filter(f=>f.seated).length,admitted:fans.filter(f=>f.paid).length,planned:fanPlanned});
     if(firstPitchSeated===null&&previous<pregame&&current>=pregame)firstPitchSeated=seated();
     if(firstInningSeated===null&&previous<firstEnd&&current>=firstEnd)firstInningSeated=seated();
   }
@@ -1493,7 +1493,7 @@
     if(clock)clock.textContent=Math.floor(remaining/60)+":"+String(remaining%60).padStart(2,"0");
     const seated=fans.filter(f=>f.seated).length,admitted=gateAdmissions;
     const seatEl=document.getElementById("stadiumSeated"),gateEl=document.getElementById("stadiumGateCount");
-    if(seatEl)seatEl.textContent=admitted?Math.round(100*seated/admitted)+"% seated":"Waiting for fans";
+    if(seatEl)seatEl.textContent=fanPlanned?Math.round(100*seated/fanPlanned)+"% seated ("+seated+"/"+fanPlanned+")":"Waiting for fans";
     if(gateEl)gateEl.textContent=admitted+" admitted";
     const targetEl=document.getElementById("stadiumTarget");
     if(targetEl)targetEl.textContent=visible.kind==="pregame"?"Goal: 75% at first pitch":visible.kind==="inning"&&visible.inning===1?"Goal: 90% by end of 1st":visible.kind==="inning"?"Fans visit amenities between plays":"Pregame → 9 innings → Postgame";
@@ -1895,7 +1895,7 @@
     set("postgameAttendance",report.admissions.toLocaleString());
     set("postgameRevenue",`${(report.gateRevenue+report.concessionRevenue).toLocaleString()}`);
     set("postgameMood",`${report.experience.happy} happy · ${report.experience.unhappy} unhappy · ${report.experience.admitted} admitted`);
-    const milestoneText=m=>m&&m.admitted?Math.round(m.seated/m.admitted*100)+"% ("+m.seated+"/"+m.admitted+")":"No admissions recorded";
+    const milestoneText=m=>m&&m.planned?Math.round(m.seated/m.planned*100)+"% ("+m.seated+"/"+m.planned+" expected)":"No fans scheduled";
     set("postgameSeating","Seated at first pitch: "+milestoneText(report.firstPitchSeated)+" · End of 1st: "+milestoneText(report.firstInningSeated));
     set("postgameEconomy",`Gate ${report.gateRevenue.toLocaleString()} · Concessions ${report.concessionRevenue.toLocaleString()} (${report.foodSales} sales)`);
     set("postgameWaits",`Average per admitted fan: food ${report.avgFoodWait.toFixed(1)}s · restroom ${report.avgRestroomWait.toFixed(1)}s · congestion ${report.avgTrafficWait.toFixed(1)}s`);
