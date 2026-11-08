@@ -17,3 +17,14 @@ test("more walkable space improves flow and concession sales",()=>{
  assert.ok(wide.crowdFlow>tight.crowdFlow);
  assert.ok(wide.concessions>tight.concessions);
 });
+
+test("completed fan test adjusts reputation once without booking money",()=>{
+ const park={tiles:{"0,0":{type:"stand"},"1,0":{type:"concession"}}};
+ const storage={getItem:()=>JSON.stringify([{id:"test-park",name:"Test",data:park}])};
+ const state=Park.link(Owner.newCampaign(),"test-park",storage);
+ const report={parkId:"test-park",completed:true,recordedAt:12345,admissions:20,averageHappiness:95};
+ const next=Owner.applyLiveExperience(state,report);
+ assert.equal(next.cash,state.cash);assert.ok(next.fanRating>state.fanRating);
+ assert.throws(()=>Owner.applyLiveExperience(next,report),/already applied/);
+ assert.throws(()=>Owner.applyLiveExperience(state,{...report,parkId:"other"}),/linked park/);
+});
