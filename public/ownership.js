@@ -33,7 +33,7 @@ function finishProjects(state,day){
   const u=UPGRADES[p.key];upgrades.push(p.key);rating=clamp(rating+u.comfort,0,100);
   return {...p,status:"complete"};
  });
- return {...state,projects,upgrades,fanRating:rating};
+ return {...state,day,projects,upgrades,fanRating:rating};
 }
 function upgrade(state,key){
  state=normalize(validate(state));const u=UPGRADES[key];
