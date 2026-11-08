@@ -7,7 +7,7 @@
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
     <title>Sports Venue Simulator — Sandbox 0.43.0</title>
-    <link rel="stylesheet" href="styles.css?v=0.46.0-postgame" />
+    <link rel="stylesheet" href="styles.css?v=0.47.0-innings" />
   </head>
   <body>
     <header>
@@ -146,6 +146,11 @@
           <input id="fanNeedsRate" type="range" min="0" max="2" step="0.25" value="1" aria-describedby="fanNeedsHelp" />
           <p id="fanNeedsHelp" class="foot">Slide left to turn needs off. This applies during the game.</p>
           <p id="fanCountHelp" class="foot">Limited by reachable seats. Time and fan changes during play apply to the next game.</p>
+          <section class="game-day-scoreboard" aria-label="Game day and inning progress">
+            <div><strong id="gameDayStage">READY</strong><span>Inning <b id="gameDayInning">—</b></span></div>
+            <progress id="gameDayProgress" max="100" value="0" aria-label="Game day progress"></progress>
+            <small>Pregame 20% · Nine innings 80% · Postgame exits</small>
+          </section>
           <button class="smallbtn" id="openGates" style="width:100%;margin-top:6px">▶ Open gates · $5 admission</button>
           <button class="smallbtn" id="stopFans" style="width:100%;margin-top:6px">■ End game</button>
           <button class="smallbtn" id="reopenPostgame" style="width:100%;margin-top:6px" hidden>▤ Last game report</button>
@@ -245,6 +250,7 @@
         <div><strong id="postgameRevenue">—</strong><span>Total revenue</span></div>
       </div>
       <p id="postgameMood" class="postgame-mood"></p>
+      <p id="postgameSeating" class="postgame-mood"></p>
       <section class="postgame-section"><h3>★ Favorite features</h3><ul id="postgameFavorites"></ul></section>
       <section class="postgame-section"><h3>♥ What fans liked</h3><ul id="postgamePraise"></ul></section>
       <section class="postgame-section"><h3>⚠ Areas to improve</h3><ul id="postgameProblems"></ul></section>
@@ -273,7 +279,7 @@
       </ol>
       <form method="dialog"><button class="smallbtn">Got it</button></form>
     </dialog>
-    <script src="game.js?v=0.46.0-postgame" defer></script>
+    <script src="game.js?v=0.47.0-innings" defer></script>
     <script src="tutorial.js" defer></script>
   </body>
 </html>
