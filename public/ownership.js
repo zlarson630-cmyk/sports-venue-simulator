@@ -87,18 +87,23 @@ function game(state,random=0.5){
  if(gameTime==="night"&&!state.upgrades.includes("lighting"))throw Error("Night games require functioning stadium lights");
  const atmosphere=gameTime==="sunset"?1.05:gameTime==="night"?1.12:1;
  const linked=state.linkedPark;
- const capacity=linked?Math.max(0,linked.capacity+state.upgrades.reduce((sum,key)=>sum+UPGRADES[key].capacity,0)):Math.max(100,state.baseCapacity+state.upgrades.reduce((sum,key)=>sum+UPGRADES[key].capacity,0));
+ // When a linked park already contains the constructed seating, do not count the
+ // same renovation twice. Unrepresented completed upgrades still add capacity.
+ const completedSeats=state.upgrades.reduce((sum,key)=>sum+UPGRADES[key].capacity,0);
+ const representedSeats=linked?Math.min(Math.max(0,linked.capacity-(state.linkedParkBaselineCapacity??linked.capacity)),Math.max(0,completedSeats)):0;
+ const capacity=linked?Math.max(0,linked.capacity+completedSeats-representedSeats):Math.max(100,state.baseCapacity+completedSeats);
  const win=random<(0.38+Math.min(0.15,state.wins*0.002));
  const ticketDemand=clamp(1-(state.ticketPrice-9)*0.035,0.45,1.3);
  const momentum=1+clamp((state.wins-state.losses)*0.008,-0.2,0.3);
  const staffingFactor=clamp(state.staffCount/7,0.55,1.12);
  const turnout=fixture.home?clamp(Math.round(state.baseAttendance*(0.65+state.fanRating/100*0.65)*ticketDemand*momentum*staffingFactor*atmosphere*(0.8+random*0.4)),0,capacity):0;
  const salesBoost=state.upgrades.reduce((sum,key)=>sum+UPGRADES[key].concession,0);
- const amenityFactor=linked?clamp(linked.shops/2,0,1.25):1;
+ const effectiveShops=linked?linked.shops+(state.upgrades.includes("concession")&&linked.shops<=(state.linkedParkBaselineShops??linked.shops)?1:0):2;
+ const amenityFactor=clamp(effectiveShops/2,0,1.25);
  const restroomPenalty=linked&&linked.restrooms===0&&!state.upgrades.includes("restroom")?-2:0;
  const gate=money(turnout*state.ticketPrice);
  const concessionDemand=clamp(Math.pow(5.5/state.concessionPrice,1.55),0.06,1.5);
- const concessionAvailability=linked&&linked.shops===0&&state.upgrades.includes("concession")?0.5:amenityFactor;
+ const concessionAvailability=amenityFactor;
  const concessions=money(turnout*state.concessionPrice*concessionDemand*(1+salesBoost)*concessionAvailability);
  const lightingCost=gameTime==="night"?650:gameTime==="sunset"?150:0;
  const expense=fixture.home?state.staffCount*state.staffDailyWage+state.otherPerHomeGame+lightingCost:state.roadExpense;
