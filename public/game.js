@@ -1450,6 +1450,31 @@
   }
   const entranceTile = "14,10";
   let GAME_SECONDS=300;
+  const PREGAME_FRACTION=0.20;
+  const gameDayStage=(elapsed,total=GAME_SECONDS)=>{
+    if(total<=0)return {kind:"pregame",inning:0,label:"PREGAME",progress:0};
+    if(elapsed>=total)return {kind:"final",inning:9,label:"FINAL",progress:1};
+    const fraction=Math.max(0,elapsed)/total;
+    if(fraction<PREGAME_FRACTION)return {kind:"pregame",inning:0,label:"PREGAME",progress:fraction/PREGAME_FRACTION};
+    const progress=(fraction-PREGAME_FRACTION)/(1-PREGAME_FRACTION);
+    const inning=Math.min(9,Math.floor(progress*9)+1);
+    return {kind:"inning",inning,label:"INNING "+inning,progress:progress*9-(inning-1)};
+  };
+  let firstPitchSeated=null,firstInningSeated=null;
+  function recordSeatingMilestones(previous,current){
+    const pregame=GAME_SECONDS*PREGAME_FRACTION,firstEnd=pregame+GAME_SECONDS*(1-PREGAME_FRACTION)/9;
+    const seated=()=>({seated:fans.filter(f=>f.seated).length,admitted:fans.filter(f=>f.paid).length});
+    if(firstPitchSeated===null&&previous<pregame&&current>=pregame)firstPitchSeated=seated();
+    if(firstInningSeated===null&&previous<firstEnd&&current>=firstEnd)firstInningSeated=seated();
+  }
+  function updateGameDayDisplay(){
+    const stage=fanPhase==="exiting"||fanPhase==="finishing arrivals"?{label:"POSTGAME",inning:9,kind:"postgame"}:gameDayStage(fanElapsed);
+    const label=document.getElementById("gameDayStage"),inning=document.getElementById("gameDayInning"),progress=document.getElementById("gameDayProgress");
+    if(label)label.textContent=fanActive?stage.label:"READY";
+    if(inning)inning.textContent=fanActive?(stage.kind==="inning"?stage.inning+" / 9":stage.kind==="postgame"?"9 / 9":"—"):"—";
+    if(progress)progress.value=fanActive?Math.min(100,Math.round(fanElapsed/GAME_SECONDS*100)):0;
+    return stage;
+  }
   const TICKET_PRICE=5;
   let gateAdmissions=0, gateRevenue=0;
   const attendanceChoice=n=>[100,250,500,1000].includes(n)?n:({200:250,400:500,800:1000}[n]||100);
@@ -1814,6 +1839,7 @@
     return {experience,complaints,praise,favorites,
       admissions:gateAdmissions,gateRevenue,concessionRevenue,foodSales,bathroomTrips:completedBathroomTrips,
       avgFoodWait:average("foodWait"),avgRestroomWait:average("restroomWait"),avgTrafficWait:average("trafficWait"),
+      firstPitchSeated,firstInningSeated,
       completed:fanPhase==="exiting"&&fans.every(f=>f.exited)};
   }
   function showPostgameReport(){
@@ -1831,6 +1857,8 @@
     set("postgameAttendance",report.admissions.toLocaleString());
     set("postgameRevenue",`${(report.gateRevenue+report.concessionRevenue).toLocaleString()}`);
     set("postgameMood",`${report.experience.happy} happy · ${report.experience.unhappy} unhappy · ${report.experience.admitted} admitted`);
+    const milestoneText=m=>m&&m.admitted?Math.round(m.seated/m.admitted*100)+"% ("+m.seated+"/"+m.admitted+")":"No admissions recorded";
+    set("postgameSeating","Seated at first pitch: "+milestoneText(report.firstPitchSeated)+" · End of 1st: "+milestoneText(report.firstInningSeated));
     set("postgameEconomy",`Gate ${report.gateRevenue.toLocaleString()} · Concessions ${report.concessionRevenue.toLocaleString()} (${report.foodSales} sales)`);
     set("postgameWaits",`Average per admitted fan: food ${report.avgFoodWait.toFixed(1)}s · restroom ${report.avgRestroomWait.toFixed(1)}s · congestion ${report.avgTrafficWait.toFixed(1)}s`);
     list("postgameFavorites",report.favorites,"No favorite features recorded this game.");
@@ -2119,19 +2147,22 @@
     for(const fan of fans){
       if(!Number.isFinite(fan.bathroomNeed)||fan.exited||fan.insideAmenity)continue;
       if(fan.spawned){
-        fan.bathroomNeed=Math.min(100,fan.bathroomNeed+step*0.8*needsRate);
-        fan.hunger=Math.min(100,(fan.hunger||0)+step*0.65*needsRate);
+        const pregame=gameDayStage(fanElapsed).kind==="pregame";
+        fan.bathroomNeed=Math.min(100,fan.bathroomNeed+step*(pregame?1.05:0.8)*needsRate);
+        fan.hunger=Math.min(100,(fan.hunger||0)+step*(pregame?0.85:0.65)*needsRate);
       }
       fan.hungerRetry=Math.max(0,(fan.hungerRetry||0)-step);
       fan.bathroomRetry=Math.max(0,(fan.bathroomRetry||0)-step);
     }
     if(fanElapsed<nextNeedsDispatch)return;
     nextNeedsDispatch=fanElapsed+0.25;
-    const ready=fans.filter(f=>f.seated&&Math.max(f.bathroomNeed,f.hunger)>=NEED_THRESHOLD);
+    const stage=gameDayStage(fanElapsed);
+    const threshold=stage.kind==="pregame"&&stage.progress<0.75?Math.max(55,NEED_THRESHOLD-12):NEED_THRESHOLD;
+    const ready=fans.filter(f=>f.seated&&Math.max(f.bathroomNeed,f.hunger)>=threshold);
     ready.sort((a,b)=>Math.max(b.bathroomNeed,b.hunger)-Math.max(a.bathroomNeed,a.hunger));
     for(const fan of ready){
-      const bathroom=fan.bathroomNeed>=NEED_THRESHOLD&&!fan.bathroomRetry;
-      const food=fan.hunger>=NEED_THRESHOLD&&!fan.hungerRetry;
+      const bathroom=fan.bathroomNeed>=threshold&&!fan.bathroomRetry;
+      const food=fan.hunger>=threshold&&!fan.hungerRetry;
       if(bathroom&&(!food||fan.bathroomNeed>=fan.hunger)&&startAmenityTrip(fan))continue;
       if(food&&startAmenityTrip(fan,"concession"))continue;
       if(bathroom&&!fan.bathroomRetry)startAmenityTrip(fan);
@@ -2167,7 +2198,7 @@
     if(!happinessFinal){updateHappiness(true);happinessFinal=true;}
     if(naturallyFinished)lastPostgameReport=buildPostgameReport(fans.filter(f=>f.paid));
     setFollowFan(false);
-    fanActive=false;fanPhase="idle";fans=[];selectedFan=null;amenityServices=[];trafficIndex=null;disconnectedSections.clear();fanFrame++;
+    fanActive=false;fanPhase="idle";fans=[];selectedFan=null;amenityServices=[];trafficIndex=null;disconnectedSections.clear();fanFrame++;updateGameDayDisplay();
     fanStatus(message||`Game ended early. ${gateAdmissions} admissions · ${gateRevenue} gate revenue · ${concessionRevenue} food revenue (${foodSales} sales). Adjust your park, then open gates again.`);draw();
     if(naturallyFinished)showPostgameReport();
   }
@@ -2180,7 +2211,7 @@
     disconnectedSections=new Set(Object.entries(tiles).filter(([k,v])=>seatCapacity(v)&&!sections.some(s=>s.key===k)).map(([k])=>k));
     fanUnreachable=total-reachableCapacity;
     if(!sections.length) {draw();fanStatus("No gate-to-seat route. Hover a stair to see the cause; highlighted entrance tiles need connected walkways. Raised entrances need matching-height landings.");return;}
-    GAME_SECONDS=gameMinutes*60;fanPlanned=Math.min(requestedFans,reachableCapacity);fanElapsed=0;arrivalElapsed=0;departureElapsed=0;fanPhase="game";gateAdmissions=0;gateRevenue=0;fans=[];
+    GAME_SECONDS=gameMinutes*60;fanPlanned=Math.min(requestedFans,reachableCapacity);fanElapsed=0;arrivalElapsed=0;departureElapsed=0;fanPhase="game";firstPitchSeated=null;firstInningSeated=null;gateAdmissions=0;gateRevenue=0;fans=[];updateGameDayDisplay();
     const plan=partySeatPlan(sections,fanPlanned),traffic=new Map();let routeTraffic=new Map();
     for(let i=0;i<plan.length;i++) {
       const {section,slot,partyId,start}=plan[i];
@@ -2221,7 +2252,7 @@
     prepareAmenities();completedBathroomTrips=0;selectedFan=null;concessionRevenue=0;foodSales=0;pendingFoodRevenue=0;
     document.getElementById("fanPicker").innerHTML=`<option value="">Choose a fan…</option>`+fans.map((f,i)=>`<option value="${i}">Fan ${i+1} · Party ${f.partyId+1}</option>`).join("");
     document.getElementById("fanPicker").value="";
-    fanActive=true;fanStatus(`Game on · ${GAME_SECONDS/60}:00 remaining · $5 admission. Fans are walking to their seats.`);
+    fanActive=true;updateGameDayDisplay();fanStatus(`Gates open · Pregame · ${GAME_SECONDS/60}:00 remaining · $5 admission. Fans are walking to their seats.`);
     let last=null;const run=++fanFrame;
     const frame=now=>{
       if(!fanActive||run!==fanFrame)return;
@@ -2306,8 +2337,10 @@
     if(!fan.paid||fan.activity!=="arriving"||fan.arrivalStop||fanPhase!=="game"||needsRate===0)return false;
     const node=fan.route[fan.index]?.node;
     if(!node?.startsWith("g:"))return false;
-    const kind=fan.bathroomNeed>=NEED_THRESHOLD&&!fan.bathroomRetry?"restroom":fan.hunger>=NEED_THRESHOLD&&!fan.hungerRetry?"concession":null;
-    if(!kind||fans.some(f=>f.arrivalStop&&!f.seated))return false;
+    const stage=gameDayStage(fanElapsed);
+    const threshold=stage.kind==="pregame"&&stage.progress<0.65?Math.max(55,NEED_THRESHOLD-15):NEED_THRESHOLD;
+    const kind=fan.bathroomNeed>=threshold&&!fan.bathroomRetry?"restroom":fan.hunger>=threshold&&!fan.hungerRetry?"concession":null;
+    if(!kind||fans.filter(f=>f.arrivalStop&&!f.seated).length>=Math.max(2,Math.floor(fanPlanned/25)))return false;
     if(!startAmenityTrip(fan,kind,node))return false;
     fan.arrivalStop=true;
     return true;
@@ -2395,7 +2428,9 @@
     while(dt>1e-8&&fanActive) {
       const step=Math.min(dt,1/60);dt-=step;
       const previousElapsed=arrivalElapsed;arrivalElapsed+=step;
+      const previousGameElapsed=fanElapsed;
       fanElapsed=fanElapsed+step>=GAME_SECONDS-1e-8?GAME_SECONDS:fanElapsed+step;
+      if(fanPhase==="game")recordSeatingMilestones(previousGameElapsed,fanElapsed);
       if(fanPhase==="exiting")departureElapsed+=step;
       else advanceNeeds(step,(fan,point)=>{
         if(nearbySome(point,other=>other!==fan&&other.spawned&&!other.exited&&!other.insideAmenity&&fanDistance(point,other)<FAN_SPACE-1e-8))return;
@@ -2507,6 +2542,7 @@
       store();update(true);
     }
     if(!fanActive)return;
+    const stage=updateGameDayDisplay();
     if(fanPhase==="exiting") {
       fanStatus(`Postgame · Fans exiting: ${fans.filter(f=>f.exited).length}/${fanPlanned}. Fans queue at stairs and the gate, then return to the street.`);return;
     }
@@ -2516,7 +2552,7 @@
     const remaining=Math.ceil(GAME_SECONDS-fanElapsed-1e-8),clock=`${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,"0")}`;
     const seated=fans.filter(f=>f.seated).length,arrived=fans.filter(f=>f.spawned).length;
     const access=fanUnreachable ? `${disconnectedSections.size} disconnected section${disconnectedSections.size===1?"":"s"} (${fanUnreachable} seats), marked red. Connect walkways to use them.` : "All seating sections have a route from the gate.";
-    fanStatus(`Game on · ${clock} remaining · ${gateAdmissions} admissions · $${gateRevenue} gate revenue · $${concessionRevenue} food revenue (${foodSales} sales). `+(seated===fanPlanned?`All ${seated} arriving fans are seated. ${reachableCapacity-seated} reachable seats remain empty. ${access}`:
+    fanStatus(`${stage.label} · ${clock} remaining · ${gateAdmissions} admissions · $${gateRevenue} gate revenue · $${concessionRevenue} food revenue (${foodSales} sales). `+(seated===fanPlanned?`All ${seated} arriving fans are seated. ${reachableCapacity-seated} reachable seats remain empty. ${access}`:
       `Fans arriving: ${arrived}/${fanPlanned} · Fans seated: ${seated}. ${access}`)+` Food stands: ${amenityServices.filter(r=>r.kind==="concession").length} reachable. Restrooms: ${amenityServices.filter(r=>r.kind==="restroom").length} reachable · ${fans.filter(f=>f.insideAmenity||f.activity==="to restroom"||f.activity==="returning to seat").length} visiting · ${completedBathroomTrips} round trips.`);
   }
   const defensivePlayers = [
