@@ -3376,9 +3376,15 @@
           const campaign=raw?JSON.parse(raw):null;
           if(campaign&&campaign.linkedParkId===activeParkId){
             const majorSeating=new Set(["bleacher","stand","stairStand","backstopStand","backstopStair","cornerStandLeft","cornerStandRight","backstopCornerFirst","backstopCornerThird"]);
-            const permit=majorSeating.has(next.item.type)?"bleachers":null;
+            const foodTypes=new Set(["concession","drinks","iceCream"]);
+            const permit=majorSeating.has(next.item.type)?"bleachers":
+              foodTypes.has(next.item.type)?"concession":
+              next.item.type==="restroom"?"restroom":null;
             if(permit&&!campaign.upgrades?.includes(permit)){
-              toast("Campaign construction locked: complete the offseason bleacher project before placing major seating.");
+              const project=campaign.projects?.find(p=>p.key===permit);
+              const status=project?.status==="building"?"Construction underway":
+                project?.status==="queued"?"Construction queued":"Approve and complete the project in the owner's office";
+              toast("Campaign construction locked: "+status+" ("+permit+").");
               return;
             }
           }
