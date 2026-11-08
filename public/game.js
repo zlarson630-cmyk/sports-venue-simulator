@@ -2303,7 +2303,8 @@
             (!other.seated&&
               // On open pavement, nearby fans may pass; reserve corridors only
               // on elevated, narrow or gate-throat approaches.
-              !((fan.feet||0)===0&&(other.feet||0)===0&&
+              !(fanPhase==="game"&&fan.activity==="arriving"&&other.activity==="arriving"&&
+                (fan.feet||0)===0&&(other.feet||0)===0&&
                 Math.hypot(fan.x-8.5,fan.y-4.5)>0.85&&
                 Math.hypot(other.x-8.5,other.y-4.5)>0.85)&&
               fan.scenicMergeIndex===undefined&&other.scenicMergeIndex===undefined&&!["to restroom","to concession","returning to seat"].includes(fan.activity)&&!["to restroom","to concession","returning to seat"].includes(other.activity)&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
