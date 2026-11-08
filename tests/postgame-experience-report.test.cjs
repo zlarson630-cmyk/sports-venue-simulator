@@ -12,7 +12,8 @@ test("postgame report summarizes recorded favorites and complaints without inven
   ];
   const report=g.api.buildPostgameReport(fans);
   assert.equal(report.experience.admitted,2);
-  assert.deepEqual(Array.from(report.favorites[0]),["Watching from the seats",2]);
+  assert.ok(report.favorites.some(([name,count])=>name==="Watching from the seats"&&count===2));
+  assert.ok(report.favorites.some(([name,count])=>name==="Scoreboard view"&&count===2));
   assert.deepEqual(Array.from(report.praise[0]),["Great scoreboard view",2]);
   assert.deepEqual(Array.from(report.complaints[0]),["Too crowded to get around",1]);
   assert.ok(report.experience.average>=0&&report.experience.average<=100);
