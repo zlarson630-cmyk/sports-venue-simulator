@@ -137,11 +137,25 @@ function advance(state,count=1,random=Math.random){
  for(let i=0;i<count&&next.gameIndex<SEASON_GAMES;i++) next=game(next,random());
  return next;
 }
+function forecast(state,count=7){
+ state=normalize(validate(state));
+ if(!Number.isInteger(count)||count<1||count>100)throw Error("Forecast must cover 1 to 100 games");
+ if(state.status!=="active")return {games:0,homeGames:0,projectedProfit:0,projectedCash:state.cash,lowestCash:state.cash,atRisk:state.cash<0};
+ let projected=state,lowestCash=state.cash,homeGames=0;
+ const remaining=Math.min(count,SEASON_GAMES-state.gameIndex);
+ for(let i=0;i<remaining;i++){
+  const next=game(projected,0.5);
+  if(next.history.at(-1).home)homeGames++;
+  lowestCash=Math.min(lowestCash,next.cash);
+  projected=next;
+ }
+ return {games:remaining,homeGames,projectedProfit:money(projected.cash-state.cash),projectedCash:projected.cash,lowestCash,atRisk:lowestCash<0};
+}
 function summary(state){
  validate(state);
  const h=state.history;
  const total=k=>money(h.reduce((n,x)=>n+x[k],0));
  return {gamesPlayed:state.gameIndex,homeGames:h.filter(x=>x.home).length,wins:state.wins,losses:state.losses,cash:state.cash,gate:total("gate"),concessions:total("concessions"),expenses:total("expense"),operatingProfit:total("profit"),attendance:h.reduce((n,x)=>n+x.attendance,0),fanRating:Math.round(state.fanRating),status:state.status};
 }
-return {SEASON_GAMES,STARTING_CASH,UPGRADES,newCampaign,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,game,advance,summary};
+return {SEASON_GAMES,STARTING_CASH,UPGRADES,newCampaign,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,game,advance,forecast,summary};
 });
