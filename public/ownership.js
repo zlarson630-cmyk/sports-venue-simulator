@@ -19,7 +19,7 @@ function clamp(x,min,max){return Math.max(min,Math.min(max,x));}
 function money(n){return Math.round(n*100)/100;}
 function makeSeason(){return Array.from({length:SEASON_GAMES},(_,i)=>({number:i+1,home:i%2===0,opponent:i%2===0?"River City Rivals":"Association Opponent"}));}
 function newCampaign(){
- return {schema:1,id:"marinelli-sock-monkeys",name:"Screw City Sock Monkeys",venue:"Marinelli Field",league:"American Association",cash:STARTING_CASH,year:1,gameIndex:0,wins:0,losses:0,fanRating:45,baseCapacity:900,upgrades:[],ticketPrice:9,staffPerHomeGame:2100,otherPerHomeGame:1150,roadExpense:1850,baseAttendance:460,concessionPrice:5.5,gameTime:"day",staffCount:7,staffDailyWage:300,day:0,projects:[],history:[],season:makeSeason(),status:"active"};
+ return {schema:1,id:"marinelli-sock-monkeys",name:"Screw City Sock Monkeys",venue:"Marinelli Field",league:"American Association",cash:STARTING_CASH,year:1,gameIndex:0,wins:0,losses:0,fanRating:45,baseCapacity:900,upgrades:[],ticketPrice:9,staffPerHomeGame:2100,otherPerHomeGame:1150,roadExpense:1850,baseAttendance:460,concessionPrice:5.5,gameTime:"day",staffCount:7,staffDailyWage:300,day:0,projects:[],history:[],seasonRecords:[],season:makeSeason(),status:"active"};
 }
 function validate(state){
  if(!state||state.id!=="marinelli-sock-monkeys"||!Array.isArray(state.season)||state.season.length!==SEASON_GAMES||!Number.isFinite(state.cash)||!Number.isInteger(state.gameIndex)||state.gameIndex<0||state.gameIndex>SEASON_GAMES) throw Error("Invalid campaign");
@@ -100,7 +100,9 @@ function advanceToOpeningDay(state){
 function nextSeason(state){
  state=normalize(validate(state));if(state.status!=="offseason")throw Error("Finish current season first");
  if(state.projects.some(p=>p.status!=="complete"&&UPGRADES[p.key].major))throw Error("Finish major construction before Opening Day");
- return {...state,year:(state.year||1)+1,gameIndex:0,wins:0,losses:0,history:[],season:makeSeason(),status:"active"};
+ const report=summary(state);
+ const seasonRecord={year:state.year||1,wins:state.wins,losses:state.losses,homeGames:report.homeGames,attendance:report.attendance,gate:report.gate,concessions:report.concessions,expenses:report.expenses,operatingProfit:report.operatingProfit,endingCash:state.cash,fanRating:Math.round(state.fanRating)};
+ return {...state,year:(state.year||1)+1,gameIndex:0,wins:0,losses:0,history:[],seasonRecords:[...(state.seasonRecords||[]),seasonRecord],season:makeSeason(),status:"active"};
 }
 function setTicketPrice(state,price){
  validate(state);
