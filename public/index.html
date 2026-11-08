@@ -7,7 +7,7 @@
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
     <title>Sports Venue Simulator — Sandbox 0.43.0</title>
-    <link rel="stylesheet" href="styles.css?v=0.47.0-innings" />
+    <link rel="stylesheet" href="styles.css?v=0.48.0-guests" />
   </head>
   <body>
     <header>
@@ -153,6 +153,7 @@
           </section>
           <button class="smallbtn" id="openGates" style="width:100%;margin-top:6px">▶ Open gates · $5 admission</button>
           <button class="smallbtn" id="stopFans" style="width:100%;margin-top:6px">■ End game</button>
+          <button class="smallbtn" id="openGuestList" style="width:100%;margin-top:6px">☻ Guest status</button>
           <button class="smallbtn" id="reopenPostgame" style="width:100%;margin-top:6px" hidden>▤ Last game report</button>
           <p id="fanStatus" class="foot" role="status" aria-live="polite">Connect walkways to stair entrances, then open gates. Fans arrive in groups, play for your selected duration, and queue to walk out afterward.</p>
           <label for="fanPicker">Inspect a fan</label>
@@ -222,12 +223,37 @@
           <div><meter id="bathroomMeter" min="0" max="100" low="40" high="75" optimum="0"></meter> <span id="bathroomValue">0%</span></div>
           <label for="hungerMeter">🍔 Hunger</label>
           <div><meter id="hungerMeter" min="0" max="100" low="40" high="75" optimum="0"></meter> <span id="hungerValue">0%</span></div>
-          <p id="fanDetails"></p><p id="selectedFanMood" class="fan-experience-text">Individual happiness: —</p><p id="selectedFanThoughts" class="fan-experience-text">Guest thoughts: —</p>
+          <p id="fanDetails"></p><p id="selectedFanMood" class="fan-experience-text">Individual happiness: —</p><p id="selectedFanThoughts" class="fan-experience-text">Guest thoughts: —</p><p id="selectedFanSpending" class="fan-experience-text">Guest spending: —</p>
           <div class="fan-tracking">
             <button class="smallbtn" id="centerFan">Center fan</button>
             <button class="smallbtn" id="followFan" aria-pressed="false">Follow fan</button>
           </div>
           <small>Food costs $5. Stands serve one fan at a time. Esc closes.</small>
+        </aside>
+        <aside id="guestManager" class="guest-manager" hidden aria-label="Guest status">
+          <div class="guest-manager-head">
+            <div><strong>Guests</strong><span id="guestManagerCount">0 guests</span></div>
+            <button id="closeGuestList" aria-label="Close guest status">×</button>
+          </div>
+          <div class="guest-manager-tabs" role="group" aria-label="Guest view">
+            <button type="button" id="guestViewActions" data-guest-view="actions" aria-pressed="true">Actions</button>
+            <button type="button" id="guestViewThoughts" data-guest-view="thoughts" aria-pressed="false">Thoughts</button>
+            <button type="button" id="guestViewNeeds" data-guest-view="needs" aria-pressed="false">Needs</button>
+            <button type="button" id="guestViewSpending" data-guest-view="spending" aria-pressed="false">Spending</button>
+          </div>
+          <div class="guest-manager-filter">
+            <label for="guestFilter">Show</label>
+            <select id="guestFilter">
+              <option value="all">All guests</option>
+              <option value="walking">Walking / arriving</option>
+              <option value="seated">Watching from seats</option>
+              <option value="amenity">Food / restroom</option>
+              <option value="waiting">Waiting or delayed</option>
+              <option value="exited">Exited</option>
+            </select>
+          </div>
+          <div id="guestManagerRows" class="guest-manager-rows" role="list" aria-label="Individual guests"></div>
+          <div id="guestManagerInfo" class="guest-manager-info">Choose a guest to inspect, highlight and follow.</div>
         </aside>
         <div id="toast"></div>
         <div id="location">
@@ -279,7 +305,7 @@
       </ol>
       <form method="dialog"><button class="smallbtn">Got it</button></form>
     </dialog>
-    <script src="game.js?v=0.47.0-innings" defer></script>
+    <script src="game.js?v=0.48.0-guests" defer></script>
     <script src="tutorial.js" defer></script>
   </body>
 </html>
