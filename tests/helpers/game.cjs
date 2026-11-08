@@ -90,7 +90,7 @@ function game(saved, random=()=>0.5, options={}) {
     document: {
       getElementById: element,
       querySelectorAll: () => toolButtons,
-      createElement: tag => tag==="canvas"&&options.cacheCanvas?{width:0,height:0,getContext:()=>({drawImage(){}})}:({ click() {},textContent:"" }),
+      createElement: tag => tag==="canvas"&&options.cacheCanvas?{width:0,height:0,getContext:()=>({drawImage(){}})}:({click(){this.onclick?.();},textContent:"",children:[],appendChild(node){this.children.push(node);},setAttribute(name,value){this[name]=value;}}),
     },
     window: { addEventListener: (key, fn) => (keys[key] = fn) },
     localStorage: {
