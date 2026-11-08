@@ -2,7 +2,7 @@
 
 An isometric browser game about designing and operating a professional sports venue.
 
-**Design → Build → Unfold → Review.** Version 0.38 lets triangular concourses fill unused parts of diagonal seating cells as independent pieces. Shared physical edges and matching heights connect concourses and stairs, open railings, and support another seating band beyond the concourse. Fallback bridges stop at deck boundaries. Fans use solid-face depth clipping so walls and elevated structures hide only the portions actually behind them. Existing layouts, game settings, green/brick finishes and the yellow wall stripe remain compatible.
+**Design → Build → Unfold → Review.** The v0.49 release unifies the current game-day phases, postgame report, guest management interface, and the My Ballparks start menu. The menu lets players name, load, duplicate, rename and create separate local saved parks without replacing the current construction sandbox. The legacy `svs01` save remains as an active-park backup. New gameplay features still require in-browser acceptance testing; automated checks cover regression and save behavior.
 
 ## Play and develop
 
