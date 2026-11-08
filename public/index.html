@@ -7,7 +7,7 @@
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
     <title>Sports Venue Simulator — Sandbox 0.43.0</title>
-    <link rel="stylesheet" href="styles.css?v=0.43.0-fans" />
+    <link rel="stylesheet" href="styles.css?v=0.45.0-happiness" />
   </head>
   <body>
     <header>
@@ -216,7 +216,7 @@
           <div><meter id="bathroomMeter" min="0" max="100" low="40" high="75" optimum="0"></meter> <span id="bathroomValue">0%</span></div>
           <label for="hungerMeter">🍔 Hunger</label>
           <div><meter id="hungerMeter" min="0" max="100" low="40" high="75" optimum="0"></meter> <span id="hungerValue">0%</span></div>
-          <p id="fanDetails"></p>
+          <p id="fanDetails"></p><p id="selectedFanMood" class="fan-experience-text">Individual happiness: —</p><p id="selectedFanThoughts" class="fan-experience-text">Guest thoughts: —</p>
           <div class="fan-tracking">
             <button class="smallbtn" id="centerFan">Center fan</button>
             <button class="smallbtn" id="followFan" aria-pressed="false">Follow fan</button>
@@ -251,7 +251,7 @@
       </ol>
       <form method="dialog"><button class="smallbtn">Got it</button></form>
     </dialog>
-    <script src="game.js?v=0.43.0-fans" defer></script>
+    <script src="game.js?v=0.45.0-happiness" defer></script>
     <script src="tutorial.js" defer></script>
   </body>
 </html>
