@@ -86,6 +86,17 @@ function advanceDays(state,days){
  if(state.status==="active")throw Error("During the season, the calendar advances when games are played");
  return finishProjects(state,state.day+days);
 }
+// Complete the offseason construction calendar without skipping any funded project.
+// All queued projects run serially under the existing single-crew scheduling rules.
+function advanceToOpeningDay(state){
+ state=normalize(validate(state));
+ if(state.status!=="offseason")throw Error("Opening Day preparation requires the offseason");
+ const remaining=state.projects.filter(p=>p.status!=="complete");
+ if(!remaining.length)return nextSeason(state);
+ const finishDay=Math.max(state.day,...remaining.map(p=>p.finishDay));
+ const ready=finishProjects(state,finishDay);
+ return nextSeason(ready);
+}
 function nextSeason(state){
  state=normalize(validate(state));if(state.status!=="offseason")throw Error("Finish current season first");
  if(state.projects.some(p=>p.status!=="complete"&&UPGRADES[p.key].major))throw Error("Finish major construction before Opening Day");
@@ -181,5 +192,5 @@ function summary(state){
  const total=k=>money(h.reduce((n,x)=>n+x[k],0));
  return {gamesPlayed:state.gameIndex,homeGames:h.filter(x=>x.home).length,wins:state.wins,losses:state.losses,cash:state.cash,gate:total("gate"),concessions:total("concessions"),expenses:total("expense"),operatingProfit:total("profit"),attendance:h.reduce((n,x)=>n+x.attendance,0),fanRating:Math.round(state.fanRating),status:state.status};
 }
-return {SEASON_GAMES,STARTING_CASH,UPGRADES,newCampaign,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,game,advance,forecast,applyOperatingPlan,previewHomeGame,summary};
+return {SEASON_GAMES,STARTING_CASH,UPGRADES,newCampaign,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,advanceToOpeningDay,game,advance,forecast,applyOperatingPlan,previewHomeGame,summary};
 });
