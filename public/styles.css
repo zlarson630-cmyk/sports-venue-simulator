@@ -388,3 +388,9 @@ button:focus-visible {
   #hint { top: 83px; }
   #fanPanel { top: 116px; max-height: calc(100% - 124px); overflow: auto; box-sizing: border-box; }
 }
+
+/* Fan Happiness v1: compact RCT-style guest thoughts and venue pulse. */
+.experience-report{display:grid!important;gap:4px;margin-top:10px;padding-top:9px;border-top:1px solid #6a8090;font-size:11px;line-height:1.35}
+.experience-report strong{font-size:12px;color:#ffdb75}
+.experience-report span{display:block;color:#e5eefa}
+.fan-experience-text{font-size:12px;line-height:1.4;color:#284861;margin:6px 0}
