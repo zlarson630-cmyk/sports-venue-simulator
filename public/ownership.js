@@ -29,7 +29,8 @@ function normalize(state){return {...state,day:state.day??state.gameIndex??0,pro
 function finishProjects(state,day){
  let upgrades=[...state.upgrades],rating=state.fanRating;
  const projects=state.projects.map(p=>{
-  if(p.status!=="building"||p.finishDay>day)return p;
+  if(p.status==="complete")return p;
+  if(p.finishDay>day)return {...p,status:p.startDay<=day?"building":"queued"};
   const u=UPGRADES[p.key];upgrades.push(p.key);rating=clamp(rating+u.comfort,0,100);
   return {...p,status:"complete"};
  });
@@ -42,7 +43,10 @@ function upgrade(state,key){
  if(state.cash<u.cost)throw Error("Insufficient funds");
  if(u.major&&state.status!=="offseason")throw Error("Major construction requires the offseason");
  if(!["active","offseason"].includes(state.status))throw Error("Invalid season status");
- const project={key,cost:u.cost,startDay:state.day,finishDay:state.day+u.days,status:"building"};
+ // One construction crew: approved projects queue behind previously funded work.
+ const lastFinish=state.projects.reduce((max,p)=>p.status==="building"||p.status==="queued"?Math.max(max,p.finishDay):max,state.day);
+ const startDay=Math.max(state.day,lastFinish);
+ const project={key,cost:u.cost,startDay,finishDay:startDay+u.days,status:startDay>state.day?"queued":"building"};
  return {...state,cash:money(state.cash-u.cost),projects:[...state.projects,project]};
 }
 function setConcessionPrice(state,price){
@@ -60,7 +64,7 @@ function advanceDays(state,days){
 }
 function nextSeason(state){
  state=normalize(validate(state));if(state.status!=="offseason")throw Error("Finish current season first");
- if(state.projects.some(p=>p.status==="building"&&UPGRADES[p.key].major))throw Error("Finish major construction before Opening Day");
+ if(state.projects.some(p=>p.status!=="complete"&&UPGRADES[p.key].major))throw Error("Finish major construction before Opening Day");
  return {...state,year:(state.year||1)+1,gameIndex:0,wins:0,losses:0,history:[],season:makeSeason(),status:"active"};
 }
 function setTicketPrice(state,price){
