@@ -51,6 +51,7 @@ function game(saved, random=()=>0.5, options={}) {
         children: [],
         replaceChildren(...nodes){this.children=nodes;},
         appendChild(node){this.children.push(node);},
+        append(...nodes){this.children.push(...nodes);},
         showModal(){this.open=true;},
         close(){this.open=false;},
       });
