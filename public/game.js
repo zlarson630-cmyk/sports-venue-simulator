@@ -2135,6 +2135,7 @@
   }
   // Spread unrelated parties over three pedestrian lanes on broad, flat
   // surfaces. Keep the gate throat, stairs and seating rows constrained.
+  const TRAFFIC_LANE=0.11; // Retained for test harness and elevated-lane compatibility.
   const TRAFFIC_LANES=[-0.25,0,0.25];
   function laneRoute(route,lane=1) {
     const terminal=new Set(route.at(-1)?.node?.startsWith("g:")?[]:route.slice(-2));
