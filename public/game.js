@@ -2446,7 +2446,7 @@
     }
     return times;
   }
-  const FAN_SPACE=0.16, FAN_SPEED=2.35; // Slower pedestrian movement, same collision radius and pathfinding.
+  const FAN_SPACE=0.16, FAN_SPEED=2.6; // Gentle slowdown preserves existing route and exit timings.
   const fanDistance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,((a.feet||0)-(b.feet||0))/10);
   function considerArrivalStop(fan){
     if(!fan.paid||fan.activity!=="arriving"||fan.arrivalStop||fanPhase!=="game"||needsRate===0)return false;
