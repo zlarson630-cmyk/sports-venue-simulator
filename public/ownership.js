@@ -71,20 +71,23 @@ function game(state,random=0.5){
  if(state.status!=="active"||state.gameIndex>=SEASON_GAMES) throw Error("Season complete");
  if(!Number.isFinite(random)||random<0||random>=1) throw Error("Random must be in [0,1)");
  const fixture=state.season[state.gameIndex];
- const capacity=Math.max(100,state.baseCapacity+state.upgrades.reduce((sum,key)=>sum+UPGRADES[key].capacity,0));
+ const linked=state.linkedPark;
+ const capacity=linked?Math.max(0,linked.capacity+state.upgrades.reduce((sum,key)=>sum+UPGRADES[key].capacity,0)):Math.max(100,state.baseCapacity+state.upgrades.reduce((sum,key)=>sum+UPGRADES[key].capacity,0));
  const win=random<(0.38+Math.min(0.15,state.wins*0.002));
  const ticketDemand=clamp(1-(state.ticketPrice-9)*0.035,0.45,1.3);
  const momentum=1+clamp((state.wins-state.losses)*0.008,-0.2,0.3);
  const staffingFactor=clamp(state.staffCount/7,0.55,1.12);
  const turnout=fixture.home?clamp(Math.round(state.baseAttendance*(0.65+state.fanRating/100*0.65)*ticketDemand*momentum*staffingFactor*(0.8+random*0.4)),0,capacity):0;
  const salesBoost=state.upgrades.reduce((sum,key)=>sum+UPGRADES[key].concession,0);
+ const amenityFactor=linked?clamp(linked.shops/2,0,1.25):1;
+ const restroomPenalty=linked&&linked.restrooms===0?-2:0;
  const gate=money(turnout*state.ticketPrice);
  const concessionDemand=clamp(1-(state.concessionPrice-5.5)*0.065,0.25,1.35);
- const concessions=money(turnout*state.concessionPrice*concessionDemand*(1+salesBoost));
+ const concessions=money(turnout*state.concessionPrice*concessionDemand*(1+salesBoost)*amenityFactor);
  const expense=fixture.home?state.staffCount*state.staffDailyWage+state.otherPerHomeGame:state.roadExpense;
  const profit=money(gate+concessions-expense);
  const servicePenalty=fixture.home&&state.staffCount<Math.ceil(turnout/85)?-1.5:0;
- const rating=clamp(state.fanRating+(fixture.home?(turnout>capacity*0.9?-1:1):0)+servicePenalty+(win?0.2:-0.2),0,100);
+ const rating=clamp(state.fanRating+(fixture.home?(capacity>0&&turnout>capacity*0.9?-1:1):0)+servicePenalty+(fixture.home?restroomPenalty:0)+(win?0.2:-0.2),0,100);
  const entry={game:fixture.number,home:fixture.home,opponent:fixture.opponent,win,attendance:turnout,capacity,gate,concessions,expense,profit,cashAfter:money(state.cash+profit)};
  return finishProjects({...state,cash:entry.cashAfter,gameIndex:state.gameIndex+1,wins:state.wins+Number(win),losses:state.losses+Number(!win),fanRating:rating,history:[...state.history,entry],status:state.gameIndex+1===SEASON_GAMES?"offseason":"active"},state.day+1);
 }
