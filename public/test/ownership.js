@@ -152,7 +152,7 @@ function game(state,random=0.5){
  const restroomPenalty=linked&&linked.restrooms===0&&!state.upgrades.includes("restroom")?-2:0;
  const gate=money(turnout*state.ticketPrice);
  const concessionDemand=clamp(Math.pow(5.5/state.concessionPrice,1.55),0.06,1.5);
- const concessionAvailability=amenityFactor;
+ const concessionAvailability=amenityFactor*(linked&&Number.isFinite(linked.accessScore)?clamp(linked.accessScore,0.5,1.12):1);
  const concessions=money(turnout*state.concessionPrice*concessionDemand*(1+salesBoost)*concessionAvailability);
  const lightingCost=gameTime==="night"?650:gameTime==="sunset"?150:0;
  const expense=fixture.home?state.staffCount*state.staffDailyWage+state.otherPerHomeGame+lightingCost:state.roadExpense;
