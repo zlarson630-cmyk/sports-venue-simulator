@@ -3387,6 +3387,26 @@
               toast("Campaign construction locked: "+status+" ("+permit+").");
               return;
             }
+            // A completed project grants a finite allowance, not unlimited new buildings.
+            // Compare current park inventory with its linked baseline. This is read-only:
+            // the actual placement still follows the editor's existing undo/save rules.
+            if(permit==="bleachers"){
+              const baseline=Number(campaign.linkedParkBaselineCapacity);
+              const existing=Object.values(tiles).reduce((n,item)=>n+(isStand(item)?seatCapacity(item):item?.type==="bleacher"?24:0),0);
+              const added=isStand(next.item)?seatCapacity(next.item):24;
+              if(Number.isFinite(baseline)&&existing+added-baseline>250){
+                toast("Campaign seating allowance exhausted: this renovation covers 250 additional seats.");
+                return;
+              }
+            }
+            if(permit==="concession"||permit==="restroom"){
+              const baseline=permit==="concession"?Number(campaign.linkedParkBaselineShops):Number(campaign.linkedParkBaselineRestrooms);
+              const count=Object.values(tiles).filter(item=>permit==="concession"?foodTypes.has(item?.type):item?.type==="restroom").length;
+              if(Number.isFinite(baseline)&&count+1-baseline>1){
+                toast("Campaign construction allowance exhausted: this project authorizes one new "+permit+" facility.");
+                return;
+              }
+            }
           }
         }catch(e){toast("Campaign status unavailable; construction paused to protect your save.");return;}
       }
