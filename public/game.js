@@ -2195,7 +2195,7 @@
     if(fanElapsed<nextNeedsDispatch)return;
     nextNeedsDispatch=fanElapsed+0.25;
     const stage=gameDayStage(fanElapsed);
-    const threshold=stage.kind==="pregame"&&stage.progress<0.75?Math.max(55,NEED_THRESHOLD-12):NEED_THRESHOLD;
+    const threshold=stage.kind==="pregame"?(stage.progress<0.60?Math.max(55,NEED_THRESHOLD-12):95):NEED_THRESHOLD;
     const ready=fans.filter(f=>f.seated&&Math.max(f.bathroomNeed,f.hunger)>=threshold);
     ready.sort((a,b)=>Math.max(b.bathroomNeed,b.hunger)-Math.max(a.bathroomNeed,a.hunger));
     for(const fan of ready){
@@ -2249,7 +2249,7 @@
     disconnectedSections=new Set(Object.entries(tiles).filter(([k,v])=>seatCapacity(v)&&!sections.some(s=>s.key===k)).map(([k])=>k));
     fanUnreachable=total-reachableCapacity;
     if(!sections.length) {draw();fanStatus("No gate-to-seat route. Hover a stair to see the cause; highlighted entrance tiles need connected walkways. Raised entrances need matching-height landings.");return;}
-    GAME_SECONDS=gameMinutes*60;fanPlanned=Math.min(requestedFans,reachableCapacity);fanElapsed=0;arrivalElapsed=0;departureElapsed=0;fanPhase="game";firstPitchSeated=null;firstInningSeated=null;gateAdmissions=0;gateRevenue=0;fans=[];updateGameDayDisplay();
+    GAME_SECONDS=gameMinutes*60;fanPlanned=Math.min(requestedFans,reachableCapacity);fanElapsed=0;arrivalElapsed=0;departureElapsed=0;fanPhase="game";firstPitchSeated=null;firstInningSeated=null;gateAdmissions=0;gateRevenue=0;fans=[];
     const plan=partySeatPlan(sections,fanPlanned),traffic=new Map();let routeTraffic=new Map();
     for(let i=0;i<plan.length;i++) {
       const {section,slot,partyId,start}=plan[i];
@@ -2269,7 +2269,14 @@
       const walkingRoute=slot.routeFor(routeTraffic);
       for(const p of walkingRoute)traffic.set(p.node,(traffic.get(p.node)||0)+1);
       const route=laneRoute(seatRoute(arrival,walkingRoute,target)),initialNeed=20+Math.random()*40;
-      fans.push({persona:FAN_PERSONAS[(partyId+i)%FAN_PERSONAS.length],favoriteFood:FAN_FOODS[(partyId+i)%FAN_FOODS.length],moodImpact:0,thoughts:[],walkingRoute,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:needsRate===0?0:i%13===4?82:initialNeed,bathroomVisits:0,hunger:needsRate===0?0:i%13===8?82:20+(i%7)*5,foodVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
+      // Guests have just traveled to the park. Roughly half enter with
+      // an early food or restroom preference, tempered by available service.
+      const demandChoice=(i*7+partyId*3)%10;
+      const earlyFood=needsRate>0&&demandChoice<3;
+      const earlyRestroom=needsRate>0&&demandChoice>=3&&demandChoice<5;
+      const initialHunger=earlyFood?78+Math.random()*10:20+(i%7)*5;
+      const initialBathroom=earlyRestroom?80+Math.random()*10:initialNeed;
+      fans.push({persona:FAN_PERSONAS[(partyId+i)%FAN_PERSONAS.length],favoriteFood:FAN_FOODS[(partyId+i)%FAN_FOODS.length],moodImpact:0,thoughts:[],walkingRoute,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:needsRate===0?0:initialBathroom,bathroomVisits:0,hunger:needsRate===0?0:initialHunger,foodVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
     }
     // A pause must not let another fan overtake into the same narrow stair
     // or row. Only the last arrival assigned to a corridor may stop.
@@ -2378,7 +2385,7 @@
     const stage=gameDayStage(fanElapsed);
     const threshold=stage.kind==="pregame"&&stage.progress<0.65?Math.max(55,NEED_THRESHOLD-15):NEED_THRESHOLD;
     const kind=fan.bathroomNeed>=threshold&&!fan.bathroomRetry?"restroom":fan.hunger>=threshold&&!fan.hungerRetry?"concession":null;
-    if(!kind||fans.filter(f=>f.arrivalStop&&!f.seated).length>=Math.max(2,Math.floor(fanPlanned/25)))return false;
+    if(!kind||stage.kind==='pregame'&&stage.progress>0.72||fans.filter(f=>f.arrivalStop&&!f.seated).length>=Math.max(2,Math.floor(fanPlanned/25)))return false;
     if(!startAmenityTrip(fan,kind,node))return false;
     fan.arrivalStop=true;
     return true;
