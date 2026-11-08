@@ -458,3 +458,23 @@ button:focus-visible {
 .guest-row .guest-state{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .guest-manager-info{font-size:11px;line-height:1.4;color:#677485}
 @media(max-width:700px){.guest-manager{top:164px;right:8px;max-height:calc(100% - 173px);padding:10px}.guest-manager-rows{max-height:230px}.guest-manager-tabs button{font-size:10px}}
+
+/* Named park selector stays outside the build HUD and works on narrow screens. */
+.park-menu[hidden]{display:none!important}
+.park-menu{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,20,31,.88);overflow-y:auto}
+.park-menu-panel{width:min(800px,100%);max-height:calc(100dvh - 40px);overflow:auto;background:#edf1e8;color:#243a4d;border:3px solid #e0bb63;border-radius:16px;box-shadow:0 25px 80px #071522;padding:24px}
+.park-menu-heading span{color:#a17526;letter-spacing:.15em;font-size:11px;font-weight:900}
+.park-menu-heading h2{font-size:clamp(26px,5vw,42px);margin:6px 0}
+.park-menu-heading p{line-height:1.5;color:#596878;font-weight:500}
+.park-menu-actions{display:flex;flex-wrap:wrap;gap:9px;margin:22px 0}
+.park-menu button{border-radius:8px;background:#fff;color:#233b56;padding:9px 13px;border:1px solid #9aabb2;font-weight:750}
+.park-menu #newPark{background:#f9cc51;color:#172b43;border-color:#b99a3e}
+.park-save-list{display:grid;gap:12px}
+.park-save-card{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#fff;border:2px solid #ced8db;border-radius:11px;padding:15px}
+.park-save-card.current{border-color:#dba83e;background:#fff9e9}
+.park-save-info{display:grid;gap:5px;min-width:0}
+.park-save-info strong{font-size:17px;overflow-wrap:anywhere}
+.park-save-info small{font-size:11px;color:#617388}
+.park-save-actions{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end}
+.park-save-actions button{font-size:11px;padding:7px 9px}
+@media(max-width:700px){.park-menu{padding:10px;align-items:flex-start}.park-menu-panel{padding:16px;max-height:none}.park-save-card{align-items:stretch;flex-direction:column}.park-save-actions{justify-content:flex-start}}

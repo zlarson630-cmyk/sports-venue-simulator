@@ -1,5 +1,16 @@
 # Release status — current build
 
+## v0.49 integration audit (November 8, 2026)
+
+- Restores the My Ballparks launch menu from the previously unmerged `feature/multi-park-main-menu` work by porting its functionality onto current `main`; the original branch is diverged and must not be merged wholesale.
+- The guest manager (Actions, Thoughts, Needs, Spending), game-day innings, and fan movement remain on the mainline.
+- Aligns visible version, HTML title, CSS/JS cache keys, and package version to v0.49.
+- Validates legacy save migration and separate park slots without discarding `svs01`.
+- GitHub Pages deploys the `public/` artifact from `main` through `.github/workflows/pages.yml`, gated by `npm run check`. Browser-level proof of live deployment must still be obtained from the public site.
+- The separate visible stadium-overlay game-day HUD and slowed fan walking in `feature/visible-game-day-flow-v2` are not part of the verified mainline; do not claim them as published.
+
+---
+
 Latest pass: **building beneath the stands**. Work underneath now ghosts elevated pieces instead of hiding them. Available/required ground clearance is visible on placement previews. Steel framing/posts are refined, and shop names are painted onto clipped wall planes below the roof. Existing collision rules, saved park data, revenue and fan routing are retained. Automatic support posts are visual and stay off ground walkways. See [the player checklist](UNDER-STAND-BUILDING-TESTING.md).
 
 The v0.43 release checkpoint below is historical; later published passes added visible concession queues, first-time guidance, fan happiness, individual needs trips at 75%, fan centering/following and local aisle reservations.

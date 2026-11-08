@@ -24,7 +24,7 @@ function game() {
     localStorage: new Map(), setTimeout() {}, clearTimeout() {},
   };
   sandbox.localStorage.setItem = sandbox.localStorage.set.bind(sandbox.localStorage);
-  runInNewContext(source.replace('  try {\n    const raw = localStorage.getItem("svs01");', `
+  runInNewContext(source.replace('  initializeParkMenu();', `
     globalThis.game = {
       click(type, x, y, height = "auto", foundation = "auto", underneath = false) {
         tool = type; hover = {x,y}; placementHeight = height;
@@ -39,8 +39,7 @@ function game() {
     };
     draw = () => {};
     return;
-    try {
-    const raw = localStorage.getItem("svs01");`), sandbox);
+    initializeParkMenu();`), sandbox);
   return sandbox.game;
 }
 
