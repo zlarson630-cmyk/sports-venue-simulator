@@ -2,6 +2,14 @@
 
 Current baseline: v0.43. Historical decisions and release checkpoints follow below. Keep it simple, make it work, then expand.
 
+## New requested management features — November 7
+
+- **Guest manager:** Inspired by the classic theme-park management list. Tabs for actions, thoughts, needs and spending; activity filters, selection and camera centering. Use recorded simulation state only.
+- **Facility management windows — next separate pass:** Click an individual concession, drinks stand, ice cream shop, restroom or souvenir shop to inspect it. Show current users/line, customers served, mean wait, guest satisfaction, and transactions/revenue where relevant. Distinguish tracked metrics from future estimates. Maintain independent records per building.
+- **Prices — next separate pass:** Make food/drink and merchandise prices editable per establishment with safe defaults. Demand, spending, and happiness should react to pricing, not merely change displayed revenue. Keep restrooms free by default, preserve economy and old saves, and record price changes reliably.
+- **Queue stanchions — later pass:** Straight, corner and end pieces for physical lines. The pieces must affect pathfinding, usable queue capacity and collision handling, not just appearance; support player-created queue layouts without blocking entrances and exits.
+- **RCT references are interaction inspiration**, not a request to duplicate copyrighted game artwork.
+
 ## November 5 — building beneath the stands
 
 - Work underneath keeps raised seating, stairs, ramps and concourses as faint ghosts at their real elevation. Ground editing still targets the lower footprint, and ghost geometry does not occlude ground fans.
