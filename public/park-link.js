@@ -32,7 +32,7 @@ function list(storage){
 }
 function apply(state,park){
  const p=analyze(park);
- return {...state,linkedPark:{capacity:p.capacity,shops:p.shops,restrooms:p.restrooms},linkedParkBaselineCapacity:p.capacity,linkedParkBaselineShops:p.shops,linkedParkSnapshot:true};
+ return {...state,linkedPark:{capacity:p.capacity,shops:p.shops,restrooms:p.restrooms},linkedParkBaselineCapacity:p.capacity,linkedParkBaselineShops:p.shops,linkedParkBaselineRestrooms:p.restrooms,linkedParkSnapshot:true};
 }
 function sync(state,storage){
  if(!state.linkedParkId)return state;
@@ -46,10 +46,10 @@ function sync(state,storage){
 }
 function link(state,id,storage){
  if(typeof id!=="string"||!id)throw Error("Select a saved ballpark");
- const next=sync({...state,linkedParkId:id,linkedParkBaselineCapacity:undefined,linkedParkBaselineShops:undefined},storage);
+ const next=sync({...state,linkedParkId:id,linkedParkBaselineCapacity:undefined,linkedParkBaselineShops:undefined,linkedParkBaselineRestrooms:undefined},storage);
  if(next.linkedParkMissing)throw Error("Saved ballpark no longer exists");
- return {...next,linkedParkBaselineCapacity:next.linkedPark.capacity,linkedParkBaselineShops:next.linkedPark.shops};
+ return {...next,linkedParkBaselineCapacity:next.linkedPark.capacity,linkedParkBaselineShops:next.linkedPark.shops,linkedParkBaselineRestrooms:next.linkedPark.restrooms};
 }
-function unlink(state){const next={...state};delete next.linkedPark;delete next.linkedParkId;delete next.linkedParkMissing;delete next.linkedParkSnapshot;delete next.linkedParkBaselineCapacity;delete next.linkedParkBaselineShops;return next;}
+function unlink(state){const next={...state};delete next.linkedPark;delete next.linkedParkId;delete next.linkedParkMissing;delete next.linkedParkSnapshot;delete next.linkedParkBaselineCapacity;delete next.linkedParkBaselineShops;delete next.linkedParkBaselineRestrooms;return next;}
 return {SEATS,capacityFor,analyze,list,apply,sync,link,unlink};
 });
