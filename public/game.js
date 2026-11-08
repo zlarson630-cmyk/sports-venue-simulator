@@ -2947,7 +2947,14 @@
         try{const parsed=JSON.parse(legacy);validatePark(parsed);current.data=parsed;}catch{}
       }
       activeParkId=current.id;localStorage.setItem(ACTIVE_KEY,activeParkId);
-      loadParkData(current.data);store();renderParkMenu();parkMenu.hidden=false;
+      // Startup must not draw before the existing resize/bootstrap sequence.
+      const park=validatePark(current.data);
+      tiles=park.tiles;infillDecks=park.infillDecks;underlays=park.underlays;
+      groundConcrete=park.groundConcrete;edges=park.edges;money=park.money;team=park.team;
+      gameMinutes=park.gameMinutes;gameMinutesControl.value=String(gameMinutes);
+      requestedFans=park.requestedFans;fanCountControl.value=String(requestedFans);
+      if(!park.entranceRevision&&Object.values(tiles).some(isPath))connectLegacyGate();
+      store();renderParkMenu();parkMenu.hidden=false;
     } catch(e) {
       toast("Could not read saved parks; export your existing backup.");
       parkMenu.hidden=true;
