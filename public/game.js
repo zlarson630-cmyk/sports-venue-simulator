@@ -1756,8 +1756,95 @@
   let amenityServices=[], selectedFan=null, followFan=false, completedBathroomTrips=0;
   let happinessAttractions=[], happinessNext=0, happinessFinal=false;
 
+  // Fan Happiness v1: experiences are per-visit, not persistent save data.
+  const FAN_PERSONAS=["diehard","family","foodie","social","casual"];
+  const FAN_FOODS=["hot dog","nachos","popcorn","pizza","ice cream","drinks"];
+  let excitementEvents=[],nextExcitement=24,venueFeedback={};
+  const clampHappiness=n=>Math.max(0,Math.min(100,n));
+  function fanThought(fan,message,impact=0,category="general"){
+    if(!fan||!message)return;
+    fan.thoughts=fan.thoughts||[];
+    const previous=fan.thoughts.at(-1);
+    if(previous&&previous.message===message&&fanElapsed-previous.time<12)return;
+    fan.thoughts.push({message,impact,category,time:fanElapsed});
+    if(fan.thoughts.length>8)fan.thoughts.shift();
+    fan.moodImpact=clampHappiness((fan.moodImpact||0)+impact+50)-50;
+  }
+  function fanFoodType(fan){
+    if(fan?.favoriteFood==="ice cream")return "iceCream";
+    if(fan?.favoriteFood==="drinks")return "drinks";
+    return "concession";
+  }
+  function fanHappinessScore(fan){
+    const time=Math.max(15,fan.experienceTime||0);
+    const watching=(fan.seatTime||0)/time*30;
+    const foodCost=Math.max(0,(fan.foodWait||0)-4)/time*55;
+    const restroomCost=Math.max(0,(fan.restroomWait||0)-4)/time*55;
+    const trafficCost=(fan.trafficWait||0)/time*45;
+    const bonus=(fan.sawStatue?3:0)+(fan.sawScoreboard?4:0)+(fan.scenicPauseDone?2:0);
+    const preference=fan.persona==="diehard"?(fan.seatTime||0)/time*4:
+      fan.persona==="casual"&&fan.scenicPauseDone?3:0;
+    return Math.round(clampHappiness(65+watching+bonus+preference+(fan.moodImpact||0)-foodCost-restroomCost-trafficCost));
+  }
+  function venueExperienceReport(admitted){
+    const scores=admitted.map(fanHappinessScore);
+    const thoughts=admitted.flatMap(f=>f.thoughts||[]);
+    const complaints=thoughts.filter(t=>t.impact<0);
+    const praise=thoughts.filter(t=>t.impact>0);
+    const top=items=>Object.entries(items.reduce((acc,t)=>(acc[t.message]=(acc[t.message]||0)+1,acc),{})).sort((a,b)=>b[1]-a[1])[0];
+    return {average:scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0,
+      happy:scores.filter(v=>v>=75).length,unhappy:scores.filter(v=>v<45).length,
+      praise:top(praise),complaint:top(complaints),admitted:admitted.length};
+  }
+  function updateExperienceDashboard(final=false){
+    const admitted=fans.filter(f=>f.paid);
+    venueFeedback=venueExperienceReport(admitted);
+    const output=document.getElementById("fanExperienceSummary");
+    if(output)output.textContent=admitted.length?
+      `${venueFeedback.happy} happy · ${venueFeedback.unhappy} unhappy · ${admitted.length} guests`:"Waiting for fans";
+    const praise=document.getElementById("fanTopPraise");
+    if(praise)praise.textContent=venueFeedback.praise?
+      `Most liked: ${venueFeedback.praise[0]} (${venueFeedback.praise[1]})`:"Most liked: no feedback yet";
+    const complaint=document.getElementById("fanTopComplaint");
+    if(complaint)complaint.textContent=venueFeedback.complaint?
+      `Top complaint: ${venueFeedback.complaint[0]} (${venueFeedback.complaint[1]})`:"Top complaint: no feedback yet";
+    const event=document.getElementById("fanGameMoment");
+    if(event)event.textContent=excitementEvents.length?
+      `Latest moment: ${excitementEvents.at(-1).label}`:"Game moments: awaiting first pitch";
+  }
+  function simulateGameExcitement(){
+    if(fanPhase!=="game"||fanElapsed<nextExcitement)return;
+    const moments=[{label:"Home run!",impact:7},{label:"Great defensive play!",impact:4},
+      {label:"Rally in progress!",impact:5},{label:"Close game!",impact:4},
+      {label:"Home team takes the lead!",impact:6}];
+    const moment=moments[Math.floor(Math.random()*moments.length)];
+    excitementEvents.push({...moment,time:fanElapsed});
+    if(excitementEvents.length>12)excitementEvents.shift();
+    for(const fan of fans){
+      if(!fan.paid||fan.exited)continue;
+      const engaged=fan.seated||fan.activity==="watching game";
+      if(engaged)fanThought(fan,moment.label,Math.round(moment.impact*(fan.persona==="diehard"?1.5:fan.persona==="family"?0.7:1)),"game");
+    }
+    nextExcitement=fanElapsed+22+Math.random()*22;
+  }
+  // Extensible entertainment hook for future mascot, playground, and
+  // interactive attraction objects. No new buildable pieces in this pass.
+  function applyEntertainment(fan,kind){
+    const definitions={mascot:{message:"Met the mascot!",impact:8},
+      kidsGame:{message:"Had fun at the kids' games!",impact:9},
+      photoSpot:{message:"Found a great photo spot!",impact:5}};
+    const event=definitions[kind];
+    if(!event)return false;
+    const weight=fan.persona==="family"&&kind==="kidsGame"?1.5:
+      fan.persona==="social"&&kind!=="kidsGame"?1.4:1;
+    fanThought(fan,event.message,Math.round(event.impact*weight),"entertainment");
+    return true;
+  }
   function recordFanExperience(fan,step){
     if(!fan.paid||fan.exited)return;
+    if(fan.blockedFor>6&&!fan.reportedTraffic){fan.reportedTraffic=true;fanThought(fan,"Too crowded to get around",-5,"traffic");}
+    if((fan.foodWait||0)>10&&!fan.reportedFoodLine){fan.reportedFoodLine=true;fanThought(fan,"The food line is too long",-6,"food");}
+    if((fan.restroomWait||0)>10&&!fan.reportedRestroomLine){fan.reportedRestroomLine=true;fanThought(fan,"The restroom line is too long",-5,"restroom");}
     fan.experienceTime=(fan.experienceTime||0)+step;
     if(fan.seated)fan.seatTime=(fan.seatTime||0)+step;
     if(fan.activity==="waiting for food"||fan.activity==="waiting restroom"){
@@ -1780,13 +1867,14 @@
       const trafficCost=(fan.trafficWait||0)/time*45;
       const bonus=(fan.sawStatue?3:0)+(fan.sawScoreboard?4:0)+(fan.scenicPauseDone?2:0);
       seat+=watching;food+=foodCost;restroom+=restroomCost;traffic+=trafficCost;sights+=bonus;
-      total+=Math.max(0,Math.min(100,65+watching+bonus-foodCost-restroomCost-trafficCost));
+      total+=fanHappinessScore(fan);
     }
     const rating=Math.round(total/admitted.length);
     const drivers=[[food,"Fans are waiting for food"],[restroom,"Restroom lines are costing game time"],[traffic,"Crowds are slowing fans down"]];
     drivers.sort((a,b)=>b[0]-a[0]);
     const note=drivers[0][0]>=admitted.length?drivers[0][1]:seat>0?"Fans are enjoying the game from their seats":sights?"Fans are taking in the ballpark":"Fans are finding their seats";
     meter.value=rating;score.textContent=rating+"%";reason.textContent=(final?"Final · ":"")+note;
+    updateExperienceDashboard(final);
   }
   function noticeAttractions(){
     for(const fan of fans){
@@ -1808,6 +1896,8 @@
           if(visible){fan.sawScoreboard=true;break;}
         }
       }
+      if(fan.sawStatue&&!fan.noticedStatue){fan.noticedStatue=true;fanThought(fan,"Loved the ballpark statue",3,"scenery");}
+      if(fan.sawScoreboard&&!fan.noticedBoard){fan.noticedBoard=true;fanThought(fan,"Great scoreboard view",4,"scenery");}
       if(fan.seated)fan.checkedScoreboard=true;
     }
   }
@@ -1836,6 +1926,7 @@
     ctx.strokeStyle="#ffe36a";ctx.lineWidth=2.5;ctx.stroke();
   }
   let concessionRevenue=0,foodSales=0,pendingFoodRevenue=0;
+  let foodOptionsAvailable=[];
   const NEED_THRESHOLD=75, RESTROOM_STALLS=2, SERVICE_SECONDS=6;
   const needsControl=document.getElementById("fanNeedsRate");
   let needsRate=1, nextNeedsDispatch=0;
@@ -1863,16 +1954,17 @@
     })).filter(p=>halfContains(walkway,p.x-a,p.y-b)&&!solidBuildingAt(p.x,p.y));
   }
   function prepareAmenities(){
-    amenityServices=[];if(!walkingGraph)return;
+    amenityServices=[];foodOptionsAvailable=Object.values(groundLayout()).filter(item=>["concession","drinks","iceCream"].includes(item.type)).map(item=>item.type);
+    if(!walkingGraph)return;
     const {nodes,links,routeCost}=walkingGraph;
-    for(const [k,item] of Object.entries(groundLayout()))if(item.type==="restroom"||item.type==="concession"){
+    for(const [k,item] of Object.entries(groundLayout()))if(item.type==="restroom"||["concession","drinks","iceCream"].includes(item.type)){
       const [x,y]=k.split(",").map(Number);let entries=[];
       for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
         const other=key(x+dx,y+dy),id="g:"+other;
         if(accessibleNodes.has(id)&&pathOpens(groundItem(x+dx,y+dy),-dx,-dy)&&!wallBlocks(k,other))entries.push(id);
       }
       let line=null;
-      if(item.type==="concession"){
+      if(item.type!=="restroom"){
         const [dx,dy]=directions[item.rot];
         const frontage=entries.map(id=>{
           const [a,b]=id.slice(2).split(",").map(Number);
@@ -1888,7 +1980,7 @@
       while(open.length){open.sort((a,b)=>b[0]-a[0]);const [cost,id]=open.pop();if(cost!==costs.get(id))continue;
         for(const next of links.get(id)||[]){if(!next.startsWith("g:"))continue;const n=cost+routeCost(id,next);if(n<(costs.get(next)??Infinity)-1e-9){costs.set(next,n);parents.set(next,id);open.push([n,next]);}}
       }
-      amenityServices.push({kind:item.type,key:k,parents,costs,line,capacity:line?.length||4,queue:[],using:new Set(),active:0});
+      amenityServices.push({kind:item.type==="restroom"?"restroom":"concession",product:item.type,key:k,parents,costs,line,capacity:line?.length||4,queue:[],using:new Set(),active:0});
     }
   }
   function startAmenityTrip(fan,kind="restroom",arrivalNode=null){
@@ -1900,7 +1992,7 @@
     const reachable=amenityServices.filter(r=>r.kind===kind&&r.parents.has(groundNode)&&(!arrivalNode||r.parents.get(groundNode)===null));
     if(arrivalNode&&!reachable.length)return false;
     if(reachable.length&&reachable.every(r=>r.active>=r.capacity||r.earlyFood)){fan[wait]="waiting for space at a "+(food?"food stand":"restroom");fan[retry]=1;return false;}
-    const choices=reachable.filter(r=>r.active<r.capacity&&!r.earlyFood&&(!arrivalNode||r.active<(r.line?1:RESTROOM_STALLS))).map(room=>({room,cost:room.costs.get(groundNode)+(room.queue.length+room.using.size)*2})).sort((a,b)=>a.cost-b.cost);
+    const choices=reachable.filter(r=>r.active<r.capacity&&!r.earlyFood&&(!arrivalNode||r.active<(r.line?1:RESTROOM_STALLS))).map(room=>({room,cost:room.costs.get(groundNode)+(room.queue.length+room.using.size)*2+(food&&room.product!==fanFoodType(fan)?5:0)})).sort((a,b)=>a.cost-b.cost);
     if(!choices.length){fan[blocked]=true;fan[wait]="no reachable "+(food?"food stand":"restroom");fan[retry]=10;return false;}
     const rowNodes=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
     if(!arrivalNode&&fans.some(f=>f!==fan&&
@@ -1952,7 +2044,7 @@
   function advanceNeeds(step,moveFan=()=>{}){
     for(const room of amenityServices){
       for(const fan of [...room.using]){fan.serviceSeconds-=step;if(fan.serviceSeconds>0)continue;
-        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;concessionRevenue+=5;pendingFoodRevenue+=5;}
+        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;concessionRevenue+=5;pendingFoodRevenue+=5;fanThought(fan,fanFoodType(fan)===room.product?"Found a favorite ballpark snack!":room.product==="iceCream"?"Enjoyed some ice cream!":room.product==="drinks"?"Got a refreshing drink!":"Enjoyed the ballpark food",fan.persona==="foodie"?6:4,"food");}
         const corridor=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
         if(fans.some(f=>f!==fan&&(f.activity==="returning to seat"||["to restroom","to concession"].includes(f.activity)||
           fan.tripFromArrival&&(f.activity==="arriving"||f.activity==="taking in the view"))&&
@@ -2016,6 +2108,10 @@
       hunger>=NEED_THRESHOLD?(fan.foodWaitReason||"looking for food"):fan.activity:fan.activity;
     const details=`Fan ${fans.indexOf(fan)+1} · Party ${fan.partyId+1} (${fan.partySize} people) · ${fan.exited?"Left the park":activity}. Row ${fan.row+1}, seat ${fan.col+1}. Restroom visits: ${fan.bathroomVisits}. Food visits: ${fan.foodVisits||0}. `+(fan.exited||fanPhase==="exiting"?"Heading home after the game.":"Keeps the same reserved seat with their party. ")+(fan.bathroomBlocked?"No reachable restroom. Connect a ground walkway beside a restroom. ":"")+(fan.hungerBlocked?"No reachable food stand. Connect a ground walkway beside a concession stand.":"");
     const detailPanel=document.getElementById("fanDetails");if(detailPanel.textContent!==details)detailPanel.textContent=details;
+    const mood=document.getElementById("selectedFanMood");
+    if(mood)mood.textContent=`${fan.persona||"fan"} · Happiness ${fanHappinessScore(fan)}/100 · Favorite: ${fan.favoriteFood||"hot dog"}`;
+    const thoughts=document.getElementById("selectedFanThoughts");
+    if(thoughts)thoughts.textContent=(fan.thoughts||[]).slice(-3).reverse().map(t=>t.message).join(" · ")||"Taking in the ballpark";
   }
   document.getElementById("centerFan").onclick=()=>{centerOnFan(selectedFan);draw();};
   document.getElementById("followFan").onclick=()=>{setFollowFan(!followFan);if(followFan)centerOnFan(selectedFan);draw();};
@@ -2056,7 +2152,7 @@
       const walkingRoute=slot.routeFor(routeTraffic);
       for(const p of walkingRoute)traffic.set(p.node,(traffic.get(p.node)||0)+1);
       const route=laneRoute(seatRoute(arrival,walkingRoute,target)),initialNeed=20+Math.random()*40;
-      fans.push({walkingRoute,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:needsRate===0?0:i%13===4?82:initialNeed,bathroomVisits:0,hunger:needsRate===0?0:i%13===8?82:20+(i%7)*5,foodVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
+      fans.push({persona:FAN_PERSONAS[(partyId+i)%FAN_PERSONAS.length],favoriteFood:FAN_FOODS[(partyId+i)%FAN_FOODS.length],moodImpact:0,thoughts:[],walkingRoute,seatTarget:target,rowNode:walkingRoute.at(-1).node,bathroomNeed:needsRate===0?0:i%13===4?82:initialNeed,bathroomVisits:0,hunger:needsRate===0?0:i%13===8?82:20+(i%7)*5,foodVisits:0,activity:"arriving",route,index:0,x:route[0].x,y:route[0].y,feet:0,standSeat:section.type!=="bleacher",start,partyId,partySize:plan.filter(p=>p.partyId===partyId).length,col,spawned:false,exited:false,seated:false,paid:false,gateIndex:arrival.findIndex(p=>p.x===8.5&&p.y===4.5),row,sectionKey:section.key,seat,color:["#df5853","#f4cc5c","#5c90d3","#eee9d4"][partyId%4]});
     }
     // A pause must not let another fan overtake into the same narrow stair
     // or row. Only the last arrival assigned to a corridor may stop.
@@ -2066,7 +2162,7 @@
       fan.scenicCandidate=!corridor.some(p=>laterCorridors.has(p.node));
       for(const p of corridor)laterCorridors.add(p.node);
     }
-    happinessFinal=false;happinessNext=0;nextNeedsDispatch=0;
+    happinessFinal=false;happinessNext=0;nextNeedsDispatch=0;excitementEvents=[];nextExcitement=24;venueFeedback={};
     happinessAttractions=[...Object.entries(tiles),...Object.entries(underlays)].flatMap(([k,item])=>{
       const board=scoreboardTypes.includes(item.type);
       if(!board&&item.type!=="baseballStatue")return [];
@@ -2260,6 +2356,7 @@
       });
       if(fanPhase==="game"){
         for(const fan of fans)recordFanExperience(fan,step);
+        simulateGameExcitement();
         if(fanElapsed>=happinessNext){noticeAttractions();updateHappiness();happinessNext=fanElapsed+0.75;}
       }
       collected+=pendingFoodRevenue;pendingFoodRevenue=0;
