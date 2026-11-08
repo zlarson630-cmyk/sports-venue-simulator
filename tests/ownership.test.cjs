@@ -12,3 +12,6 @@ test("major construction requires offseason",()=>{let s=o.newCampaign();assert.t
 test("prices and staffing can change at any time",()=>{let s=o.newCampaign();s=o.setConcessionPrice(s,8);s=o.setStaffCount(s,10);s=o.game(s,0.5);assert.equal(s.history[0].expense,4150);assert.ok(s.history[0].concessions>0);assert.equal(s.concessionPrice,8);assert.throws(()=>o.setStaffCount(s,1));});
 
 test("multi-season projects persist without double-applying",()=>{let s=o.advance(o.newCampaign(),100,()=>0.5);s=o.upgrade(s,"lighting");s=o.advanceDays(s,45);assert.equal(s.upgrades.filter(x=>x==="lighting").length,1);const rating=s.fanRating;s=o.advanceDays(s,20);assert.equal(s.fanRating,rating);s=o.nextSeason(s);assert.equal(s.upgrades.filter(x=>x==="lighting").length,1);});
+
+test("high concession prices reduce purchase demand",()=>{const low=o.game(o.setConcessionPrice(o.newCampaign(),5.5),0.5);const high=o.game(o.setConcessionPrice(o.newCampaign(),25),0.5);assert.ok(high.history[0].concessions<low.history[0].concessions*2);});
+test("understaffing hurts service and attendance",()=>{const lean=o.game(o.setStaffCount(o.newCampaign(),2),0.5);const staffed=o.game(o.setStaffCount(o.newCampaign(),10),0.5);assert.ok(lean.history[0].attendance<staffed.history[0].attendance);assert.ok(lean.fanRating<staffed.fanRating);});
