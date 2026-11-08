@@ -1822,7 +1822,7 @@
   // Fan Happiness v1: experiences are per-visit, not persistent save data.
   const FAN_PERSONAS=["diehard","family","foodie","social","casual"];
   const FAN_FOODS=["hot dog","nachos","popcorn","pizza","ice cream","drinks"];
-  let excitementEvents=[],nextExcitement=24,venueFeedback={};
+  let excitementEvents=[],nextExcitement=24,venueFeedback={},pregameCeremonyDone=false;
   const clampHappiness=n=>Math.max(0,Math.min(100,n));
   function fanThought(fan,message,impact=0,category="general"){
     if(!fan||!message)return;
@@ -1922,6 +1922,12 @@
     const event=document.getElementById("fanGameMoment");
     if(event)event.textContent=excitementEvents.length?
       `Latest moment: ${excitementEvents.at(-1).label}`:"Game moments: awaiting first pitch";
+  }
+  function simulatePregameFestivities(){
+    if(pregameCeremonyDone||fanPhase!=="game"||gameDayStage(fanElapsed).kind!=="pregame"||fanElapsed<GAME_SECONDS*PREGAME_FRACTION*0.58)return;
+    pregameCeremonyDone=true;
+    excitementEvents.push({label:"Pregame festivities!",impact:2,time:fanElapsed});
+    for(const fan of fans)if(fan.paid&&!fan.exited)fanThought(fan,"Enjoyed the pregame festivities",2,"pregame");
   }
   function simulateGameExcitement(){
     if(fanPhase!=="game"||gameDayStage(fanElapsed).kind!=="inning"||fanElapsed<nextExcitement)return;
@@ -2286,7 +2292,7 @@
       fan.scenicCandidate=!corridor.some(p=>laterCorridors.has(p.node));
       for(const p of corridor)laterCorridors.add(p.node);
     }
-    happinessFinal=false;happinessNext=0;nextNeedsDispatch=0;excitementEvents=[];nextExcitement=GAME_SECONDS*PREGAME_FRACTION+Math.max(3,GAME_SECONDS*0.035);venueFeedback={};
+    happinessFinal=false;happinessNext=0;nextNeedsDispatch=0;excitementEvents=[];nextExcitement=GAME_SECONDS*PREGAME_FRACTION+Math.max(3,GAME_SECONDS*0.035);pregameCeremonyDone=false;venueFeedback={};
     happinessAttractions=[...Object.entries(tiles),...Object.entries(underlays)].flatMap(([k,item])=>{
       const board=scoreboardTypes.includes(item.type);
       if(!board&&item.type!=="baseballStatue")return [];
@@ -2484,6 +2490,7 @@
       });
       if(fanPhase==="game"){
         for(const fan of fans)recordFanExperience(fan,step);
+        simulatePregameFestivities();
         simulateGameExcitement();
         if(fanElapsed>=happinessNext){noticeAttractions();updateHappiness();happinessNext=fanElapsed+0.75;}
       }
