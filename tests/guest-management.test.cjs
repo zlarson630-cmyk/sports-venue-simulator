@@ -22,3 +22,14 @@ test("guest status displays actual activity, needs, and spending",()=>{
  assert.ok(g.api.guestFilterMatch({...guest,seated:true},"seated"));
  assert.equal(g.api.guestFilterMatch(guest,"seated"),false);
 });
+
+test("guest manager renders live fan rows rather than only a static menu",()=>{
+ const g=game();
+ const fan=g.api.simulateTraffic([[{x:8.5,y:4.5,feet:0},{x:9.5,y:4.5,feet:0}]]);
+ g.element("guestManager").hidden=false;
+ g.api.renderGuestManager(true);
+ const rows=g.element("guestManagerRows").children;
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].children[0].textContent,"Fan 1");
+ assert.equal(rows[0].children[1].textContent,"Walking to seat");
+});
