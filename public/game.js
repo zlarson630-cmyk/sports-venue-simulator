@@ -2259,7 +2259,24 @@
   function endFanTest(message) {
     const naturallyFinished=fanPhase==="exiting"&&fans.every(f=>f.exited);
     if(!happinessFinal){updateHappiness(true);happinessFinal=true;}
-    if(naturallyFinished)lastPostgameReport=buildPostgameReport(fans.filter(f=>f.paid));
+    if(naturallyFinished){
+      lastPostgameReport=buildPostgameReport(fans.filter(f=>f.paid));
+      // A completed live event becomes a read-only observation for campaign review.
+      // Do not book these test receipts into the ownership ledger: that would double-count.
+      try{
+        localStorage.setItem("svs.latestLiveVenueReport.v1",JSON.stringify({
+          version:1,parkId:activeParkId||null,recordedAt:Date.now(),
+          admissions:lastPostgameReport.admissions,
+          averageHappiness:lastPostgameReport.experience.average,
+          avgFoodWait:lastPostgameReport.avgFoodWait,
+          avgRestroomWait:lastPostgameReport.avgRestroomWait,
+          avgTrafficWait:lastPostgameReport.avgTrafficWait,
+          gateRevenue:lastPostgameReport.gateRevenue,
+          concessionRevenue:lastPostgameReport.concessionRevenue,
+          completed:true
+        }));
+      }catch(error){console.warn("Unable to store venue report",error);}
+    }
     setFollowFan(false);
     fanActive=false;fanPhase="idle";fans=[];selectedFan=null;amenityServices=[];trafficIndex=null;disconnectedSections.clear();fanFrame++;updateGameDayDisplay();
     document.getElementById("guestManager").hidden=true;guestViewTick=-1;
