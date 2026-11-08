@@ -1957,14 +1957,14 @@
     amenityServices=[];foodOptionsAvailable=Object.values(groundLayout()).filter(item=>["concession","drinks","iceCream"].includes(item.type)).map(item=>item.type);
     if(!walkingGraph)return;
     const {nodes,links,routeCost}=walkingGraph;
-    for(const [k,item] of Object.entries(groundLayout()))if(item.type==="restroom"||item.type==="concession"){
+    for(const [k,item] of Object.entries(groundLayout()))if(item.type==="restroom"||["concession","drinks","iceCream"].includes(item.type)){
       const [x,y]=k.split(",").map(Number);let entries=[];
       for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
         const other=key(x+dx,y+dy),id="g:"+other;
         if(accessibleNodes.has(id)&&pathOpens(groundItem(x+dx,y+dy),-dx,-dy)&&!wallBlocks(k,other))entries.push(id);
       }
       let line=null;
-      if(item.type==="concession"){
+      if(item.type!=="restroom"){
         const [dx,dy]=directions[item.rot];
         const frontage=entries.map(id=>{
           const [a,b]=id.slice(2).split(",").map(Number);
@@ -1980,7 +1980,7 @@
       while(open.length){open.sort((a,b)=>b[0]-a[0]);const [cost,id]=open.pop();if(cost!==costs.get(id))continue;
         for(const next of links.get(id)||[]){if(!next.startsWith("g:"))continue;const n=cost+routeCost(id,next);if(n<(costs.get(next)??Infinity)-1e-9){costs.set(next,n);parents.set(next,id);open.push([n,next]);}}
       }
-      amenityServices.push({kind:item.type,key:k,parents,costs,line,capacity:line?.length||4,queue:[],using:new Set(),active:0});
+      amenityServices.push({kind:item.type==="restroom"?"restroom":"concession",product:item.type,key:k,parents,costs,line,capacity:line?.length||4,queue:[],using:new Set(),active:0});
     }
   }
   function startAmenityTrip(fan,kind="restroom",arrivalNode=null){
@@ -1992,7 +1992,7 @@
     const reachable=amenityServices.filter(r=>r.kind===kind&&r.parents.has(groundNode)&&(!arrivalNode||r.parents.get(groundNode)===null));
     if(arrivalNode&&!reachable.length)return false;
     if(reachable.length&&reachable.every(r=>r.active>=r.capacity||r.earlyFood)){fan[wait]="waiting for space at a "+(food?"food stand":"restroom");fan[retry]=1;return false;}
-    const choices=reachable.filter(r=>r.active<r.capacity&&!r.earlyFood&&(!arrivalNode||r.active<(r.line?1:RESTROOM_STALLS))).map(room=>({room,cost:room.costs.get(groundNode)+(room.queue.length+room.using.size)*2})).sort((a,b)=>a.cost-b.cost);
+    const choices=reachable.filter(r=>r.active<r.capacity&&!r.earlyFood&&(!arrivalNode||r.active<(r.line?1:RESTROOM_STALLS))).map(room=>({room,cost:room.costs.get(groundNode)+(room.queue.length+room.using.size)*2+(food&&room.product!==fanFoodType(fan)?5:0)})).sort((a,b)=>a.cost-b.cost);
     if(!choices.length){fan[blocked]=true;fan[wait]="no reachable "+(food?"food stand":"restroom");fan[retry]=10;return false;}
     const rowNodes=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
     if(!arrivalNode&&fans.some(f=>f!==fan&&
@@ -2044,7 +2044,7 @@
   function advanceNeeds(step,moveFan=()=>{}){
     for(const room of amenityServices){
       for(const fan of [...room.using]){fan.serviceSeconds-=step;if(fan.serviceSeconds>0)continue;
-        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;concessionRevenue+=5;pendingFoodRevenue+=5;fanThought(fan,foodOptionsAvailable.includes(fanFoodType(fan))?"Found a favorite ballpark snack!":"Enjoyed the ballpark food",fan.persona==="foodie"?6:4,"food");}
+        if(room.kind==="concession"&&!fan.foodPaid){fan.foodPaid=true;fan.hunger=0;foodSales++;concessionRevenue+=5;pendingFoodRevenue+=5;fanThought(fan,fanFoodType(fan)===room.product?"Found a favorite ballpark snack!":room.product==="iceCream"?"Enjoyed some ice cream!":room.product==="drinks"?"Got a refreshing drink!":"Enjoyed the ballpark food",fan.persona==="foodie"?6:4,"food");}
         const corridor=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
         if(fans.some(f=>f!==fan&&(f.activity==="returning to seat"||["to restroom","to concession"].includes(f.activity)||
           fan.tripFromArrival&&(f.activity==="arriving"||f.activity==="taking in the view"))&&
