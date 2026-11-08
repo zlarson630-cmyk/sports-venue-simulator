@@ -151,6 +151,17 @@ function forecast(state,count=7){
  }
  return {games:remaining,homeGames,projectedProfit:money(projected.cash-state.cash),projectedCash:projected.cash,lowestCash,atRisk:lowestCash<0};
 }
+// Apply a complete operating plan atomically. Invalid input never partially changes a save.
+function applyOperatingPlan(state,plan){
+ state=normalize(validate(state));
+ if(!plan||typeof plan!=="object"||Array.isArray(plan))throw Error("Invalid operating plan");
+ let next=state;
+ if(Object.hasOwn(plan,"ticketPrice"))next=setTicketPrice(next,plan.ticketPrice);
+ if(Object.hasOwn(plan,"concessionPrice"))next=setConcessionPrice(next,plan.concessionPrice);
+ if(Object.hasOwn(plan,"staffCount"))next=setStaffCount(next,plan.staffCount);
+ if(Object.hasOwn(plan,"gameTime"))next=setGameTime(next,plan.gameTime);
+ return next;
+}
 // Compare operating decisions against the next home date without advancing the save.
 // Away games before that date are simulated so the preview includes momentum and cash.
 function previewHomeGame(state,options={}){
@@ -158,11 +169,7 @@ function previewHomeGame(state,options={}){
  if(state.status!=="active")return null;
  const index=state.season.findIndex((fixture,i)=>i>=state.gameIndex&&fixture.home);
  if(index<0)return null;
- let proposed={...state};
- if(options.ticketPrice!==undefined)proposed=setTicketPrice(proposed,options.ticketPrice);
- if(options.concessionPrice!==undefined)proposed=setConcessionPrice(proposed,options.concessionPrice);
- if(options.staffCount!==undefined)proposed=setStaffCount(proposed,options.staffCount);
- if(options.gameTime!==undefined)proposed=setGameTime(proposed,options.gameTime);
+ let proposed=applyOperatingPlan(state,options);
  // Projected outcomes use the same deterministic midpoint as the seven-game forecast.
  for(let i=state.gameIndex;i<=index;i++)proposed=game(proposed,0.5);
  const result=proposed.history.at(-1);
@@ -174,5 +181,5 @@ function summary(state){
  const total=k=>money(h.reduce((n,x)=>n+x[k],0));
  return {gamesPlayed:state.gameIndex,homeGames:h.filter(x=>x.home).length,wins:state.wins,losses:state.losses,cash:state.cash,gate:total("gate"),concessions:total("concessions"),expenses:total("expense"),operatingProfit:total("profit"),attendance:h.reduce((n,x)=>n+x.attendance,0),fanRating:Math.round(state.fanRating),status:state.status};
 }
-return {SEASON_GAMES,STARTING_CASH,UPGRADES,newCampaign,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,game,advance,forecast,previewHomeGame,summary};
+return {SEASON_GAMES,STARTING_CASH,UPGRADES,newCampaign,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,game,advance,forecast,applyOperatingPlan,previewHomeGame,summary};
 });
