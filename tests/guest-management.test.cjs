@@ -26,6 +26,7 @@ test("guest status displays actual activity, needs, and spending",()=>{
 test("guest manager renders live fan rows rather than only a static menu",()=>{
  const g=game();
  const fan=g.api.simulateTraffic([[{x:8.5,y:4.5,feet:0},{x:9.5,y:4.5,feet:0}]]);
+ fan[0].activity="arriving";
  g.element("guestManager").hidden=false;
  g.api.renderGuestManager(true);
  const rows=g.element("guestManagerRows").children;
