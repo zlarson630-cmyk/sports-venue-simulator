@@ -150,16 +150,20 @@ function game(state,random=0.5){
  const effectiveShops=linked?linked.shops+(state.upgrades.includes("concession")&&linked.shops<=(state.linkedParkBaselineShops??linked.shops)?1:0):2;
  const amenityFactor=clamp(effectiveShops/2,0,1.25);
  const restroomPenalty=linked&&linked.restrooms===0&&!state.upgrades.includes("restroom")?-2:0;
+ // First-pass crowd flow proxy. It uses actual saved walkable tile counts;
+// full live pathfinding and queue measurements will replace this estimate.
+ const walkwayLoad=linked&&Number.isFinite(linked.paths)?turnout/Math.max(1,linked.paths):0;
+ const crowdFlow=linked?clamp(1-Math.max(0,walkwayLoad-8)*.006,.65,1):1;
  const gate=money(turnout*state.ticketPrice);
  const concessionDemand=clamp(Math.pow(5.5/state.concessionPrice,1.55),0.06,1.5);
- const concessionAvailability=amenityFactor;
+ const concessionAvailability=amenityFactor*crowdFlow*(linked&&Number.isFinite(linked.accessScore)?clamp(linked.accessScore,0.5,1.12):1);
  const concessions=money(turnout*state.concessionPrice*concessionDemand*(1+salesBoost)*concessionAvailability);
  const lightingCost=gameTime==="night"?650:gameTime==="sunset"?150:0;
  const expense=fixture.home?state.staffCount*state.staffDailyWage+state.otherPerHomeGame+lightingCost:state.roadExpense;
  const profit=money(gate+concessions-expense);
- const servicePenalty=fixture.home&&state.staffCount<Math.ceil(turnout/85)?-1.5:0;
+ const servicePenalty=(fixture.home&&state.staffCount<Math.ceil(turnout/85)?-1.5:0)+(fixture.home&&linked&&crowdFlow<.9?-1:0);
  const rating=clamp(state.fanRating+(fixture.home?(capacity>0&&turnout>capacity*0.9?-1:1):0)+servicePenalty+(fixture.home?restroomPenalty:0)+(win?0.2:-0.2),0,100);
- const entry={game:fixture.number,home:fixture.home,opponent:fixture.opponent,weekday:fixture.weekday||WEEK_DAYS[(fixture.number-1)%6],week:fixture.week||Math.floor((fixture.number-1)/6)+1,gameTime,win,attendance:turnout,capacity,gate,concessions,expense,lightingCost,profit,cashAfter:money(state.cash+profit)};
+ const entry={game:fixture.number,home:fixture.home,opponent:fixture.opponent,weekday:fixture.weekday||WEEK_DAYS[(fixture.number-1)%6],week:fixture.week||Math.floor((fixture.number-1)/6)+1,gameTime,win,attendance:turnout,capacity,crowdFlow,gate,concessions,expense,lightingCost,profit,cashAfter:money(state.cash+profit)};
  return finishProjects({...state,cash:entry.cashAfter,gameIndex:state.gameIndex+1,wins:state.wins+Number(win),losses:state.losses+Number(!win),fanRating:rating,history:[...state.history,entry],ledger:[...(state.ledger||[]),{year:state.year,day:state.day,type:fixture.home?"home-game":"away-game",description:"Game "+fixture.number+" vs "+fixture.opponent,amount:profit}],status:state.gameIndex+1===SEASON_GAMES?"offseason":"active"},state.day+1);
 }
 function advance(state,count=1,random=Math.random){
@@ -212,5 +216,16 @@ function summary(state){
  const total=k=>money(h.reduce((n,x)=>n+x[k],0));
  return {gamesPlayed:state.gameIndex,homeGames:h.filter(x=>x.home).length,wins:state.wins,losses:state.losses,cash:state.cash,gate:total("gate"),concessions:total("concessions"),expenses:total("expense"),operatingProfit:total("profit"),attendance:h.reduce((n,x)=>n+x.attendance,0),fanRating:Math.round(state.fanRating),status:state.status};
 }
-return {SEASON_GAMES,STARTING_CASH,UPGRADES,WEEK_DAYS,newCampaign,makeSeason,currentSeries,playSeries,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,advanceToOpeningDay,game,advance,forecast,applyOperatingPlan,previewHomeGame,summary};
+function applyLiveExperience(state,report){
+ state=normalize(validate(state));
+ if(!state.linkedParkId||!report||report.completed!==true||report.parkId!==state.linkedParkId)throw Error("Complete a fan test for your linked park first");
+ if(!Number.isFinite(report.recordedAt)||!Number.isFinite(report.averageHappiness)||!Number.isFinite(report.admissions)||report.admissions<=0)throw Error("Incomplete fan experience report");
+ if(state.lastExperienceApplied===report.recordedAt)throw Error("This fan test was already applied");
+ const happiness=clamp(report.averageHappiness,0,100);
+ // A sampled fan test informs reputation modestly, without overwriting the campaign's longer-term rating.
+ const change=clamp(Math.round((happiness-state.fanRating)*.12),-5,5);
+ return {...state,fanRating:clamp(state.fanRating+change,0,100),lastExperienceApplied:report.recordedAt,
+ ledger:[...(state.ledger||[]),{year:state.year,day:state.day,type:"fan-feedback",description:"Fan test feedback ("+Math.round(happiness)+"% happiness, "+(change>=0?"+":"")+change+" reputation)",amount:0}]};
+}
+return {SEASON_GAMES,STARTING_CASH,UPGRADES,WEEK_DAYS,newCampaign,makeSeason,currentSeries,playSeries,validate,normalize,upgrade,cancelProject,setTicketPrice,setConcessionPrice,setGameTime,setStaffCount,advanceDays,nextSeason,advanceToOpeningDay,game,advance,forecast,applyOperatingPlan,previewHomeGame,applyLiveExperience,summary};
 });
