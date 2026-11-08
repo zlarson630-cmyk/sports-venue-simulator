@@ -7,7 +7,7 @@
 const O=window.VenueOwnership,KEY="svs-marinelli-preview-v1";
 let state;try{state=O.validate(JSON.parse(localStorage.getItem(KEY)))}catch{state=O.newCampaign()}
 const $=id=>document.getElementById(id),usd=n=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
-function commit(s){state=s;localStorage.setItem(KEY,JSON.stringify(s));render()}
+function commit(s){state=s;localStorage.setItem(KEY,JSON.stringify(s));render();resetDraft()}
 function refreshLinked(){if(!state.linkedParkId)return;try{const updated=window.VenueParkLink.sync(state,localStorage);if(JSON.stringify(updated)!==JSON.stringify(state)){state=updated;localStorage.setItem(KEY,JSON.stringify(state))}}catch(e){console.warn("Park sync failed",e)}}
 const planIds=["planTicket","planFood","planStaff","planTime"];
 function draftPlan(){return {ticketPrice:Number($("planTicket").value),concessionPrice:Number($("planFood").value),staffCount:Number($("planStaff").value),gameTime:$("planTime").value}}
