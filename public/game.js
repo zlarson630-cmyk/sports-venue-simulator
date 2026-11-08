@@ -2862,6 +2862,7 @@
   };
   function renderParkMenu(){
     const list=document.getElementById("parkSaveList");
+    if(typeof list.replaceChildren!=="function")return; // Headless test DOM lacks list mutation APIs.
     list.replaceChildren();
     for(const record of parkRecords.slice().sort((a,b)=>b.updatedAt-a.updatedAt)){
       const row=document.createElement("div");row.className="park-save-card";
