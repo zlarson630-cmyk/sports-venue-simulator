@@ -45,7 +45,7 @@
     zoom = 1.14,
     panX = 0,
     panY = 0,
-    cameraRot = 0,
+    cameraRot = marinelliTest ? 2 : 0,
     tool = "path",
     rot = 0,
     hover = null,
@@ -105,14 +105,17 @@
         return { x, y };
     }
   }
-  const point = (x, y) => ({ x: ((x - y) * TW) / 2, y: ((x + y) * TH) / 2 });
+  // The Marinelli reference is an aerial view from home plate toward center.
+  // Its display is mirrored horizontally so first base is on the right, without
+  // changing any field coordinates, seat geometry, or team positions.
+  const point = (x, y) => ({ x: ((x - y) * TW * (marinelliTest ? -1 : 1)) / 2, y: ((x + y) * TH) / 2 });
   function project(x, y) {
     const q = rotated(x, y),
       p = point(q.x, q.y);
     return { x: p.x * zoom + panX, y: p.y * zoom + panY, depth:q.x+q.y };
   }
   function inverse(px, py) {
-    const sx = (px - panX) / zoom,
+    const sx = (px - panX) / zoom * (marinelliTest ? -1 : 1),
       sy = (py - panY) / zoom,
       a = sx / TW + sy / TH,
       b = sy / TH - sx / TW,
@@ -138,7 +141,7 @@
     return { x: Math.floor(x), y: Math.floor(y) };
   }
   function cameraBounds() {
-    return marinelliScenery ? [[-11,-12],[72,-12],[72,69],[-11,69]] : streetBoundary;
+    return marinelliScenery ? [[-22,-14],[85,-14],[85,82],[-22,82]] : streetBoundary;
   }
   function centerField() {
     const pts=cameraBounds().map(p=>project(...p));
@@ -2881,14 +2884,15 @@
     if(!marinelliScenery)return;
     // 15th Avenue crosses the river beyond straightaway center field.
     // Its deck runs across y (perpendicular to the river/Nelson Boulevard).
+    // Place it beyond the center-field ray x-y ~= 4, not off left-center.
     const elevate=([x,y])=>{const p=project(x,y);return {...p,y:p.y-4*zoom};};
-    const deck=[[43,45],[48,45],[48,78],[43,78]];
+    const deck=[[60,47],[65,47],[65,82],[60,82]];
     polygon(deck.map(elevate),"#62686b","#c7c6bc",1.1);
-    for(const x of [42.8,48.2]){
-      line(elevate([x,45]),elevate([x,78]),"#d3d3ca",1.4);
+    for(const x of [59.8,65.2]){
+      line(elevate([x,47]),elevate([x,82]),"#d3d3ca",1.4);
     }
-    for(let y=48;y<77;y+=4){
-      line(elevate([45.5,y]),elevate([45.5,y+1.8]),"#ece2b9",1.1);
+    for(let y=49;y<81;y+=4){
+      line(elevate([62.5,y]),elevate([62.5,y+1.8]),"#ece2b9",1.1);
     }
   }
   function drawWorld() {
@@ -3476,6 +3480,7 @@
     draw();
   }
   function resize() {
+    document.getElementById("cameraRotation").textContent = cameraRot * 90 + "°";
     dpr = Math.min(devicePixelRatio || 1, 2);
     const w = wrap.clientWidth,
       h = wrap.clientHeight;
