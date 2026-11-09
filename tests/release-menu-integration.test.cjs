@@ -52,7 +52,7 @@ test("new ballparks use separate save slots and preserve existing money and cons
 test("Marinelli test renders its scenery and autosaves without touching main storage",()=>{
   const original={version:2,fieldRevision:7,tiles:{},money:321500};
   const g=game(original,()=>0.5,{marinelliTest:true});
-  assert.ok(g.commands.some(command=>command[0]==="style"&&command[2]==="#548a94"));
+  assert.ok(g.commands.some(command=>command[0]==="style"&&command[2]==="#538793"));
   assert.equal(g.storage.get("svs01"),JSON.stringify(original));
   assert.equal(g.storage.has("svs.parks.v1"),false);
   assert.equal(g.storage.has("svs.activePark.v1"),false);
