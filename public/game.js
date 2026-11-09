@@ -2819,30 +2819,28 @@
     if(!marinelliScenery)return;
     const poly=(pts,fill,stroke=null)=>polygon(pts.map(([x,y])=>project(x,y)),fill,stroke,stroke?0.8:0);
     const wave=y=>Math.sin(y*.095)*1.4+Math.sin(y*.25)*.45;
-    // Rock River follows the LEFT-field perimeter, curving toward the
-    // center-field bridge. The original across-right-field river is removed.
-    const bank=[],outer=[];
-    for(let y=-18;y<=82;y+=2){
-      const near=57+wave(y);
-      bank.push([near,y]);outer.push([near+19+Math.sin(y*.06),y]);
+    // Rock River parallels the LEFT-field side (larger world y), continuing
+    // beyond left-center. The playable field's third-base line points +y.
+    const near=[],far=[];
+    for(let x=-20;x<=82;x+=2){
+      const bend=Math.sin(x*.095)*1.4+Math.sin(x*.25)*.45;
+      near.push([x,52+bend]);far.push([x,71+bend*.6]);
     }
-    poly([...bank,...outer.reverse()],"#538793","#7eaaa3");
-    for(let y=-10;y<78;y+=4){
-      const x=64+wave(y),a=project(x,y),b=project(x+2,y+.6);
-      line(a,b,"#9bc5c7",1);
+    poly([...near,...far.reverse()],"#538793","#7eaaa3");
+    for(let x=-14;x<78;x+=4){
+      const y=60+Math.sin(x*.095)*1.4;
+      line(project(x,y),project(x+2,y+.5),"#9bc5c7",1);
     }
-    // Nelson Boulevard runs beside the river: it is a roadway, not a bike path.
-    const roadside=(x0,x1,color)=>poly([[x0,-12],[x1,-12],[x1,78],[x0,78]],color);
-    roadside(52,55.8,"#7e9275");
-    roadside(53.1,55.0,"#595f61");
-    line(project(53.4,-10),project(53.4,76),"#b8baad",1.2);
-    for(let y=-8;y<75;y+=4.5)line(project(54,y),project(54,y+1.8),"#d6c79a",1);
-    roadside(51.2,52.1,"#c1bdae");
-    // Mature trees in the green strip between the outfield wall and roadway,
-    // with larger crowns extending beyond left-center and straightaway left.
-    for(let i=0;i<24;i++){
-      const y=11+i*1.7+Math.sin(i*2.1)*.3;
-      const x=49.2+Math.sin(i*1.6)*.95;
+    // Nelson Boulevard follows the river on the stadium side, with a sidewalk.
+    const strip=(y0,y1,color)=>poly([[-16,y0],[79,y0],[79,y1],[-16,y1]],color);
+    strip(47.1,48.1,"#c1bdae");
+    strip(48.1,50.7,"#595f61");
+    strip(50.7,51.6,"#9aab91");
+    for(let x=-13;x<76;x+=4.5)line(project(x,49.4),project(x+1.8,49.4),"#d6c79a",1);
+    // Mature trees just beyond left and left-center field, between wall and road.
+    for(let i=0;i<25;i++){
+      const x=17+i*1.5+Math.sin(i*2.1)*.3;
+      const y=45.7+Math.sin(i*1.6)*.85;
       const p=project(x,y),z=zoom;
       const h=(16+i%5*3)*z,rx=(6+i%3*1.4)*z;
       line(p,{x:p.x,y:p.y-h*.73},"#665b45",2.2);
@@ -2881,17 +2879,16 @@
   }
   function drawMarinelliBridge(){
     if(!marinelliScenery)return;
-    // 15th Avenue runs across the river just beyond straightaway center field,
-    // perpendicular to Nelson Boulevard rather than parallel to the river.
-    const deck=[[47,48],[81,48],[81,53],[47,53]];
+    // 15th Avenue crosses the river beyond straightaway center field.
+    // Its deck runs across y (perpendicular to the river/Nelson Boulevard).
     const elevate=([x,y])=>{const p=project(x,y);return {...p,y:p.y-4*zoom};};
+    const deck=[[43,45],[48,45],[48,78],[43,78]];
     polygon(deck.map(elevate),"#62686b","#c7c6bc",1.1);
-    for(const y of [47.7,53.3]){
-      const a=elevate([47,y]),b=elevate([81,y]);line(a,b,"#d3d3ca",1.4);
+    for(const x of [42.8,48.2]){
+      line(elevate([x,45]),elevate([x,78]),"#d3d3ca",1.4);
     }
-    for(let x=49;x<80;x+=4){
-      const a=elevate([x,50.5]),b=elevate([x+1.8,50.5]);
-      line(a,b,"#ece2b9",1.1);
+    for(let y=48;y<77;y+=4){
+      line(elevate([45.5,y]),elevate([45.5,y+1.8]),"#ece2b9",1.1);
     }
   }
   function drawWorld() {
