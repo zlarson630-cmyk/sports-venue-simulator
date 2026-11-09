@@ -91,6 +91,7 @@ function game(saved, random=()=>0.5, options={}) {
     URL,
     devicePixelRatio: 1,
     document: {
+      documentElement: {dataset: options.marinelliTest ? {marinelliTest:"true"} : {}},
       getElementById: element,
       querySelectorAll: () => toolButtons,
       createElement: tag => tag==="canvas"&&options.cacheCanvas?{width:0,height:0,getContext:()=>({drawImage(){}})}:({tagName:tag.toUpperCase(),click(){this.onclick?.();this.listeners?.click?.();},textContent:"",children:[],listeners:{},classList:{add(){},remove(){},toggle(){}},appendChild(node){this.children.push(node);},append(...nodes){this.children.push(...nodes);},replaceChildren(...nodes){this.children=nodes;},addEventListener(name,fn){this.listeners[name]=fn;},setAttribute(name,value){this[name]=value;}}),

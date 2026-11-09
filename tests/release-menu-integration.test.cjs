@@ -48,3 +48,19 @@ test("new ballparks use separate save slots and preserve existing money and cons
   assert.equal(records[1].data.money,500000);
   assert.equal(g.storage.get("svs.activePark.v1"),records[1].id);
 });
+
+test("Marinelli test renders its scenery and autosaves without touching main storage",()=>{
+  const original={version:2,fieldRevision:7,tiles:{},money:321500};
+  const g=game(original,()=>0.5,{marinelliTest:true});
+  assert.ok(g.commands.some(command=>command[0]==="style"&&command[2]==="#548a94"));
+  assert.equal(g.storage.get("svs01"),JSON.stringify(original));
+  assert.equal(g.storage.has("svs.parks.v1"),false);
+  assert.equal(g.storage.has("svs.activePark.v1"),false);
+  const records=JSON.parse(g.storage.get("marinelli.test.svs.parks.v1"));
+  assert.equal(records[0].data.money,500000);
+  g.element("closeParkMenu").click();
+  g.clickTile(17,9);
+  const updated=JSON.parse(g.storage.get("marinelli.test.svs.parks.v1"));
+  assert.equal(updated[0].data.tiles["17,9"].type,"path");
+  assert.equal(g.storage.get("svs01"),JSON.stringify(original));
+});

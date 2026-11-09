@@ -4,7 +4,8 @@
   const open = document.getElementById("openTutorial");
   if (typeof guide.showModal !== "function") return;
 
-  const seenKey = "svs.quickStartSeen";
+  const storagePrefix = document.documentElement.dataset.marinelliTest === "true" ? "marinelli.test." : "";
+  const seenKey = storagePrefix + "svs.quickStartSeen";
   open.hidden = false;
   open.addEventListener("click", () => guide.showModal());
   guide.addEventListener("keydown", event => event.stopPropagation());
@@ -18,7 +19,7 @@
 
   let firstVisit = true;
   try {
-    firstVisit = !localStorage.getItem(seenKey) && !localStorage.getItem("svs01");
+    firstVisit = !localStorage.getItem(seenKey) && !localStorage.getItem(storagePrefix + "svs01");
   } catch {
     // Show the guide when the browser cannot report visit history.
   }

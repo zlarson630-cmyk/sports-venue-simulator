@@ -6,6 +6,12 @@ const files = {
   "/": ["index.html", "text/html"],
   "/index.html": ["index.html", "text/html"],
   "/game.js": ["game.js", "text/javascript"],
+  "/tutorial.js": ["tutorial.js", "text/javascript"],
+  "/test/": ["test/index.html", "text/html"],
+  "/test/index.html": ["test/index.html", "text/html"],
+  "/test/ownership.html": ["test/ownership.html", "text/html"],
+  "/test/ownership.js": ["test/ownership.js", "text/javascript"],
+  "/test/park-link.js": ["test/park-link.js", "text/javascript"],
   "/styles.css": ["styles.css", "text/css"],
 };
 createServer(async (request, response) => {

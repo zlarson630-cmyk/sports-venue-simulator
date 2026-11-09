@@ -1,73 +1,319 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Marinelli Field — Ownership Preview</title><style>
-:root{font-family:system-ui,-apple-system,sans-serif;color:#e9eff7;background:#101a2b}*{box-sizing:border-box}body{max-width:1080px;margin:auto;padding:24px}header{padding:24px;background:linear-gradient(110deg,#182e49,#342035);border-radius:16px}h1{margin:4px 0}small,.muted{color:#aebbd0}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:20px 0}.stat,section{background:#1b2a40;padding:18px;border-radius:12px}.stat strong{display:block;font-size:1.5rem;margin-top:5px}main{display:grid;grid-template-columns:1fr 1fr;gap:16px}button{background:#e6ae53;border:0;border-radius:7px;padding:10px 14px;color:#19202b;font-weight:700;cursor:pointer;margin:5px}button:disabled{opacity:.4;cursor:not-allowed}input{width:85px;padding:8px;background:#0c1726;color:white;border:1px solid #6d7b91;border-radius:6px}ul{padding-left:18px}li{margin:8px 0}#feed{max-height:250px;overflow:auto}a{color:#e6ae53}@media(max-width:650px){main{grid-template-columns:1fr}body{padding:12px}}.scene{position:relative;overflow:hidden;border-radius:16px;height:220px;margin:18px 0;background:linear-gradient(#67b7e8 0%,#b5dbeb 62%,#7caa65 63%);transition:background .5s}.scene[data-light="sunset"]{background:linear-gradient(#473d73,#e78d65 48%,#f4bb77 63%,#496b55 64%)}.scene[data-light="night"]{background:linear-gradient(#081427,#1d3150 63%,#152c29 64%)}.scene .river{position:absolute;top:67%;left:0;right:0;height:24px;background:#4b9ab6;transform:skewY(-2deg)}.scene[data-light="sunset"] .river{background:#b97e7d}.scene[data-light="night"] .river{background:#244e69}.scene .bridge{position:absolute;left:42%;top:59%;width:34%;height:9px;background:#737a7b;box-shadow:0 8px #303d46}.scene .forest{position:absolute;left:-5%;top:52%;width:45%;height:35%;background:repeating-linear-gradient(95deg,#234d34 0 18px,#356443 18px 30px);clip-path:polygon(0 30%,8% 5%,18% 27%,29% 0,42% 24%,55% 2%,65% 30%,80% 5%,100% 35%,100% 100%,0 100%)}.scene .field{position:absolute;left:31%;top:77%;width:46%;height:110px;background:#408c56;transform:rotate(45deg);border:8px solid #9e7653;box-shadow:0 0 0 7px #29465e}.scene .lights{position:absolute;top:8%;left:24%;width:8px;height:78%;background:#69777e;box-shadow:340px 0 #69777e}.scene .lights:before{content:"";position:absolute;left:-18px;top:0;width:44px;height:15px;background:#d9d9c9;border:2px solid #65717a}.scene[data-light="night"] .lights:before{background:#fff9ce;box-shadow:0 0 35px 18px #fff0a788}.scene[data-light="night"] .field{filter:brightness(1.4);box-shadow:0 0 35px 14px #b3d7a34a}.scene .parking{position:absolute;left:0;bottom:0;background:#59676b;width:27%;height:33%;transform:skewY(-9deg);border-top:3px dashed #d8d3a2}.light-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.light-controls button[aria-pressed="true"]{background:#fff3c9;outline:3px solid #f3c36d}.scene-label{position:absolute;right:12px;top:10px;background:#152638c9;padding:6px 10px;border-radius:6px;font-size:12px}.tour-launch{position:fixed;right:16px;bottom:16px;z-index:30;box-shadow:0 4px 24px #0008}.tour-overlay{position:fixed;inset:0;background:#050b16d9;z-index:50;display:grid;place-items:center;padding:18px}.tour-overlay[hidden]{display:none}.tour-card{background:#1b2a40;border:1px solid #70829d;border-radius:18px;max-width:490px;width:100%;padding:24px;box-shadow:0 24px 65px #000a}.tour-card h2{margin:10px 0}.tour-card p{line-height:1.6}.tour-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}.tour-progress{color:#e6ae53;font-weight:700;font-size:.85rem}.tour-actions button{margin:3px}.tour-actions .secondary{background:#354962;color:#f4f7fb}.tour-actions button:focus-visible,.tour-launch:focus-visible{outline:3px solid #fff;outline-offset:3px}</style></head><body>
-<header><small>SPORTS VENUE SIMULATOR · CAMPAIGN PROTOTYPE</small><h1>Marinelli Field</h1><p>Screw City Sock Monkeys · American Association expansion</p><p class="muted">You've established the franchise. Now make a neglected ballpark profitable before the season runs out.</p><a href="../">← Back to construction sandbox</a></header>
-<div class="light-controls" aria-label="Ballpark atmosphere"><strong>Summer game atmosphere:</strong><button data-light="day" aria-pressed="true">☀️ Day</button><button data-light="sunset" aria-pressed="false">🌇 Sunset</button><button data-light="night" aria-pressed="false">💡 Under the lights</button></div><div class="scene" id="scene" data-light="day" role="img" aria-label="Stylized Marinelli Field riverfront with parking, forest, river, bridge, and ballpark"><div class="forest"></div><div class="river"></div><div class="bridge"></div><div class="parking"></div><div class="field"></div><div class="lights"></div><div class="scene-label">Marinelli Field · Concept environment</div></div><div class="stats"><div class="stat">Cash<strong id="cash"></strong></div><div class="stat">Record<strong id="record"></strong></div><div class="stat">Season<strong id="progress"></strong></div><div class="stat">Fan rating<strong id="fans"></strong></div></div>
-<main><section><h2>Owner's office</h2><label>Ticket price $ <input type="number" min="1" max="100" id="price"></label><button id="setprice">Set price</button><p><label>Concession average $ <input type="number" id="concessionPrice" min="1" max="50" step=".5"></label><button id="setConcession">Update</button></p><p><label>Game-day staff <input type="number" id="staffCount" min="2" max="60"></label><button id="setStaff">Hire / fire</button></p><p><label>Home game start <select id="gameTime"><option value="day">Day game</option><option value="sunset">Sunset</option><option value="night">Under the Lights</option></select></label><button id="setGameTime">Set game time</button></p><p id="next"></p><button id="play">Play next game</button><label>Watch game <select id="watchGame" aria-label="Choose homestand game"></select></label><button id="week">Play six-game series</button><p id="seriesReport" class="muted" aria-live="polite"></p><button id="season">Finish season</button><button id="days">Advance 7 offseason days</button><button id="newSeason" hidden>Start next season</button><button id="openingDay" hidden>Finish projects & start next season</button><h3>Link a saved ballpark</h3><p class="muted">Use a ballpark saved in this browser. Its actual seats, concessions and restrooms affect game finances. Your sandbox save is never modified. Linked facilities refresh when you return from the builder and before simulations.</p><select id="parkSelect" aria-label="Saved ballpark"></select><button id="linkPark">Link park</button><button id="unlinkPark">Use scenario defaults</button><p id="parkStatus"></p><h3>Next home game planner</h3><p class="muted">Preview ticket demand, concessions and staffing before committing changes. These are midpoint estimates, not guaranteed results.</p><p id="homePlanner" class="muted"></p><div id="operatingPlanner" style="padding:12px;border:1px solid #60718a;border-radius:10px"><div style="display:flex;flex-wrap:wrap;gap:10px"><label>Tickets $ <input id="planTicket" type="number" min="1" max="100" step=".5"></label><label>Concessions $ <input id="planFood" type="number" min="1" max="50" step=".5"></label><label>Staff <input id="planStaff" type="number" min="2" max="60" step="1"></label><label>Start <select id="planTime"><option value="day">Day</option><option value="sunset">Sunset</option><option value="night">Under the Lights</option></select></label></div><p id="planComparison" aria-live="polite" class="muted"></p><button id="applyPlan" type="button">Apply operating plan</button><button id="resetPlan" type="button">Reset draft</button></div><h3>Franchise history</h3><div id="franchiseHistory" class="muted"></div><h3>Cash transactions</h3><p class="muted">Construction payments, refunds, and game-day operating results.</p><ul id="ledger" style="max-height:180px;overflow:auto"></ul><h3>Season finances</h3><div id="finances"></div><p id="forecast" class="muted"></p><button id="reset">Start new campaign</button></section><section><h2>Capital improvements</h2><p class="muted">Restoring stadium lighting unlocks night games, which can draw larger crowds but cost more to operate. Projects are funded when approved and use one construction crew. Additional projects queue behind active work. Major construction starts in the offseason.</p><div id="upgrades"></div><h3>Construction schedule</h3><div id="projects"></div></section><section><h2>Game reports</h2><ul id="feed"></ul></section><section><h2>Development note</h2><p>This is a separate first-playable ownership prototype. The existing isometric stadium sandbox remains untouched.</p><p>Future integration will connect your actual construction choices, bleacher capacities, fan navigation, staffing, and property development to this economy.</p><p class="muted">All figures are illustrative gameplay values, not actual American Association operating costs.</p></section></main>
-<script src="./ownership.js"></script><script src="./park-link.js"></script><button id="tourLaunch" class="tour-launch" type="button">How to play</button><div id="tourOverlay" class="tour-overlay" hidden><div class="tour-card" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourDescription"><div id="tourProgress" class="tour-progress"></div><h2 id="tourTitle"></h2><p id="tourDescription"></p><div class="tour-actions"><button id="tourSkip" class="secondary" type="button">Skip tutorial</button><div><button id="tourBack" class="secondary" type="button">Back</button><button id="tourNext" type="button">Continue</button></div></div><script>
-const O=window.VenueOwnership,KEY="svs-marinelli-preview-v1";
-let state;try{state=O.validate(JSON.parse(localStorage.getItem(KEY)))}catch{state=O.newCampaign()}
-const $=id=>document.getElementById(id),usd=n=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
-function commit(s){state=s;localStorage.setItem(KEY,JSON.stringify(s));render();resetDraft()}
-function refreshLinked(){if(!state.linkedParkId)return;try{const updated=window.VenueParkLink.sync(state,localStorage);if(JSON.stringify(updated)!==JSON.stringify(state)){state=updated;localStorage.setItem(KEY,JSON.stringify(state))}}catch(e){console.warn("Park sync failed",e)}}
-const planIds=["planTicket","planFood","planStaff","planTime"];
-function draftPlan(){return {ticketPrice:Number($("planTicket").value),concessionPrice:Number($("planFood").value),staffCount:Number($("planStaff").value),gameTime:$("planTime").value}}
-function resetDraft(){const p=state;$("planTicket").value=p.ticketPrice;$("planFood").value=p.concessionPrice;$("planStaff").value=p.staffCount;$("planTime").value=p.gameTime;updatePlan()}
-function updatePlan(){const output=$("planComparison");try{const baseline=O.previewHomeGame(state);const proposed=O.previewHomeGame(state,draftPlan());if(!baseline||!proposed){output.textContent="No home games remain this season."; $("applyPlan").disabled=true;return;}const delta=proposed.profit-baseline.profit;output.textContent="Current: "+baseline.attendance+" fans · "+usd(baseline.profit)+" net | Draft: "+proposed.attendance+" fans · "+usd(proposed.profit)+" net | Change: "+(delta>=0?"+":"")+usd(delta);$("applyPlan").disabled=false;}catch(e){output.textContent=e.message;$("applyPlan").disabled=true}}
-function render(){refreshLinked();const x=O.summary(state);$("cash").textContent=usd(x.cash);$("record").textContent=x.wins+"–"+x.losses;$("progress").textContent="Year "+(state.year||1)+" · "+x.gamesPlayed+"/100";$("fans").textContent=x.fanRating+"/100";$("price").value=state.ticketPrice;$("concessionPrice").value=state.concessionPrice??5.5;$("staffCount").value=state.staffCount??7;$("gameTime").value=state.gameTime||"day";$("gameTime").querySelector('option[value="night"]').disabled=!state.upgrades.includes("lighting");
-const series=O.currentSeries(state);$("watchGame").replaceChildren(...(series&&series.home?series.games:[]).map(g=>{const option=document.createElement("option");option.value=g.number;option.textContent=g.weekday+" · Game "+g.number;return option}));$("watchGame").disabled=!series||!series.home;$("next").textContent=state.status==="offseason"?"Offseason: schedule major projects and advance construction days":("Week "+(series?.week||"?")+" · "+(series?.home?"HOME":"ROAD")+" series · "+(series?.remaining||0)+" games remaining · Tuesday–Sunday");
-$("parkStatus").textContent=state.linkedParkMissing?"Linked park unavailable: last known facilities remain in use until you choose another park":state.linkedPark?("Linked park: "+state.linkedPark.capacity+" seats · "+state.linkedPark.shops+" concessions · "+state.linkedPark.restrooms+" restrooms"+(state.linkedParkId?" · Auto-syncs before games":" · Snapshot")):"Using scenario default stadium capacity and amenities";if(state.linkedParkId&&state.linkedPark&&!state.linkedParkMissing){
- const seatsUsed=Math.max(0,state.linkedPark.capacity-(state.linkedParkBaselineCapacity??state.linkedPark.capacity));
- const shopsUsed=Math.max(0,state.linkedPark.shops-(state.linkedParkBaselineShops??state.linkedPark.shops));
- const restroomsUsed=Math.max(0,state.linkedPark.restrooms-(state.linkedParkBaselineRestrooms??state.linkedPark.restrooms));
- $("parkStatus").textContent+=" · Renovation allowances: "+(state.upgrades.includes("bleachers")?Math.max(0,250-seatsUsed)+" seats remaining":"bleachers not approved")+", "+(state.upgrades.includes("concession")?Math.max(0,1-shopsUsed)+" concession remaining":"concession not approved")+", "+(state.upgrades.includes("restroom")?Math.max(0,1-restroomsUsed)+" restroom remaining":"restrooms not approved");
-}
-const home=O.previewHomeGame(state);$("homePlanner").textContent=home?"Game "+home.game+" · "+(home.gamesUntil?"in "+home.gamesUntil+" games":"next game")+" · "+home.attendance+" projected fans / "+home.capacity+" seats · Tickets "+usd(home.gate)+" · Food "+usd(home.concessions)+" · Expenses "+usd(home.expense)+" · Net "+usd(home.profit):"No remaining home games this season.";$("ledger").replaceChildren(...(state.ledger||[]).slice(-12).reverse().map(entry=>{const li=document.createElement("li");li.textContent="Year "+entry.year+" · Day "+entry.day+" · "+entry.description+" · "+(entry.amount>=0?"+":"")+usd(entry.amount);return li}));if(!(state.ledger||[]).length)$("ledger").textContent="No transactions yet.";$("franchiseHistory").replaceChildren(...(state.seasonRecords||[]).slice().reverse().map(record=>{const d=document.createElement("p");d.textContent="Year "+record.year+" · "+record.wins+"–"+record.losses+" · "+record.attendance.toLocaleString()+" fans · "+usd(record.operatingProfit)+" operating net · "+usd(record.capitalSpending||0)+" capital spending · "+usd(record.endingCash)+" ending cash";return d}));if(!(state.seasonRecords||[]).length)$("franchiseHistory").textContent="Your first season is underway. Completed seasons will be archived here.";$("finances").textContent="Tickets "+usd(x.gate)+" · Concessions "+usd(x.concessions)+" · Operating costs "+usd(x.expenses)+" · Net "+usd(x.operatingProfit);const outlook=O.forecast(state,7);$("forecast").textContent=outlook.games?"Next "+outlook.games+" games ("+outlook.homeGames+" home): projected "+usd(outlook.projectedProfit)+" net · cash "+usd(outlook.projectedCash)+(outlook.atRisk?" · WARNING: cash may fall below zero":""):"Offseason: forecast resumes with the next schedule.";
-for(const id of ["play","week","season"])$(id).disabled=state.status!=="active";
-$("upgrades").replaceChildren(...Object.entries(O.UPGRADES).map(([key,u])=>{const d=document.createElement("div"),b=document.createElement("button");const project=(state.projects||[]).find(p=>p.key===key);b.textContent=state.upgrades.includes(key)?"Completed":project?"Scheduled":usd(u.cost);b.disabled=!!project||state.upgrades.includes(key)||state.cash<u.cost||(u.major&&state.status!=="offseason");b.onclick=()=>{try{commit(O.upgrade(state,key))}catch(e){alert(e.message)}};d.append(document.createTextNode(u.name+" · "+u.days+" days · "+(u.major?"Offseason only":"In-season eligible")+" "),b);return d}));$("projects").replaceChildren(...(state.projects||[]).map(p=>{const d=document.createElement("p");d.textContent=O.UPGRADES[p.key].name+" — "+(p.status==="complete"?"Complete":(p.status==="queued"?"Queued, starts in "+Math.max(0,p.startDay-(state.day||0))+" days":"Building")+" · "+Math.max(0,p.finishDay-(state.day||0))+" days to completion");if(p.status==="queued"){const b=document.createElement("button");b.textContent="Cancel · refund "+usd(p.cost);b.onclick=()=>{if(confirm("Cancel unstarted "+O.UPGRADES[p.key].name+" and refund "+usd(p.cost)+"?")){try{commit(O.cancelProject(state,p.key))}catch(e){alert(e.message)}}};d.append(b)}return d}));$("openingDay").hidden=state.status!=="offseason";$("openingDay").disabled=state.status!=="offseason";$("newSeason").hidden=state.status!=="offseason";$("newSeason").disabled=(state.projects||[]).some(p=>p.status!=="complete"&&O.UPGRADES[p.key].major);$("days").disabled=state.status!=="offseason";
-$("feed").replaceChildren(...state.history.slice(-12).reverse().map(g=>{const li=document.createElement("li");li.textContent="#"+g.game+" "+(g.home?"HOME":"AWAY")+" · "+(g.win?"W":"L")+" · "+(g.home?g.attendance+" fans · "+(g.gameTime==="night"?"Under the Lights":g.gameTime==="sunset"?"Sunset":"Day")+" · ":"")+usd(g.profit)+" net";return li}));
-}
-function refreshParks(){const select=$("parkSelect");select.replaceChildren();try{const parks=window.VenueParkLink.list(localStorage);for(const park of parks){const option=document.createElement("option");option.value=park.id;option.textContent=park.name+" · "+park.capacity+" seats";select.append(option)}}catch(e){$("parkStatus").textContent="Saved parks unavailable: "+e.message}}refreshParks();$("linkPark").onclick=()=>{try{const records=JSON.parse(localStorage.getItem("svs.parks.v1")||"[]");const record=records.find(x=>x.id===$("parkSelect").value);if(!record)throw Error("Choose a saved ballpark");commit(window.VenueParkLink.link(state,record.id,localStorage))}catch(e){alert(e.message)}};$("unlinkPark").onclick=()=>{commit(window.VenueParkLink.unlink(state))};
-planIds.forEach(id=>$(id).addEventListener("input",updatePlan));
-$("applyPlan").onclick=()=>{try{commit(O.applyOperatingPlan(state,draftPlan()));resetDraft()}catch(e){alert(e.message)}};
-$("resetPlan").onclick=resetDraft;
-$("setGameTime").onclick=()=>{try{commit(O.setGameTime(state,$("gameTime").value))}catch(e){alert(e.message)}};
-$("setConcession").onclick=()=>{try{commit(O.setConcessionPrice(state,Number($("concessionPrice").value)))}catch(e){alert(e.message)}};$("setStaff").onclick=()=>{try{commit(O.setStaffCount(state,Number($("staffCount").value)))}catch(e){alert(e.message)}};$("openingDay").onclick=()=>{const unfinished=(state.projects||[]).filter(p=>p.status!=="complete");const days=unfinished.length?Math.max(0,...unfinished.map(p=>p.finishDay-(state.day||0))):0;if(confirm("Advance "+days+" offseason days, finish "+unfinished.length+" funded projects, and begin Year "+((state.year||1)+1)+"?")){try{commit(O.advanceToOpeningDay(state))}catch(e){alert(e.message)}}};$("days").onclick=()=>{try{commit(O.advanceDays(state,7))}catch(e){alert(e.message)}};$("newSeason").onclick=()=>{try{commit(O.nextSeason(state))}catch(e){alert(e.message)}};
-$("setprice").onclick=()=>{try{commit(O.setTicketPrice(state,Number($("price").value)))}catch(e){alert(e.message)}};
-$("play").onclick=()=>{refreshLinked();commit(O.advance(state,1))};
-$("week").onclick=()=>{try{refreshLinked();const s=O.currentSeries(state);const watched=s?.home?Number($("watchGame").value):null;const result=O.playSeries(state,watched);commit(result.state);const total=result.series.games.reduce((n,g)=>n+g.profit,0);$("seriesReport").textContent="Week "+result.series.week+" · "+result.series.games.length+" games · "+(result.series.home?"Homestand":"Road trip")+" · "+usd(total)+" net"+(result.watched?" · Watched "+result.watched.weekday+": "+result.watched.attendance+" fans":"");}catch(e){alert(e.message)}};
-$("season").onclick=()=>{refreshLinked();commit(O.advance(state,100))};
-$("reset").onclick=()=>{if(confirm("Erase this prototype campaign and restart?"))commit(O.newCampaign())};
-document.querySelectorAll(".light-controls button").forEach(b=>b.onclick=()=>{document.getElementById("scene").dataset.light=b.dataset.light;document.querySelectorAll(".light-controls button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));localStorage.setItem("svs-marinelli-light",b.dataset.light)});const savedLight=localStorage.getItem("svs-marinelli-light");if(["day","sunset","night"].includes(savedLight))document.querySelector('.light-controls button[data-light="'+savedLight+'"]').click();
-render();resetDraft();
-// Guided introduction is versioned separately from campaign saves.
-const TOUR_KEY="svs-marinelli-test-tour-v1";
-const TOUR_STEPS=[
- {title:"Welcome to Marinelli Field",body:"The abandoned ballpark is yours to revive. The Screw City Sock Monkeys are an American Association expansion franchise, and your job is to make the stadium a place fans want to visit."},
- {title:"You're the owner — $250,000 to invest",body:"You begin with $250,000 after startup costs. Earn money through tickets and concessions, pay staff and game expenses, and reinvest carefully. You manage the ballpark, not the players or lineups."},
- {title:"Prepare for Opening Day",body:"Set ticket and concession prices, choose staffing levels, and plan the atmosphere. These decisions affect crowd sizes and profits. Major construction waits until the offseason; smaller repairs take time."},
- {title:"Choose your homestand game",body:"The season has 100 games, usually six each week, Tuesday through Sunday. Choose a home game — like Wednesday or Saturday — to follow, then use Play six-game series. Each day gets its own crowd and finances; weekends are busier."},
- {title:"Review results and improve",body:"After a series, check your win–loss record, cash, attendance, finances and game log. Road trips give you a chance to plan repairs. Keep improving Marinelli Field, then take on another season!"}
-];
-let tourStep=0,tourPreviousFocus=null;
-function showTourStep(){
- const step=TOUR_STEPS[tourStep];
- $("tourProgress").textContent="GETTING STARTED · "+(tourStep+1)+" OF "+TOUR_STEPS.length;
- $("tourTitle").textContent=step.title;$("tourDescription").textContent=step.body;
- $("tourBack").hidden=tourStep===0;$("tourNext").textContent=tourStep===TOUR_STEPS.length-1?"Start playing":"Continue";
-}
-function openTour(){tourPreviousFocus=document.activeElement;tourStep=0;showTourStep();$("tourOverlay").hidden=false;$("tourNext").focus();}
-function closeTour(){localStorage.setItem(TOUR_KEY,"done");$("tourOverlay").hidden=true;(tourPreviousFocus||$("tourLaunch")).focus();}
-$("tourLaunch").onclick=openTour;$("tourSkip").onclick=closeTour;
-$("tourBack").onclick=()=>{tourStep=Math.max(0,tourStep-1);showTourStep();};
-$("tourNext").onclick=()=>{if(tourStep===TOUR_STEPS.length-1){closeTour();return;}tourStep++;showTourStep();};
-$("tourOverlay").addEventListener("keydown",e=>{
- if(e.key==="Escape"){e.preventDefault();closeTour();}
- if(e.key!=="Tab")return;
- const focusable=[...$("tourOverlay").querySelectorAll("button:not([hidden]):not([disabled])")];
- const first=focusable[0],last=focusable.at(-1);
- if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
- else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
-});
-if(localStorage.getItem(TOUR_KEY)!=="done")openTour();
-
-</script></div></div></body></html>
+<!doctype html>
+<html lang="en" data-marinelli-test="true">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>Marinelli Field — Stadium Builder Test</title>
+    <link rel="stylesheet" href="../styles.css?v=0.49.0-main-menu" />
+  </head>
+  <body>
+    <header>
+      <div class="logo">🏟️</div>
+      <div>
+        <h1>SPORTS VENUE<br />SIMULATOR</h1>
+        <small>MARINELLI FIELD · TEST BUILD</small>
+      </div>
+      <button class="smallbtn" id="openParkMenu" type="button">☰ My Parks</button>
+      <div class="topstats">
+        <div class="stat">💵 <strong id="money">$500,000</strong></div>
+        <div class="stat optional">🪑 <strong id="seats">0</strong> seats</div>
+        <div class="stat optional">🧱 <strong id="placed">0</strong> built</div>
+      </div>
+    </header>
+    <div id="parkMenu" class="park-menu" role="dialog" aria-modal="true" aria-labelledby="parkMenuTitle" hidden>
+      <div class="park-menu-panel">
+        <div class="park-menu-heading"><span>SPORTS VENUE SIMULATOR</span><h2 id="parkMenuTitle">My Ballparks</h2><p>Build a new venue or continue an existing one. Saves stay in this browser; export backups to move devices.</p></div>
+        <div class="park-menu-actions"><button id="newPark" type="button">＋ New ballpark</button><button id="closeParkMenu" type="button">Continue current park</button></div>
+        <div id="parkSaveList" class="park-save-list" aria-live="polite"></div>
+      </div>
+    </div>
+    <main id="app">
+      <aside>
+        <details class="identity"><summary>TEAM COLORS &amp; FINISHES</summary>
+          <div class="palette">
+            <label>Primary <input id="teamprimary" type="color" value="#31566b"></label>
+            <label>Secondary <input id="teamsecondary" type="color" value="#edc75b"></label>
+            <label>Accent <input id="teamaccent" type="color" value="#fff0c9"></label>
+          </div>
+          <label>Field wall finish <select id="fieldMaterial"><option value="green">Dark green padding</option><option value="chain">Chain link</option><option value="padded">Team-color padding</option></select></label>
+          <label>Built wall finish <select id="wallMaterial"><option value="chain">Chain link</option><option value="padded">Padded</option><option value="wood">Wood</option></select></label>
+          <hr><label>Custom item color <input id="customPrimary" type="color" value="#c62832"></label>
+          <label><input id="paintLinked" type="checkbox"> Follow team colors</label>
+          <button id="paintTool" class="smallbtn">Apply to an item → click it</button>
+          <p class="foot">Linked items update together. Custom items keep their colors. Undo restores colors too.</p>
+        </details>
+        <details class="toolgroup" open><summary>Build layers</summary>
+<label style="display:block;margin:8px 0"><input type="checkbox" id="workUnder"> Work underneath · ghost upper pieces</label>
+<label for="placementHeight">New raised-piece height</label><select id="placementHeight" style="width:100%;padding:8px;margin:6px 0"></select>
+<label for="newFoundation">New piece underneath</label><select id="newFoundation" style="width:100%;padding:8px;margin:6px 0"><option value="auto">Auto: open when raised</option><option value="open">Open when raised</option><option value="solid">Solid foundation</option></select>
+<p class="foot">Ground stays solid. Open sections need a 10 ft base above paths and 10 ft of clear space above shops. Change underside edits existing pieces at their ground footprint.</p>
+<button class="tool" data-tool="foundation"><span class="emoji">▱</span><span>Change underside</span></button>
+</details>
+<div class="section">CONSTRUCTION TOOLS</div>
+        <p id="selectedTool" class="selectedtool" role="status">Selected: Walkway (W)</p>
+<button class="tool" data-tool="inspectFan"><span class="emoji">👤</span><span>Inspect fan (F)</span></button>
+<button class="tool" data-tool="inspect"><span class="emoji">🔎</span><span>Inspect access (I)</span></button>
+<button class="tool" data-tool="erase">
+          <span class="emoji">🗑️</span><span>Remove (G)</span
+          ><span class="price">70% refund</span>
+        </button>
+        <div id="accessPanel" hidden style="padding:10px;background:#fff4d6;border:1px solid #d3b36a;border-radius:8px;margin:8px 0"><strong>SEATING ACCESS</strong><p id="accessMessage" style="font-size:12px;line-height:1.45"></p><button class="smallbtn" id="accessSuggestion" hidden style="width:100%">Show suggested piece</button></div>
+<details class="toolgroup" open><summary>Paths & concourses</summary>
+<button class="tool sel" data-tool="path">
+          <span class="emoji">⬜</span><span>Walkway (W)</span
+          ><span class="price">$100</span></button
+        >
+<button class="tool" data-tool="halfPath"><span class="emoji">◩</span><span>Half walkway</span><span class="price">$50</span></button
+        >
+<button class="tool" data-tool="concourse"><span class="emoji">▦</span><span>Concourse</span><span class="price">$900</span></button
+        >
+<button class="tool" data-tool="halfConcourse"><span class="emoji">▰</span><span>Half concourse</span><span class="price">$450</span></button>
+<button class="tool" data-tool="cornerLanding"><span class="emoji">◩</span><span>Triangular concourse</span><span class="price">$700</span></button>
+</details>
+<details class="toolgroup"><summary>Seating & wedges</summary>
+<button class="tool" data-tool="bleacher">
+          <span class="emoji">🪑</span><span>Standalone bleachers</span
+          ><span class="price">$1,500</span></button
+        >
+<button class="tool" data-tool="stand" title="20 straight / 28 diagonal seats · 4 rows · 5 ft rise · R rotates 45°; diagonal footprint 14.1 × 14.1 ft">
+          <span class="emoji">🏟️</span><span>Seating section</span><span class="price">$1,800</span></button
+        >
+<button class="tool" data-tool="stairStand" title="8 straight / 16 diagonal seats · 6 ft stairs · 4 rows · 5 ft rise">
+          <span class="emoji">🪜</span><span>Stair section</span><span class="price">$1,600</span></button
+        >
+<button class="tool" data-tool="backstopStand"><span class="emoji">◈</span><span>Fence seating</span><span class="price">$1,800</span></button>
+<button class="tool" data-tool="backstopStair"><span class="emoji">◈</span><span>Fence stair seats</span><span class="price">$1,600</span></button>
+<button class="tool" data-tool="cornerStandLeft"><span class="emoji">◢</span><span>Corner seating · L</span><span class="price">$2,200</span></button>
+<button class="tool" data-tool="cornerStandRight"><span class="emoji">◣</span><span>Corner seating · R</span><span class="price">$2,200</span></button>
+<button class="tool" data-tool="backstopCornerFirst"><span class="emoji">◈</span><span>Fence corner · 1B</span><span class="price">$3,000</span></button>
+<button class="tool" data-tool="backstopCornerThird"><span class="emoji">◈</span><span>Fence corner · 3B</span><span class="price">$3,000</span></button>
+</details>
+<details class="toolgroup"><summary>Stairs & ramps</summary>
+<button class="tool" data-tool="stairs"><span class="emoji">↗</span><span>Standalone stairs</span><span class="price">$1,200</span></button>
+<button class="tool" data-tool="endStairLeft" title="No seats · 5 ft stairs + 5 ft landing · entrance on local left">
+          <span class="emoji">↗</span><span>End stairs · L</span><span class="price">$1,200</span></button
+        >
+<button class="tool" data-tool="endStairRight" title="No seats · 5 ft stairs + 5 ft landing · entrance on local right">
+          <span class="emoji">↖</span><span>End stairs · R</span><span class="price">$1,200</span></button
+        >
+<button class="tool" data-tool="ramp"><span class="emoji">↗</span><span>Ramp · 60 ft</span><span class="price">$3,600</span></button>
+</details>
+<details class="toolgroup"><summary>Walls & gates</summary>
+<button class="tool" data-tool="wall">
+          <span class="emoji">🧱</span><span>Wall</span
+          ><span class="price">$200</span></button
+        >
+<button class="tool" data-tool="gate">
+          <span class="emoji">🚪</span><span>Gate</span
+          ><span class="price">$800</span></button
+        >
+</details>
+<details class="toolgroup"><summary>Shops & restrooms</summary>
+<button class="tool" data-tool="concession">
+          <span class="emoji">🌭</span><span>Concessions</span
+          ><span class="price">$2,500</span></button
+        >
+<button class="tool" data-tool="restroom">
+          <span class="emoji">🚻</span><span>Restroom</span
+          ><span class="price">$2,000</span></button
+        >
+<button class="tool" data-tool="drinks"><span class="emoji">🥤</span><span>Drinks</span><span class="price">$2,200</span></button>
+<button class="tool" data-tool="iceCream"><span class="emoji">🍦</span><span>Ice cream</span><span class="price">$2,300</span></button>
+<button class="tool" data-tool="souvenir"><span class="emoji">🧢</span><span>Souvenirs</span><span class="price">$3,000</span></button>
+</details>
+<details class="toolgroup"><summary>Decorations</summary>
+<button class="tool" data-tool="tree"><span class="emoji">🌳</span><span>Decorative tree</span><span class="price">$250</span></button>
+<button class="tool" data-tool="baseballStatue"><span class="emoji">⚾</span><span>Player statue</span><span class="price">$1,500</span></button>
+<p class="foot">One ground tile each. Place beside paths; fans walk around decorations. R changes tree shape or statue facing.</p>
+</details>
+<details class="toolgroup"><summary>Scoreboards</summary>
+<button class="tool" data-tool="basicScoreboard"><span class="emoji">▣</span><span>Basic scoreboard</span><span class="price">$5,000</span></button>
+<button class="tool" data-tool="deluxeScoreboard"><span class="emoji">▤</span><span>Deluxe scoreboard</span><span class="price">$12,000</span></button>
+<button class="tool" data-tool="videoScoreboard"><span class="emoji">▰</span><span>Video board</span><span class="price">$25,000</span></button>
+<button class="tool" data-tool="vintageScoreboard"><span class="emoji">▥</span><span>Vintage scoreboard</span><span class="price">$8,000</span></button>
+</details>
+        <p id="standHelp" class="standhelp" role="status" hidden></p>
+        <div class="sidebarbottom">
+          <button type="button" class="smallbtn" id="openTutorial" hidden>Quick start guide</button>
+          <div class="section">GAME DAY</div>
+          <button class="smallbtn" id="demoCorners" style="width:100%;margin-bottom:6px">Build corner bowl demo · up to $31,200</button>
+          <button class="smallbtn" id="demoBackstop" style="width:100%;margin-bottom:6px">Build backstop demo · up to $11,700</button>
+          <button class="smallbtn" id="demoDiagonal" style="width:100%;margin-bottom:6px">Build diagonal demo · up to $19,600</button>
+          <button class="smallbtn" id="demoConcourse" style="width:100%;margin-bottom:6px">Build concourse demo · up to $11,400</button>
+          <button class="smallbtn" id="demoSideEntry" style="width:100%;margin-bottom:6px">Build side-entry demo · up to $10,100</button>
+          <button class="smallbtn" id="demoStands" style="width:100%;margin-bottom:6px">Build stand demo · up to $11,100</button>
+          <button class="smallbtn" id="demoFans" style="width:100%">Build demo route · up to $2,000</button>
+          <label for="gameMinutes">Game length</label>
+          <select id="gameMinutes" style="width:100%;padding:10px;margin:8px 0" aria-describedby="fanCountHelp"><option value="1">1 minute</option><option value="2">2 minutes</option><option value="5" selected>5 minutes</option><option value="10">10 minutes</option></select>
+          <label for="fanCount">Fans per game</label>
+          <select id="fanCount" style="width:100%;padding:10px;margin:8px 0" aria-describedby="fanCountHelp"><option value="100">100 fans</option><option value="250">250 fans</option><option value="500">500 fans</option><option value="1000">1,000 fans</option></select>
+          <label for="fanNeedsRate">Hunger &amp; restroom needs <output id="fanNeedsRateValue">1×</output></label>
+          <input id="fanNeedsRate" type="range" min="0" max="2" step="0.25" value="1" aria-describedby="fanNeedsHelp" />
+          <p id="fanNeedsHelp" class="foot">Slide left to turn needs off. This applies during the game.</p>
+          <p id="fanCountHelp" class="foot">Limited by reachable seats. Time and fan changes during play apply to the next game.</p>
+          <section class="game-day-scoreboard" aria-label="Game day and inning progress">
+            <div><strong id="gameDayStage">READY</strong><span>Inning <b id="gameDayInning">—</b></span></div>
+            <progress id="gameDayProgress" max="100" value="0" aria-label="Game day progress"></progress>
+            <small>Pregame 20% · Nine innings 80% · Postgame exits</small>
+          </section>
+          <button class="smallbtn" id="openGates" style="width:100%;margin-top:6px">▶ Open gates · $5 admission</button>
+          <button class="smallbtn" id="stopFans" style="width:100%;margin-top:6px">■ End game</button>
+          <button class="smallbtn" id="openGuestList" style="width:100%;margin-top:6px">☻ Guest status</button>
+          <button class="smallbtn" id="reopenPostgame" style="width:100%;margin-top:6px" hidden>▤ Last game report</button>
+          <p id="fanStatus" class="foot" role="status" aria-live="polite">Connect walkways to stair entrances, then open gates. Fans arrive in groups, play for your selected duration, and queue to walk out afterward.</p>
+          <label for="fanPicker">Inspect a fan</label>
+          <select id="fanPicker" hidden style="width:100%;padding:10px;margin:8px 0" aria-label="Inspect a fan"></select>
+          <div class="section">CONTROLS</div>
+          <div class="inline">
+            <button class="smallbtn" id="rotate">↻ Item 45° (R)</button
+            ><button class="smallbtn" id="undo">↶ Undo</button>
+          </div>
+          <div class="inline" style="margin-top: 8px">
+            <button class="smallbtn" id="cameraRotate">⟳ Camera 90° (Q)</button
+            ><button class="smallbtn" id="centerField">⌖ Center</button>
+          </div>
+          <div class="inline" style="margin-top: 8px">
+            <button class="smallbtn" id="zoomIn">＋ Zoom</button
+            ><button class="smallbtn" id="zoomOut">－ Zoom</button>
+          </div>
+          <div class="inline" style="margin-top: 8px">
+            <button class="smallbtn" id="save">💾 Save</button
+            ><button class="smallbtn" id="reset">↺ Reset</button>
+          </div>
+          <div class="inline" style="margin-top: 8px">
+            <button class="smallbtn" id="export">Export park</button
+            ><button class="smallbtn" id="import">Import park</button
+            ><input
+              id="importFile"
+              type="file"
+              accept="application/json,.json"
+              hidden
+            />
+          </div>
+          <div class="foot">
+            Walls: R cycles edges + diagonals · Click to build · Drag empty ground or right-drag to pan · Scroll to
+            zoom · R rotates item · Q rotates camera · Z undoes · Saved
+            automatically in this browser. Export a backup before switching
+            devices.
+          </div>
+        </div>
+      </aside>
+      <section id="worldwrap">
+        <div id="mobiletools">
+          <button id="mobileRotate">↻ Item 45°</button
+          ><button id="mobileCamera">⟳ Camera 90°</button
+          ><button id="mobileUndo">↶ Undo</button
+          ><button id="mobileCenter">⌖ Field</button>
+        </div>
+        <canvas
+          id="game"
+          tabindex="0"
+          aria-label="Ballpark construction grid"
+        ></canvas>
+        <section id="happinessPanel" aria-label="Fan happiness">
+          <div><strong>Fan Happiness</strong> <output id="fanHappinessValue">—</output></div>
+          <meter id="fanHappiness" aria-label="Average fan happiness" min="0" max="100" low="45" high="75" optimum="100" value="0"></meter>
+          <span id="fanHappinessReason">Waiting for fans</span>
+          <div class="experience-report"><strong>Guest experience</strong><span id="fanExperienceSummary">Waiting for fans</span><span id="fanTopPraise">Most liked: no feedback yet</span><span id="fanTopComplaint">Top complaint: no feedback yet</span><span id="fanGameMoment">Game moments: awaiting first pitch</span></div>
+        </section>
+        <div id="hint">
+          🌱 <strong>First milestone: build a small ballpark</strong><br />Place
+          paths, bleachers and amenities around the diamond. Every square =
+          <strong>10 × 10 feet</strong>. Foul fence: 3 ft · Outfield fence: 8 ft. Gold arrows show seat facing.
+        </div>
+        <aside id="fanPanel" hidden aria-label="Fan inspector">
+          <button id="closeFanPanel" aria-label="Close fan inspector">×</button>
+          <h2>Fan inspector</h2>
+          <label for="bathroomMeter">🚻 Bathroom need</label>
+          <div><meter id="bathroomMeter" min="0" max="100" low="40" high="75" optimum="0"></meter> <span id="bathroomValue">0%</span></div>
+          <label for="hungerMeter">🍔 Hunger</label>
+          <div><meter id="hungerMeter" min="0" max="100" low="40" high="75" optimum="0"></meter> <span id="hungerValue">0%</span></div>
+          <p id="fanDetails"></p><p id="selectedFanMood" class="fan-experience-text">Individual happiness: —</p><p id="selectedFanThoughts" class="fan-experience-text">Guest thoughts: —</p><p id="selectedFanSpending" class="fan-experience-text">Guest spending: —</p>
+          <div class="fan-tracking">
+            <button class="smallbtn" id="centerFan">Center fan</button>
+            <button class="smallbtn" id="followFan" aria-pressed="false">Follow fan</button>
+          </div>
+          <small>Food costs $5. Stands serve one fan at a time. Esc closes.</small>
+        </aside>
+        <aside id="guestManager" class="guest-manager" hidden aria-label="Guest status">
+          <div class="guest-manager-head">
+            <div><strong>Guests</strong><span id="guestManagerCount">0 guests</span></div>
+            <button id="closeGuestList" aria-label="Close guest status">×</button>
+          </div>
+          <div class="guest-manager-tabs" role="group" aria-label="Guest view">
+            <button type="button" id="guestViewActions" data-guest-view="actions" aria-pressed="true">Actions</button>
+            <button type="button" id="guestViewThoughts" data-guest-view="thoughts" aria-pressed="false">Thoughts</button>
+            <button type="button" id="guestViewNeeds" data-guest-view="needs" aria-pressed="false">Needs</button>
+            <button type="button" id="guestViewSpending" data-guest-view="spending" aria-pressed="false">Spending</button>
+          </div>
+          <div class="guest-manager-filter">
+            <label for="guestFilter">Show</label>
+            <select id="guestFilter">
+              <option value="all">All guests</option>
+              <option value="walking">Walking / arriving</option>
+              <option value="seated">Watching from seats</option>
+              <option value="amenity">Food / restroom</option>
+              <option value="waiting">Waiting or delayed</option>
+              <option value="exited">Exited</option>
+            </select>
+          </div>
+          <div id="guestManagerRows" class="guest-manager-rows" role="list" aria-label="Individual guests"></div>
+          <div id="guestManagerInfo" class="guest-manager-info">Choose a guest to inspect, highlight and follow.</div>
+        </aside>
+        <div id="toast"></div>
+        <div id="location">
+          Tile <b id="coords">—</b> · Item <b id="rotation">0°</b> · Camera
+          <b id="cameraRotation">0°</b> ·
+          <span class="swatch" style="background: #d8e6b4"></span>10 ft/grid
+          square
+        </div>
+      </section>
+    </main>
+    <dialog id="postgameDialog" aria-labelledby="postgameTitle">
+      <div class="postgame-header">
+        <div><span class="postgame-kicker">SPORTS VENUE SIMULATOR</span><h2 id="postgameTitle">Game Day Report</h2>
+        <p>Here’s how your guests experienced the ballpark.</p></div>
+        <form method="dialog"><button type="submit" class="postgame-dismiss" aria-label="Close report">×</button></form>
+      </div>
+      <div class="postgame-metrics">
+        <div><strong id="postgameScore">—</strong><span>Fan happiness</span></div>
+        <div><strong id="postgameAttendance">—</strong><span>Attendance</span></div>
+        <div><strong id="postgameRevenue">—</strong><span>Total revenue</span></div>
+      </div>
+      <p id="postgameMood" class="postgame-mood"></p>
+      <p id="postgameSeating" class="postgame-mood"></p>
+      <section class="postgame-section"><h3>★ Favorite features</h3><ul id="postgameFavorites"></ul></section>
+      <section class="postgame-section"><h3>♥ What fans liked</h3><ul id="postgamePraise"></ul></section>
+      <section class="postgame-section"><h3>⚠ Areas to improve</h3><ul id="postgameProblems"></ul></section>
+      <section class="postgame-section"><h3>Game day operations</h3>
+        <p id="postgameWaits"></p><p id="postgameEconomy"></p>
+      </section>
+      <p class="postgame-footnote">Based on recorded guest experiences and simulated events. Mentions count individual reactions, not a survey of every attendee.</p>
+      <button type="button" class="smallbtn postgame-action" id="closePostgame">Return to stadium</button>
+    </dialog>
+    <dialog id="tutorial" aria-labelledby="tutorialTitle">
+      <h2 id="tutorialTitle" tabindex="-1" autofocus>Build and run your first game</h2>
+      <ol>
+        <li>
+          <h3>Build a small ballpark</h3>
+          <p>Choose a path tool, then click or tap tiles to lay a continuous walkway from the main gate into the park. Place a bleacher next to the walkway. If you build raised seating, connect the walkway to the bottom of its stairs. Use <strong>Rotate</strong> to turn a piece before placing it and <strong>Undo</strong> to take back your last build.</p>
+          <p>Want a ready-made example? In <strong>Game Day</strong>, choose <strong>Build demo route</strong> to add a walkway and bleacher if the area is clear.</p>
+        </li>
+        <li>
+          <h3>Choose your crowd and game length</h3>
+          <p>In <strong>Game Day</strong>, start with <strong>100 fans</strong> and <strong>2 minutes</strong>. The crowd is capped by the number of seats fans can reach. Changes made during play apply to the next game.</p>
+        </li>
+        <li>
+          <h3>Open the gates</h3>
+          <p>Click <strong>Open gates</strong> to start. Fans arrive in groups, pay $5 each, and head to their seats. When the timer ends, watch them leave. Use <strong>End game</strong> if you want to stop early.</p>
+        </li>
+      </ol>
+      <form method="dialog"><button class="smallbtn">Got it</button></form>
+    </dialog>
+    <script src="../game.js?v=marinelli-test-1" defer></script>
+    <script src="../tutorial.js?v=marinelli-test-1" defer></script>
+  </body>
+</html>

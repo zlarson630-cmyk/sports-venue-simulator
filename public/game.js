@@ -1,5 +1,7 @@
 (() => {
   "use strict";
+  const marinelliTest = document.documentElement?.dataset.marinelliTest === "true";
+  const storagePrefix = marinelliTest ? "marinelli.test." : "";
   const PAVEMENT = "#dedbc9", PAVEMENT_EDGE = "#aaa99c";
   const W = 60,
     H = 60,
@@ -135,8 +137,11 @@
     }
     return { x: Math.floor(x), y: Math.floor(y) };
   }
+  function cameraBounds() {
+    return marinelliScenery ? [[-11,-12],[72,-12],[72,69],[-11,69]] : streetBoundary;
+  }
   function centerField() {
-    const pts=streetBoundary.map(p=>project(...p));
+    const pts=cameraBounds().map(p=>project(...p));
     const c={x:(Math.min(...pts.map(p=>p.x))+Math.max(...pts.map(p=>p.x)))/2,
       y:(Math.min(...pts.map(p=>p.y))+Math.max(...pts.map(p=>p.y)))/2};
     panX += wrap.clientWidth * 0.5 - c.x;
@@ -2008,14 +2013,14 @@
     document.getElementById("fanNeedsRateValue").textContent=needsRate===0?"Off":needsRate+"×";
   }
   try{
-    const saved=localStorage.getItem("svs.needsRate");
+    const saved=localStorage.getItem(storagePrefix+"svs.needsRate");
     if(saved!=null&&Number(saved)>=0&&Number(saved)<=2)needsRate=Number(saved);
   }catch{}
   showNeedsRate();
   needsControl.oninput=()=>{
     needsRate=Math.max(0,Math.min(2,Number(needsControl.value)||0));
     showNeedsRate();
-    try{localStorage.setItem("svs.needsRate",String(needsRate));}catch{}
+    try{localStorage.setItem(storagePrefix+"svs.needsRate",String(needsRate));}catch{}
   };
   // Keep the line on the paved frontage beside the stand. A future queue
   // divider can supply a different ordered list of standing positions.
@@ -2806,7 +2811,7 @@
   }
   // Marinelli Field scenery is visual-only and intentionally lives outside the
   // buildable stadium. Enable with ?marinelli=1; no saved-park data is modified.
-  const marinelliScenery = new URLSearchParams(location.search).get("marinelli")==="1";
+  const marinelliScenery = marinelliTest || (typeof location !== "undefined" && new URLSearchParams(location.search).get("marinelli")==="1");
   function drawMarinelliScenery(){
     if(!marinelliScenery)return;
     const poly=(pts,fill,stroke=null)=>polygon(pts.map(([x,y])=>project(x,y)),fill,stroke,stroke?0.8:0);
@@ -3118,7 +3123,7 @@
     clearTimeout(toast.timer);
     toast.timer = setTimeout(() => t.classList.remove("on"), 1800);
   }
-  const PARKS_KEY="svs.parks.v1",ACTIVE_KEY="svs.activePark.v1";
+  const PARKS_KEY=storagePrefix+"svs.parks.v1",ACTIVE_KEY=storagePrefix+"svs.activePark.v1";
   let activeParkId=null,parkRecords=[];
   const parkPayload=()=>({version:2,fieldRevision:7,entranceRevision:1,seatingRevision:2,wallFinishRevision:1,gameMinutes,requestedFans,tiles,edges,infillDecks,underlays,groundConcrete,money,team});
   let parkSerial=0;
@@ -3130,7 +3135,7 @@
     try {
       const data=parkPayload(),serialized=JSON.stringify(data);
       // Keep the legacy key as an active-park backup for older versions.
-      localStorage.setItem("svs01",serialized);
+      localStorage.setItem(storagePrefix+"svs01",serialized);
       if(activeParkId){
         const record=parkRecords.find(p=>p.id===activeParkId);
         if(record){
@@ -3232,7 +3237,7 @@
       if(Array.isArray(existing))parkRecords=existing.filter(p=>
         p&&typeof p.id==="string"&&typeof p.name==="string"&&
         Number.isFinite(p.updatedAt)&&p.data&&typeof p.data==="object");
-      const legacy=localStorage.getItem("svs01");
+      const legacy=localStorage.getItem(storagePrefix+"svs01");
       if(!parkRecords.length&&legacy){
         const parsed=JSON.parse(legacy);validatePark(parsed);
         parkRecords=[{id:parkId(),name:"My Original Ballpark",updatedAt:Date.now(),data:parsed}];
@@ -3451,11 +3456,11 @@
     canvas.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (!cameraInit) {
-      const bounds=streetBoundary.map(([x,y])=>{const r=rotated(x,y);return point(r.x,r.y);});
+      const bounds=cameraBounds().map(([x,y])=>{const r=rotated(x,y);return point(r.x,r.y);});
       const width=Math.max(...bounds.map(p=>p.x))-Math.min(...bounds.map(p=>p.x));
       const height=Math.max(...bounds.map(p=>p.y))-Math.min(...bounds.map(p=>p.y));
       zoom=Math.min(1.14,(w-80)/width,(h-160)/height);
-      zoom=Math.max(0.45,zoom);
+      zoom=Math.max(marinelliScenery ? 0.2 : 0.45,zoom);
       cameraInit = true;
       centerField();
     }
@@ -3511,7 +3516,7 @@
     }
   };
   function changeZoom(factor,p={x:wrap.clientWidth/2,y:wrap.clientHeight/2}) {
-    const old=zoom;zoom=Math.max(0.45,Math.min(6,zoom*factor));panX=p.x-(p.x-panX)*zoom/old;panY=p.y-(p.y-panY)*zoom/old;requestDraw();
+    const old=zoom;zoom=Math.max(marinelliScenery ? 0.2 : 0.45,Math.min(6,zoom*factor));panX=p.x-(p.x-panX)*zoom/old;panY=p.y-(p.y-panY)*zoom/old;requestDraw();
   }
   document.getElementById("zoomIn").onclick=()=>changeZoom(1.18);
   document.getElementById("zoomOut").onclick=()=>changeZoom(1/1.18);
