@@ -2812,54 +2812,83 @@
   // Marinelli Field scenery is visual-only and intentionally lives outside the
   // buildable stadium. Enable with ?marinelli=1; no saved-park data is modified.
   const marinelliScenery = marinelliTest || (typeof location !== "undefined" && new URLSearchParams(location.search).get("marinelli")==="1");
+
+  // Marinelli test geography. All scenery lives outside field construction,
+  // and does not modify the save payload, navigation, or main sandbox.
   function drawMarinelliScenery(){
     if(!marinelliScenery)return;
     const poly=(pts,fill,stroke=null)=>polygon(pts.map(([x,y])=>project(x,y)),fill,stroke,stroke?0.8:0);
-    // Left-field river: an irregular ribbon beyond the outfield perimeter.
+    const wave=y=>Math.sin(y*.095)*1.4+Math.sin(y*.25)*.45;
+    // Rock River parallels the LEFT-field side (larger world y), continuing
+    // beyond left-center. The playable field's third-base line points +y.
     const near=[],far=[];
-    for(let x=5;x<=72;x+=2){
-      const bend=Math.sin(x*.12)*1.1+Math.sin(x*.28)*.35;
-      near.push([x,51+bend]);far.push([x,66+bend*.65]);
+    for(let x=-20;x<=82;x+=2){
+      const bend=Math.sin(x*.095)*1.4+Math.sin(x*.25)*.45;
+      near.push([x,52+bend]);far.push([x,71+bend*.6]);
     }
-    poly([...near,...far.reverse()],"#548a94","#8bb1a0");
-    for(let x=9;x<70;x+=3.4){
-      const y=56+Math.sin(x*.12)*1.1;
-      const a=project(x,y),b=project(x+1.3,y+.2);
-      line(a,b,"#9ac6c9",1.2);
+    poly([...near,...far.reverse()],"#538793","#7eaaa3");
+    for(let x=-14;x<78;x+=4){
+      const y=60+Math.sin(x*.095)*1.4;
+      line(project(x,y),project(x+2,y+.5),"#9bc5c7",1);
     }
-    // Riverside bike trail and the narrow planted strip against left field.
-    poly([[8,46.7],[68,46.7],[68,49.1],[8,49.1]],"#5d7957");
-    poly([[8,47.5],[68,47.5],[68,48.35],[8,48.35]],"#b9b5a1","#ded9c4");
-    for(let x=11;x<67;x+=4.5)line(project(x,47.92),project(x+1.8,47.92),"#eee5c8",.8);
-    // Forest past the first-base bleachers. Deterministic shapes, no gameplay collision.
-    poly([[23,-3],[55,-3],[55,7],[23,7]],"#55774b");
-    for(let i=0;i<55;i++){
-      const x=24+(i*13%31)+Math.sin(i*1.7)*.5;
-      const y=-2+(i*7%9)+Math.cos(i*2.3)*.3;
-      const p=project(x,y),h=(10+i%5*3)*zoom;
-      ctx.fillStyle="#4c4633";ctx.fillRect(p.x-1*zoom,p.y-h*.72,2*zoom,h*.72);
-      ctx.beginPath();ctx.ellipse(p.x,p.y-h,5.5*zoom,7.5*zoom,0,0,Math.PI*2);
-      ctx.fillStyle=["#315c3d","#416d46","#52794b","#2d563c"][i%4];ctx.fill();
+    // Nelson Boulevard follows the river on the stadium side, with a sidewalk.
+    const strip=(y0,y1,color)=>poly([[-16,y0],[79,y0],[79,y1],[-16,y1]],color);
+    strip(47.1,48.1,"#c1bdae");
+    strip(48.1,50.7,"#595f61");
+    strip(50.7,51.6,"#9aab91");
+    for(let x=-13;x<76;x+=4.5)line(project(x,49.4),project(x+1.8,49.4),"#d6c79a",1);
+    // Mature trees just beyond left and left-center field, between wall and road.
+    for(let i=0;i<25;i++){
+      const x=17+i*1.5+Math.sin(i*2.1)*.3;
+      const y=45.7+Math.sin(i*1.6)*.85;
+      const p=project(x,y),z=zoom;
+      const h=(16+i%5*3)*z,rx=(6+i%3*1.4)*z;
+      line(p,{x:p.x,y:p.y-h*.73},"#665b45",2.2);
+      ctx.beginPath();ctx.ellipse(p.x,p.y-h,rx,rx*.9,0,0,Math.PI*2);
+      ctx.fillStyle=["#315d3b","#3b6d44","#517b4a","#42693d"][i%4];ctx.fill();
     }
-    // Parking behind the third-base grandstand, separate from the existing gate lot.
-    poly([[-3,19],[10,19],[10,36],[-3,36]],"#737a77","#b7b5a5");
-    for(let row=0;row<3;row++)for(let i=0;i<6;i++){
-      const x=-1+i*1.65,y=21+row*4.8;
-      line(project(x,y),project(x,y+2.6),"#d5d2c2",.8);
-      if((i+row)%4!==0)poly([[x+.2,y+.25],[x+1.2,y+.25],[x+1.2,y+1.9],[x+.2,y+1.9]],["#c4c8c0","#5d747d","#a7a6a0"][i%3]);
+    // Dense woodland beyond the first-base stands, not a roadside corridor.
+    poly([[24,-10],[57,-10],[57,7],[24,7]],"#52794b");
+    for(let i=0;i<62;i++){
+      const x=25+(i*17%31)+Math.sin(i*1.7)*.5;
+      const y=-8+(i*11%14)+Math.cos(i*2.3)*.3;
+      const p=project(x,y),z=zoom,h=(13+i%5*3)*z;
+      line(p,{x:p.x,y:p.y-h*.74},"#544c37",2);
+      ctx.beginPath();ctx.ellipse(p.x,p.y-h,(5+i%3)*z,(6+i%4)*z,0,0,Math.PI*2);
+      ctx.fillStyle=["#2f5d3b","#426d45","#547e4e","#365d3c"][i%4];ctx.fill();
+    }
+    // Satellite-inspired large third-base parking lot: angled perimeter and
+    // faded markings, with three planted islands. No phantom gate-side lot.
+    const lot=[[-16,17],[8,25],[7,46],[-20,40]];
+    poly(lot,"#777c78","#aaa99b");
+    for(let row=0;row<3;row++)for(let n=0;n<13;n++){
+      const x=-17+n*1.95+row*.28,y=19+row*6+n*.27;
+      if(x>7||y>44)continue;
+      line(project(x,y),project(x+.9,y+2.8),"#b5b5a9",.75);
+      if((n+row)%4===1){
+        poly([[x+.2,y+.4],[x+1.1,y+.55],[x+1.2,y+2.15],[x+.3,y+2]],["#b7bab7","#687988","#c2b8aa"][(n+row)%3]);
+      }
+    }
+    for(const [x,y] of [[-13,24],[-14,33],[-3,40]]){
+      poly([[x-1,y-2],[x+1,y-2],[x+1.3,y+2],[x-.8,y+2]],"#69785e","#c1c0aa");
+      const p=project(x,y),h=15*zoom;
+      line(p,{x:p.x,y:p.y-h*.7},"#5a4c37",2);
+      ctx.beginPath();ctx.ellipse(p.x,p.y-h,6*zoom,7*zoom,0,0,Math.PI*2);
+      ctx.fillStyle="#396744";ctx.fill();
     }
   }
   function drawMarinelliBridge(){
     if(!marinelliScenery)return;
-    // The road beyond right field continues across the river on a raised bridge.
-    const deck=[[53.5,46],[58.5,46],[58.5,69],[53.5,69]];
-    polygon(deck.map(([x,y])=>{const p=project(x,y);return {...p,y:p.y-4*zoom};}),"#616b70","#c6c9c1",1.2);
-    for(const x of [53.3,58.7]){
-      line(project(x,46),project(x,69),"#c4c9c4",2);
+    // 15th Avenue crosses the river beyond straightaway center field.
+    // Its deck runs across y (perpendicular to the river/Nelson Boulevard).
+    const elevate=([x,y])=>{const p=project(x,y);return {...p,y:p.y-4*zoom};};
+    const deck=[[43,45],[48,45],[48,78],[43,78]];
+    polygon(deck.map(elevate),"#62686b","#c7c6bc",1.1);
+    for(const x of [42.8,48.2]){
+      line(elevate([x,45]),elevate([x,78]),"#d3d3ca",1.4);
     }
-    for(let y=49;y<68;y+=3){
-      const a=project(56,y),b=project(56,y+1.2);
-      a.y-=4*zoom;b.y-=4*zoom;line(a,b,"#e7dfb6",1);
+    for(let y=48;y<77;y+=4){
+      line(elevate([45.5,y]),elevate([45.5,y+1.8]),"#ece2b9",1.1);
     }
   }
   function drawWorld() {
@@ -2899,10 +2928,8 @@
         materialTexture(x,y,"grass");
       }
     }
-    drawMarinelliScenery();
-    drawStreets();
-    drawMarinelliBridge();
-    drawParking();
+    if(marinelliScenery){drawMarinelliScenery();drawMarinelliBridge();}
+    else {drawStreets();drawParking();}
     pitch();
 
     // Pavement belongs to the ground pass, below every person and structure.
