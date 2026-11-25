@@ -9,6 +9,7 @@ const files = {
   "/tutorial.js": ["tutorial.js", "text/javascript"],
   "/test/": ["test/index.html", "text/html"],
   "/test/index.html": ["test/index.html", "text/html"],
+  "/test/marinelli.css": ["test/marinelli.css", "text/css"],
   "/test/ownership.html": ["test/ownership.html", "text/html"],
   "/test/ownership.js": ["test/ownership.js", "text/javascript"],
   "/test/park-link.js": ["test/park-link.js", "text/javascript"],

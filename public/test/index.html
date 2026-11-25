@@ -8,13 +8,14 @@
     />
     <title>Marinelli Field — Stadium Builder Test</title>
     <link rel="stylesheet" href="../styles.css?v=0.49.0-main-menu" />
+    <link rel="stylesheet" href="./marinelli.css?v=1" />
   </head>
   <body>
     <header>
-      <div class="logo">🏟️</div>
+      <div class="logo" aria-hidden="true">⚾</div>
       <div>
-        <h1>SPORTS VENUE<br />SIMULATOR</h1>
-        <small>MARINELLI FIELD · TEST BUILD</small>
+        <h1>Marinelli Field</h1>
+        <small>SPORTS VENUE SIMULATOR</small>
       </div>
       <button class="smallbtn" id="openParkMenu" type="button">☰ My Parks</button>
       <div class="topstats">
@@ -45,7 +46,7 @@
           <button id="paintTool" class="smallbtn">Apply to an item → click it</button>
           <p class="foot">Linked items update together. Custom items keep their colors. Undo restores colors too.</p>
         </details>
-        <details class="toolgroup" open><summary>Build layers</summary>
+        <details class="toolgroup"><summary>Build layers</summary>
 <label style="display:block;margin:8px 0"><input type="checkbox" id="workUnder"> Work underneath · ghost upper pieces</label>
 <label for="placementHeight">New raised-piece height</label><select id="placementHeight" style="width:100%;padding:8px;margin:6px 0"></select>
 <label for="newFoundation">New piece underneath</label><select id="newFoundation" style="width:100%;padding:8px;margin:6px 0"><option value="auto">Auto: open when raised</option><option value="open">Open when raised</option><option value="solid">Solid foundation</option></select>
@@ -220,9 +221,8 @@
           <div class="experience-report"><strong>Guest experience</strong><span id="fanExperienceSummary">Waiting for fans</span><span id="fanTopPraise">Most liked: no feedback yet</span><span id="fanTopComplaint">Top complaint: no feedback yet</span><span id="fanGameMoment">Game moments: awaiting first pitch</span></div>
         </section>
         <div id="hint">
-          🌱 <strong>First milestone: build a small ballpark</strong><br />Place
-          paths, bleachers and amenities around the diamond. Every square =
-          <strong>10 × 10 feet</strong>. Foul fence: 3 ft · Outfield fence: 8 ft. Gold arrows show seat facing.
+          <strong>Build a path from the main gate to your seats.</strong><br />
+          Each tile is 10 × 10 ft. Gold arrows show which way seats face.
         </div>
         <aside id="fanPanel" hidden aria-label="Fan inspector">
           <button id="closeFanPanel" aria-label="Close fan inspector">×</button>
@@ -313,7 +313,7 @@
       </ol>
       <form method="dialog"><button class="smallbtn">Got it</button></form>
     </dialog>
-    <script src="../game.js?v=marinelli-homeplate-3" defer></script>
+    <script src="../game.js?v=marinelli-art-1" defer></script>
     <script src="../tutorial.js?v=marinelli-test-1" defer></script>
   </body>
 </html>
