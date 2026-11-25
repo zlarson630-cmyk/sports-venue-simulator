@@ -205,6 +205,51 @@
     let h=(Math.imul(Math.floor(x*997)+31,73856093)^Math.imul(Math.floor(y*991)+17,19349663)^Math.imul(n+1,83492791))>>>0;
     h^=h>>>13;h=Math.imul(h,1274126177);return ((h^(h>>>16))>>>0)/4294967295;
   };
+  // A small repeating grain keeps the turf textured even when zoomed out.
+  // It is painted into the same cached world layer as the rest of the ground.
+  let marinelliTurf;
+  function drawMarinelliTurf() {
+    if (marinelliTurf === undefined) {
+      const texture = document.createElement("canvas");
+      const size = 128;
+      texture.width = texture.height = size;
+      const grain = texture.getContext?.("2d");
+      if (!grain?.fillRect) {
+        marinelliTurf = null;
+        return;
+      }
+      for (let i = 0; i < 5200; i++) {
+        const x = Math.floor(textureHash(i, 1) * size) % size;
+        const y = Math.floor(textureHash(i, 2) * size) % size;
+        grain.fillStyle = ["#21391635", "#dfd78b35", "#47632348", "#a4b55a38"][i % 4];
+        grain.fillRect(x, y, i % 5 === 0 && x < size - 1 ? 2 : 1, 1);
+      }
+      marinelliTurf = ctx.createPattern(texture, "repeat") ?? null;
+    }
+    if (!marinelliTurf) return;
+    const origin = project(0, 0);
+    const scale = Math.max(0.8, zoom);
+    ctx.save();
+    ctx.translate(origin.x, origin.y);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = marinelliTurf;
+    ctx.fillRect(-origin.x / scale, -origin.y / scale, canvas.clientWidth / scale, canvas.clientHeight / scale);
+    ctx.restore();
+  }
+  function drawMarinelliGrid() {
+    if (zoom < 0.85 || fanActive) return;
+    ctx.beginPath();
+    const gridLine = (a, b) => {
+      const start = project(...a), end = project(...b);
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+    };
+    for (let x = 0; x <= W; x++) gridLine([x,0], [x,H]);
+    for (let y = 0; y <= H; y++) gridLine([0,y], [W,y]);
+    ctx.strokeStyle = "#253b2040";
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
   function materialTexture(x,y,kind){
     // Textures are drawn only inside the projected tile, in local world units.
     // A few fine, low-contrast strokes suggest grass fibers or concrete grain.
@@ -1109,11 +1154,12 @@
               local(0.23, -0.325, 11),
               local(-0.23, -0.325, 11),
             ],
-            "#183a55",
+            marinelliTest && food ? "#6e492c" : "#183a55",
             "#fff0c9",
             1,
           );
           if(food) {
+            if (marinelliTest) segment([-0.2,-0.327],[0.2,-0.327],10.1,"#e8b565",1.3);
             polygon([local(-0.36,-0.55,12),local(0.36,-0.55,12),local(0.36,-0.20,17),local(-0.36,-0.20,17)],palette.primary,palette.accent,0.7);
             for(let stripe=0;stripe<4;stripe++)segment([-0.32+stripe*0.2,-0.5],[-0.32+stripe*0.2,-0.22],15,palette.secondary,2);
             segment([-0.32,-0.35],[0.32,-0.35],12,palette.accent,3);
@@ -1161,11 +1207,24 @@
     }
   }
   function pitch() {
-    for(const k of field) {
-      const [x,y]=k.split(",").map(Number);
-      diamond(x+0.5,y+0.5,(x+y)%2?"#76ab67":"#7fb571","#70a363");
+    if (marinelliTest) {
+      // Keep the grass on the existing playing surface and align the mowing bands to the field.
+      const turf = fenceCorners.map(([x,y])=>project(x,y));
+      polygon(turf, "#789146", null);
+      ctx.save();
+      ctx.clip();
+      for (let x = 14; x < 48; x += 6) {
+        polygon([[x,10],[x+3,10],[x+3,44],[x,44]].map(([a,b])=>project(a,b)), "#819b4d", null);
+      }
+      drawMarinelliTurf();
+      ctx.restore();
+    } else {
+      for(const k of field) {
+        const [x,y]=k.split(",").map(Number);
+        diamond(x+0.5,y+0.5,(x+y)%2?"#76ab67":"#7fb571","#70a363");
+      }
     }
-    polygon(warningTrack.map(p=>project(...p)),"#b58760","#cba078",0.8);
+    polygon(warningTrack.map(p=>project(...p)),marinelliTest?"#a46d45":"#b58760",marinelliTest?"#c39361":"#cba078",0.8);
     const [hx,hy]=homeWorld, dirtRadius=15;
     // Rounded grass/dirt cutout; buildings and fences still snap to the grid.
     const dirt=[project(hx,hy)];
@@ -1173,14 +1232,21 @@
       const angle=i/48*Math.PI/2;
       dirt.push(project(hx+Math.cos(angle)*dirtRadius,hy+Math.sin(angle)*dirtRadius));
     }
-    polygon(dirt,"#ca9463","#deb183",1);
+    const clay = marinelliTest ? "#bb8051" : "#ca9463";
+    polygon(dirt,clay,marinelliTest?"#d39f68":"#deb183",1);
+    if (marinelliTest) {
+      ctx.save();ctx.clip();drawMarinelliTurf();ctx.restore();
+    }
     const circle=(cx,cy,r,fill)=>{
       const pts=[];
       for(let i=0;i<48;i++) {const a=i/48*Math.PI*2;pts.push(project(cx+Math.cos(a)*r,cy+Math.sin(a)*r));}
       polygon(pts,fill,null);
     };
-    circle(hx,hy,1.25,"#ca9463");
-    polygon([[hx+0.7,hy+0.7],[hx+8.3,hy+0.7],[hx+8.3,hy+8.3],[hx+0.7,hy+8.3]].map(p=>project(...p)),"#74b166","#8dba72",1);
+    circle(hx,hy,1.25,clay);
+    polygon([[hx+0.7,hy+0.7],[hx+8.3,hy+0.7],[hx+8.3,hy+8.3],[hx+0.7,hy+8.3]].map(p=>project(...p)),marinelliTest?"#80994c":"#74b166",marinelliTest?"#97a759":"#8dba72",1);
+    if (marinelliTest) {
+      ctx.save();ctx.clip();drawMarinelliTurf();ctx.restore();
+    }
     const moundOffset=6.05/Math.SQRT2;
     circle(hx+moundOffset,hy+moundOffset,0.9,"#d9ab7b");
     for(const [x,y] of basesWorld) {
@@ -1269,7 +1335,13 @@
     for(const [a,b] of [[0.1,0.1],[2.9,0.1],[0.1,d.width-0.2],[2.2,d.width-0.2]])
       line(at(a,b,-depth),at(a,b,roofHeight),"#5f7174",1.6);
     // Roof stops short of the field-side stairs, leaving the player exit visible.
-    polygon([[-0.12,-0.12],[3.12,-0.12],[3.12,0.1],[2.25,0.1],[2.25,d.width-0.1],[-0.12,d.width-0.1]].map(([a,b])=>at(a,b,roofHeight)),"#31546a","#59656a",0.7);
+    polygon([[-0.12,-0.12],[3.12,-0.12],[3.12,0.1],[2.25,0.1],[2.25,d.width-0.1],[-0.12,d.width-0.1]].map(([a,b])=>at(a,b,roofHeight)),marinelliTest?"#596758":"#31546a","#59656a",0.7);
+    if (marinelliTest) {
+      for (let a = 0.02; a < 2.25; a += 0.18) {
+        line(at(a,-0.12,roofHeight),at(a,d.width-0.1,roofHeight),"#303e38",0.65);
+        line(at(a+0.035,-0.12,roofHeight),at(a+0.035,d.width-0.1,roofHeight),"#9ba48b",0.45);
+      }
+    }
     line(at(-0.12,d.width-0.1,roofHeight),at(2.25,d.width-0.1,roofHeight),"#c1b183",2.5);
     const p=at(1.5,0,roofHeight+6);
     ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";ctx.fillStyle="#f6e8bd";
@@ -1400,7 +1472,7 @@
   for(let y=8;y<=46;y+=3.5) {addTree(5.7,y);addTree(53.3,y);}
   function drawRoadsideTree(tree) {
     const p=project(tree.x,tree.y),z=zoom;
-    const size=[1,0.9,1.1][tree.variant],h=22*size*z;
+    const size=tree.size ?? [1,0.9,1.1][tree.variant],h=22*size*z;
     ctx.beginPath();ctx.ellipse(p.x+3*z,p.y+2*z,10*size*z,4*size*z,0,0,Math.PI*2);
     ctx.fillStyle="#284b3030";ctx.fill();
     if(tree.placed)captureFace([{x:p.x-1.5*z,y:p.y,depth:p.depth},{x:p.x+1.5*z,y:p.y,depth:p.depth},{x:p.x+1.5*z,y:p.y-h*0.7,depth:p.depth},{x:p.x-1.5*z,y:p.y-h*0.7,depth:p.depth}],"#74513a");
@@ -1410,6 +1482,15 @@
       ctx.beginPath();ctx.ellipse(p.x+dx*z,p.y+dy*z,rx*size*z,ry*size*z,0,0,Math.PI*2);
       ctx.fillStyle=color;ctx.fill();
     };
+    if (marinelliTest) {
+      crown(1,-h/z+1,10,10,"#344b2b");
+      crown(4,-h/z+1,7,8,"#476335");
+      crown(-4,-h/z-3,7,8,"#617f3b");
+      crown(2,-h/z-6,7,7,"#567238");
+      crown(-2,-h/z-8,5,5,"#829749");
+      crown(-6,-h/z-4,3.5,3.1,"#91a356");
+      return;
+    }
     crown(0,-h/z,10,12,"#356a42");
     crown(-4,-h/z-2,7.5,9,"#4e8850");
     crown(3,-h/z+2,7,8,"#427c46");
@@ -2821,7 +2902,6 @@
   function drawMarinelliScenery(){
     if(!marinelliScenery)return;
     const poly=(pts,fill,stroke=null)=>polygon(pts.map(([x,y])=>project(x,y)),fill,stroke,stroke?0.8:0);
-    const wave=y=>Math.sin(y*.095)*1.4+Math.sin(y*.25)*.45;
     // Rock River parallels the LEFT-field side (larger world y), continuing
     // beyond left-center. The playable field's third-base line points +y.
     const near=[],far=[];
@@ -2829,10 +2909,27 @@
       const bend=Math.sin(x*.095)*1.4+Math.sin(x*.25)*.45;
       near.push([x,52+bend]);far.push([x,71+bend*.6]);
     }
-    poly([...near,...far.reverse()],"#538793","#7eaaa3");
-    for(let x=-14;x<78;x+=4){
-      const y=60+Math.sin(x*.095)*1.4;
-      line(project(x,y),project(x+2,y+.5),"#9bc5c7",1);
+    poly([...near,...[...far].reverse()],"#538793","#7eaaa3");
+    if (marinelliTest) {
+      ctx.save();
+      ctx.clip();
+      for (const [bank, offset] of [[near, 0.6], [far, -0.6]]) {
+        for (let i = 1; i < bank.length; i++) {
+          const [x1,y1] = bank[i-1], [x2,y2] = bank[i];
+          line(project(x1,y1+offset),project(x2,y2+offset),"#a0b3a080",1.8);
+        }
+      }
+      for (let i = 0; i < 230; i++) {
+        const x = -21 + 107 * textureHash(i,3), y = 51 + 21 * textureHash(i,4);
+        const p = project(x,y);
+        line(p,{x:p.x+(0.5+textureHash(i,5)*3)*zoom,y:p.y},i%2?"#b1cfbd65":"#345d6a88",0.5);
+      }
+      ctx.restore();
+    } else {
+      for(let x=-14;x<78;x+=4){
+        const y=60+Math.sin(x*.095)*1.4;
+        line(project(x,y),project(x+2,y+.5),"#9bc5c7",1);
+      }
     }
     // Nelson Boulevard follows the river on the stadium side, with a sidewalk.
     const strip=(y0,y1,color)=>poly([[-16,y0],[79,y0],[79,y1],[-16,y1]],color);
@@ -2840,10 +2937,15 @@
     strip(48.1,50.7,"#595f61");
     strip(50.7,51.6,"#9aab91");
     for(let x=-13;x<76;x+=4.5)line(project(x,49.4),project(x+1.8,49.4),"#d6c79a",1);
+    const trees = [];
     // Mature trees just beyond left and left-center field, between wall and road.
     for(let i=0;i<25;i++){
       const x=17+i*1.5+Math.sin(i*2.1)*.3;
       const y=45.7+Math.sin(i*1.6)*.85;
+      if (marinelliTest) {
+        trees.push({x,y,size:0.78+i%5*0.13});
+        continue;
+      }
       const p=project(x,y),z=zoom;
       const h=(16+i%5*3)*z,rx=(6+i%3*1.4)*z;
       line(p,{x:p.x,y:p.y-h*.73},"#665b45",2.2);
@@ -2851,10 +2953,17 @@
       ctx.fillStyle=["#315d3b","#3b6d44","#517b4a","#42693d"][i%4];ctx.fill();
     }
     // Dense woodland beyond the first-base stands, not a roadside corridor.
-    poly([[24,-10],[57,-10],[57,7],[24,7]],"#52794b");
+    poly([[24,-10],[57,-10],[57,7],[24,7]],marinelliTest?"#5c743d":"#52794b");
+    if (marinelliTest) {
+      ctx.save();ctx.clip();drawMarinelliTurf();ctx.restore();
+    }
     for(let i=0;i<62;i++){
       const x=25+(i*17%31)+Math.sin(i*1.7)*.5;
       const y=-8+(i*11%14)+Math.cos(i*2.3)*.3;
+      if (marinelliTest) {
+        trees.push({x,y,size:0.66+i%5*0.11});
+        continue;
+      }
       const p=project(x,y),z=zoom,h=(13+i%5*3)*z;
       line(p,{x:p.x,y:p.y-h*.74},"#544c37",2);
       ctx.beginPath();ctx.ellipse(p.x,p.y-h,(5+i%3)*z,(6+i%4)*z,0,0,Math.PI*2);
@@ -2874,11 +2983,17 @@
     }
     for(const [x,y] of [[-13,24],[-14,33],[-3,40]]){
       poly([[x-1,y-2],[x+1,y-2],[x+1.3,y+2],[x-.8,y+2]],"#69785e","#c1c0aa");
+      if (marinelliTest) {
+        trees.push({x,y,size:0.72});
+        continue;
+      }
       const p=project(x,y),h=15*zoom;
       line(p,{x:p.x,y:p.y-h*.7},"#5a4c37",2);
       ctx.beginPath();ctx.ellipse(p.x,p.y-h,6*zoom,7*zoom,0,0,Math.PI*2);
       ctx.fillStyle="#396744";ctx.fill();
     }
+    trees.sort((a,b)=>project(a.x,a.y).depth-project(b.x,b.y).depth);
+    for (const tree of trees) drawRoadsideTree(tree);
   }
   function drawMarinelliBridge(){
     if(!marinelliScenery)return;
@@ -2903,9 +3018,12 @@
     const cw = canvas.clientWidth,
       ch = canvas.clientHeight;
     ctx.clearRect(0, 0, cw, ch);
-    ctx.fillStyle = "#91b981";
+    ctx.fillStyle = marinelliTest ? "#697f3d" : "#91b981";
     ctx.fillRect(0, 0, cw, ch);
-    for (let sum = 0; sum < W + H - 1; sum++) {
+    if (marinelliTest) {
+      drawMarinelliTurf();
+      drawMarinelliGrid();
+    } else for (let sum = 0; sum < W + H - 1; sum++) {
       for (let x = Math.max(0, sum - (H - 1)); x <= Math.min(W - 1, sum); x++) {
         let y = sum - x;
         const p = project(x + 0.5, y + 0.5);

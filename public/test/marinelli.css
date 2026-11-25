@@ -1,0 +1,210 @@
+/* Marinelli Field's inlaid wood, painted metal, and brass interface. */
+:root {
+  --frame: #273b30;
+  --frame-dark: #1b2b23;
+  --frame-edge: #8b7953;
+  --paper: #e9dfbf;
+  --ink: #2d3527;
+  --brass: #ebcb78;
+}
+
+body {
+  background: var(--frame-dark);
+  color: #f5ebcc;
+}
+
+header {
+  background: linear-gradient(#455743, var(--frame) 54%, #23332a);
+  border-color: #b29a65;
+  box-shadow: inset 0 1px #ffffff18, 0 2px 5px #15261c55;
+}
+
+h1 {
+  color: #fff1cc;
+  font-family: Georgia, serif;
+  font-size: 23px;
+  letter-spacing: 0.1px;
+}
+
+header small {
+  color: #e5d7af;
+  letter-spacing: 0.075em;
+}
+
+.logo {
+  display: grid;
+  flex: none;
+  width: 39px;
+  height: 39px;
+  place-items: center;
+  border: 1px solid #b59759;
+  border-radius: 50%;
+  background: linear-gradient(#314638, #1d2d23);
+  box-shadow: inset 0 0 0 2px #101c1566;
+  font-size: 21px;
+}
+
+#openParkMenu {
+  flex: none;
+  white-space: nowrap;
+}
+
+.stat {
+  color: #f2e7c5;
+  background: var(--frame-dark);
+  border-color: #8d8059;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 3px #111b16;
+}
+
+.stat strong {
+  color: var(--brass);
+  font-variant-numeric: tabular-nums;
+}
+
+#app > aside {
+  background: linear-gradient(90deg, #ede5cd, #dfd2af);
+  border-color: var(--frame-edge);
+  color: var(--ink);
+  scrollbar-color: #99885f #e4d8b8;
+}
+
+.section {
+  color: #514a33;
+}
+
+.identity,
+.selectedtool {
+  background: #e4d7b2;
+  border-color: #ac986a;
+  border-radius: 4px;
+  color: var(--ink);
+}
+
+.toolgroup {
+  border-color: #ae9e77;
+}
+
+.toolgroup summary {
+  color: #354931;
+}
+
+.tool,
+.smallbtn {
+  background: linear-gradient(#f8f0d9, #e9dbb6);
+  color: var(--ink);
+  border: 1px solid #a6976c;
+  border-radius: 4px;
+  box-shadow: inset 0 1px #fff8e0, 0 1px #a29571;
+}
+
+.tool.sel,
+#mobiletools button {
+  background: linear-gradient(#f6df9b, #dec078);
+  border-color: #8d692d;
+  color: #382d1a;
+  box-shadow: inset 0 1px #ffedbd, 0 1px #8d692d;
+}
+
+.tool .emoji {
+  background: #d6c8a34f;
+  border-radius: 3px;
+}
+
+.price,
+#app > aside .foot {
+  color: #514c35;
+}
+
+#worldwrap {
+  background: #697f3d;
+}
+
+#hint,
+#location,
+#toast,
+#happinessPanel,
+.game-day-scoreboard {
+  background: linear-gradient(#344638f7, #24372beb);
+  color: #f5ebcc;
+  border: 1px solid var(--frame-edge);
+  border-radius: 4px;
+  box-shadow: 0 2px 5px #18251f50;
+}
+
+.experience-report {
+  border-color: #827650;
+}
+
+.experience-report strong,
+#gameDayStage {
+  color: var(--brass);
+}
+
+.experience-report span,
+.game-day-scoreboard span,
+.game-day-scoreboard small {
+  color: #eee4c5;
+}
+
+#fanPanel,
+#tutorial,
+#postgameDialog,
+.guest-manager,
+.park-menu-panel {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--frame-edge);
+  border-radius: 6px;
+}
+
+@media (min-width: 701px) {
+  #app > aside .tool {
+    padding: 7px 8px;
+  }
+}
+
+@media (max-width: 700px) {
+  header {
+    gap: 8px;
+  }
+
+  h1 {
+    font-size: 17px;
+  }
+
+  header small {
+    font-size: 9px;
+    letter-spacing: 0.035em;
+    white-space: nowrap;
+  }
+
+  .logo {
+    width: 30px;
+    height: 30px;
+    font-size: 17px;
+  }
+  #hint {
+    top: auto;
+    bottom: 181px;
+    width: max-content;
+    max-width: calc(100% - 16px);
+  }
+
+  #toast {
+    top: 178px;
+    right: 8px;
+    max-width: calc(100% - 16px);
+    z-index: 7;
+  }
+}
+
+@media (max-width: 355px) {
+  header small {
+    display: none;
+  }
+
+  #openParkMenu {
+    padding-inline: 5px;
+  }
+}
