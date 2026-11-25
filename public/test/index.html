@@ -8,7 +8,7 @@
     />
     <title>Marinelli Field — Stadium Builder Test</title>
     <link rel="stylesheet" href="../styles.css?v=0.49.0-main-menu" />
-    <link rel="stylesheet" href="./marinelli.css?v=1" />
+    <link rel="stylesheet" href="./marinelli.css?v=2" />
   </head>
   <body>
     <header>
@@ -27,7 +27,8 @@
     <div id="parkMenu" class="park-menu" role="dialog" aria-modal="true" aria-labelledby="parkMenuTitle" hidden>
       <div class="park-menu-panel">
         <div class="park-menu-heading"><span>SPORTS VENUE SIMULATOR</span><h2 id="parkMenuTitle">My Ballparks</h2><p>Build a new venue or continue an existing one. Saves stay in this browser; export backups to move devices.</p></div>
-        <div class="park-menu-actions"><button id="newPark" type="button">＋ New ballpark</button><button id="closeParkMenu" type="button">Continue current park</button></div>
+        <div class="park-menu-actions"><button id="openMarinelliGrandstand" type="button">Open Marinelli Grandstand</button><button id="newPark" type="button">＋ New ballpark</button><button id="closeParkMenu" type="button">Continue current park</button></div>
+        <p id="marinelliParkError" role="status"></p>
         <div id="parkSaveList" class="park-save-list" aria-live="polite"></div>
       </div>
     </div>
@@ -208,6 +209,7 @@
           ><button id="mobileCamera">⟳ Camera 90°</button
           ><button id="mobileUndo">↶ Undo</button
           ><button id="mobileCenter">⌖ Field</button>
+          <button id="mobileGrandstandGates" type="button">Open gates</button>
         </div>
         <canvas
           id="game"
@@ -221,8 +223,8 @@
           <div class="experience-report"><strong>Guest experience</strong><span id="fanExperienceSummary">Waiting for fans</span><span id="fanTopPraise">Most liked: no feedback yet</span><span id="fanTopComplaint">Top complaint: no feedback yet</span><span id="fanGameMoment">Game moments: awaiting first pitch</span></div>
         </section>
         <div id="hint">
-          <strong>Build a path from the main gate to your seats.</strong><br />
-          Each tile is 10 × 10 ft. Gold arrows show which way seats face.
+          <strong id="marinelliHintTitle">Build a path from the main gate to your seats.</strong><br />
+          <span id="marinelliHintDetails">Each tile is 10 × 10 ft. Gold arrows show which way seats face.</span>
         </div>
         <aside id="fanPanel" hidden aria-label="Fan inspector">
           <button id="closeFanPanel" aria-label="Close fan inspector">×</button>
@@ -313,7 +315,7 @@
       </ol>
       <form method="dialog"><button class="smallbtn">Got it</button></form>
     </dialog>
-    <script src="../game.js?v=marinelli-art-1" defer></script>
+    <script src="../game.js?v=marinelli-grandstand-1" defer></script>
     <script src="../tutorial.js?v=marinelli-test-1" defer></script>
   </body>
 </html>

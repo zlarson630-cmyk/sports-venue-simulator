@@ -2,6 +2,8 @@
   "use strict";
   const marinelliTest = document.documentElement?.dataset.marinelliTest === "true";
   const storagePrefix = marinelliTest ? "marinelli.test." : "";
+  const openGrandstandOnLoad = marinelliTest && typeof location !== "undefined" &&
+    new URLSearchParams(location.search).get("grandstand") === "1";
   const PAVEMENT = "#dedbc9", PAVEMENT_EDGE = "#aaa99c";
   const W = 60,
     H = 60,
@@ -37,6 +39,7 @@
       deluxeScoreboard:12000,
       videoScoreboard:25000,
       vintageScoreboard:8000,
+      pressBox: 12000,
     };
   const canvas = document.getElementById("game"),
     ctx = canvas.getContext("2d"),
@@ -456,7 +459,16 @@
     return isStand(next)&&!isCorner(next)&&next.rot===item.rot&&Math.abs(standShift(next)-standShift(item))<1e-8&&next.baseFeet===(item.baseFeet||0)+db*STAND_RISE&&!wallBlocks(key(x,y),key(nx,ny));
   }
   const neighborOffsets=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  const pressBoxWidth = 2.25, pressBoxDepth = 0.47;
+  const isPressBox = item => item?.type === "pressBox";
+  function pressBoxPoint(x,y,across,depth) {
+    return [x+0.5+(across+depth)/Math.SQRT2, y+0.5+(depth-across)/Math.SQRT2];
+  }
   function footprint(x,y,item) {
+    if (isPressBox(item)) {
+      const a = pressBoxWidth, b = pressBoxDepth;
+      return [[-a,-b],[a,-b],[a,b],[-a,b]].map(([u,v])=>pressBoxPoint(x,y,u,v));
+    }
     if(isRamp(item)){const [dx,dy]=directions[item.rot];return [[0,-0.5],[6,-0.5],[6,0.5],[0,0.5]].map(([t,a])=>{const p=rampPoint(x,y,item,t);return [p.x-dy*a,p.y+dx*a];});}
     if(isDeck(item))return deckShape(item).map(([a,b])=>[x+a,y+b]);
     if(isStand(item))return [[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]].map(([a,b])=>{const p=standPoint(x,y,item,a,b);return [p.x,p.y];});
@@ -510,11 +522,11 @@
     for(let a=x-radius;a<=x+radius;a++)for(let b=y-radius;b<=y+radius;b++) {
       const k=key(a,b),v=layout[k];
       if((dugoutTiles.has(k)||(!isStand(item)&&field.has(k)))&&overlaps(shape,footprint(a,b,{type:"path"})))return "Section overlaps the field or dugout.";
-      if((a!==x||b!==y)&&v&&(isStand(item)&&item.rot%2||isStand(v)&&v.rot%2||isRamp(item)||isRamp(v)||isCorner(item)||isCorner(v)||isDeck(item)||isDeck(v))&&overlaps(shape,footprint(a,b,v))&&!separated(item,v))return "Section footprint overlaps construction. Leave its footprint clear.";
+      if((a!==x||b!==y)&&v&&(isPressBox(item)||isPressBox(v)||isStand(item)&&item.rot%2||isStand(v)&&v.rot%2||isRamp(item)||isRamp(v)||isCorner(item)||isCorner(v)||isDeck(item)||isDeck(v))&&overlaps(shape,footprint(a,b,v))&&!separated(item,v))return "Section footprint overlaps construction. Leave its footprint clear.";
       for(const axis of ["h","v","a","d"])if(walls[k+":"+axis]) {
         const {a:start,b:end}=edgePanel(k+":"+axis),dx=end[0]-start[0],dy=end[1]-start[1],epsilon=1e-5;
         const strip=[[start[0]-dy*epsilon,start[1]+dx*epsilon],[end[0]-dy*epsilon,end[1]+dx*epsilon],[end[0]+dy*epsilon,end[1]-dx*epsilon],[start[0]+dy*epsilon,start[1]-dx*epsilon]];
-        if(((isStand(item)&&item.rot%2)||isRamp(item)||isCorner(item))&&overlaps(shape,strip))return "A wall crosses the section footprint.";
+        if((isPressBox(item)||(isStand(item)&&item.rot%2)||isRamp(item)||isCorner(item))&&overlaps(shape,strip))return "A wall crosses the section footprint.";
       }
     }
     return null;
@@ -965,7 +977,7 @@
   function diagonalWallCollision(edge) {
     const {a,b}=edgePanel(edge),wallOnly={[edge]:{type:"wall"}};
     return Object.entries(tiles).some(([k,v])=>{
-      if(!isRamp(v)&&!isCorner(v)&&!isDeck(v)&&(!isStand(v)||v.rot%2===0))return false;
+      if(!isPressBox(v)&&!isRamp(v)&&!isCorner(v)&&!isDeck(v)&&(!isStand(v)||v.rot%2===0))return false;
       const [x,y]=k.split(",").map(Number);
       if(Math.abs(x-(a[0]+b[0])/2)>7||Math.abs(y-(a[1]+b[1])/2)>7)return false;
       return !!footprintError(x,y,v,{},wallOnly);
@@ -1110,6 +1122,7 @@
         box(0.22, -0.12, 0.12, 0.24, 17, "#a8aaa5", "#dfddce");
         segment([-0.34, 0], [0.34, 0], 17, "#f9cc51", 5);
         break;
+      case "pressBox": drawPressBox(x,y); break;
       case "tree":drawRoadsideTree({x:x+0.5,y:y+0.5,variant:item.rot%3,placed:true});break;
       case "baseballStatue":drawBaseballStatue(x,y,item);break;
       case "concession":
@@ -1205,6 +1218,65 @@
         break;
       }
     }
+  }
+  function drawPressBox(x,y) {
+    const a = pressBoxWidth, b = pressBoxDepth, sill = 11, eave = 19, ridge = 21;
+    const at = (u,v,feet=0) => {
+      const p = project(...pressBoxPoint(x,y,u,v));
+      return {...p,y:p.y-feet*FT*zoom};
+    };
+    const rectangle = (corners,fill,stroke=null) => polygon(corners.map(p=>at(...p)),fill,stroke,0.65*zoom);
+    const corners = [[-a,-b],[a,-b],[a,b],[-a,b]];
+    const depth = (u,v) => at(u,v).depth;
+    const visible = (u,v) => depth(u,v) > depth(0,0)+1e-8;
+    for (let i=0;i<corners.length;i++) {
+      const [u,v]=corners[i], [w,z]=corners[(i+1)%4];
+      if (!visible((u+w)/2,(v+z)/2)) continue;
+      const long = v===z;
+      const wall = (s,h) => at(u+(w-u)*s,v+(z-v)*s,h);
+      const band = (s,t,l,h,fill) => polygon([wall(s,l),wall(t,l),wall(t,h),wall(s,h)],fill,null);
+      band(0,1,0,sill,long?"#884837":"#68362f");
+      for (let row=1;row<=8;row++) {
+        const h=row*1.25;
+        line(wall(0,h),wall(1,h),"#c0846466",0.55);
+        const bricks=long?16:4;
+        for(let n=0;n<bricks;n++){
+          const f=(n+(row%2?0.5:0))/bricks;
+          if(f>0)line(wall(f,h-1.25),wall(f,h),"#c0846466",0.45);
+        }
+      }
+      band(0,1,sill,eave,long?"#774437":"#563830");
+      band(0,1,sill-0.35,sill+0.35,"#c2aa83");
+      if (long) {
+        band(0.055,0.945,sill+0.7,eave-0.85,"#222d2d");
+        const glass = ["#d1a55d","#896c48","#b39055","#d9b272","#977949"];
+        for(let j=0;j<glass.length;j++){
+          const start=0.073+0.173*j;
+          band(start,start+0.155,sill+1.05,eave-1.25,glass[j]);
+          band(start,start+0.155,sill+1.05,sill+2.1,"#4b4033");
+          line(wall(start,sill+4.6),wall(start+0.155,sill+4.6),"#edcb8c",0.55);
+        }
+        band(0.24,0.76,4.8,9.3,"#273b4b");
+        const [start,end] = wall(0,0).x < wall(1,0).x ? [0.26,0.74] : [0.74,0.26];
+        const left=wall(start,8.75),right=wall(end,8.75),bottom=wall(start,5.1);
+        ctx.save();
+        ctx.transform((right.x-left.x)/150,(right.y-left.y)/150,(bottom.x-left.x)/26,(bottom.y-left.y)/26,left.x,left.y);
+        ctx.fillStyle="#f5e1b5";ctx.font="italic bold 21px Georgia";ctx.textAlign="center";
+        ctx.fillText("Marinelli Field",75,21);
+        ctx.restore();
+      } else {
+        band(0.35,0.65,0,7,"#3f2724");
+        rectangle([[u,v,eave],[w,z,eave],[u,0,ridge]],"#594032");
+      }
+    }
+    const overhang=a+0.13, roofEdge=b+0.22;
+    for(const side of [1,-1].sort((l,r)=>depth(0,l)-depth(0,r))){
+      const edge=side*roofEdge;
+      rectangle([[-overhang,0,ridge],[overhang,0,ridge],[overhang,edge,eave],[-overhang,edge,eave]],side===-1?"#b4b8ab":"#d0cfc1","#515853");
+      for(let n=-overhang+0.12;n<overhang;n+=0.17)line(at(n,0,ridge),at(n,edge,eave),"#737d76",0.65);
+      line(at(-overhang,edge,eave),at(overhang,edge,eave),"#873d32",1.65);
+    }
+    line(at(-overhang,0,ridge),at(overhang,0,ridge),"#e8e0c8",1.2);
   }
   function pitch() {
     if (marinelliTest) {
@@ -1535,7 +1607,8 @@
     }
     line({x:a.x,y:a.y-h},{x:b.x,y:b.y-h},"#203e52",7);
     const p=project(11.5,7.5);ctx.font=`bold ${9*zoom}px sans-serif`;ctx.textAlign="center";
-    ctx.fillStyle="#fff0ba";ctx.fillText("MAIN GATE",p.x,p.y-h-5*zoom);
+    const labelY = marinelliTest && isPressBox(tiles["13,9"]) ? p.y+7*zoom : p.y-h-5*zoom;
+    ctx.fillStyle="#fff0ba";ctx.fillText("MAIN GATE",p.x,labelY);
   }
   const entranceTile = "14,10";
   let GAME_SECONDS=300;
@@ -1562,6 +1635,10 @@
     if(label)label.textContent=fanActive?stage.label:"READY";
     if(inning)inning.textContent=fanActive?(stage.kind==="inning"?stage.inning+" / 9":stage.kind==="postgame"?"9 / 9":"—"):"—";
     if(progress)progress.value=fanActive?Math.min(100,Math.round(fanElapsed/GAME_SECONDS*100)):0;
+    if (marinelliTest) {
+      const gates = document.getElementById("mobileGrandstandGates");
+      if (gates) gates.textContent = fanActive ? "End game" : "Open gates";
+    }
     return stage;
   }
   const TICKET_PRICE=5;
@@ -1590,6 +1667,7 @@
     // Reserve the whole occupied cell, including a small pedestrian clearance.
     for(const [k,v] of [...Object.entries(tiles),...Object.entries(underlays)]) {
       if(isHollow(v))continue;
+      if(isPressBox(v)){const [a,b]=k.split(",").map(Number);if(pointInPolygon(x,y,footprint(a,b,v)))return true;continue;}
       if(![...amenityTypes,...scoreboardTypes,...decorationTypes,"bleacher"].includes(v.type)&&!isPlatform(v))continue;
       if(isCorner(v)||isDeck(v)&&v.type!=="concourse"){const [a,b]=k.split(",").map(Number);if(pointInPolygon(x,y,footprint(a,b,v)))return true;continue;}
       if(isRamp(v)){const [a,b]=k.split(",").map(Number),[dx,dy]=directions[v.rot],along=(x-a-0.5)*dx+(y-b-0.5)*dy+0.5,across=-(x-a-0.5)*dy+(y-b-0.5)*dx;if(along>0&&along<6&&Math.abs(across)<0.5)return true;continue;}
@@ -3251,6 +3329,13 @@
     if(cashOnly){document.getElementById("money").textContent="$"+money.toLocaleString();return;}
     worldRevision++;worldCache=null;
     accessRevision++;accessCache=null;
+    if (marinelliTest) {
+      const grandstand = isPressBox(tiles["13,9"]);
+      document.getElementById("marinelliHintTitle").textContent = grandstand ?
+        "Open the gates to fill both sides of the grandstand." : "Build a path from the main gate to your seats.";
+      document.getElementById("marinelliHintDetails").textContent = grandstand ?
+        "Fans can use stairs from either side of the entrance." : "Each tile is 10 × 10 ft. Gold arrows show which way seats face.";
+    }
     for(const role of ["primary","secondary","accent"])document.getElementById("team"+role).value=team[role];
     document.getElementById("fieldMaterial").value=team.fenceMaterial;
     if(!fanActive) {
@@ -3274,7 +3359,52 @@
   }
   const PARKS_KEY=storagePrefix+"svs.parks.v1",ACTIVE_KEY=storagePrefix+"svs.activePark.v1";
   let activeParkId=null,parkRecords=[];
+  const marinelliGrandstandId = "marinelli-grandstand";
   const parkPayload=()=>({version:2,fieldRevision:7,entranceRevision:1,seatingRevision:2,wallFinishRevision:1,gameMinutes,requestedFans,tiles,edges,infillDecks,underlays,groundConcrete,money,team});
+  function marinelliGrandstandPark() {
+    const saved = parkRecords.find(p=>p.id===marinelliGrandstandId);
+    if (saved) return saved;
+    const layout = {};
+    const seats = {primary:"#8f3337",secondary:"#b1514a",accent:"#fff0c9"};
+    const add = (x,y,type,rot=0,baseFeet,style={}) => {
+      layout[key(x,y)] = {type,rot,...(baseFeet===undefined?{}:{baseFeet}),...style};
+    };
+    const bank = (x,y,type,rot,baseFeet,ring) =>
+      add(x,y,type,rot,baseFeet,{customColors:seats,...(ring?{ring}:{})});
+    // Two eight-row wings meet the backstop through widening corner wedges.
+    for (const level of [0,1]) {
+      for (let x=18;x<=21;x++) bank(x,9-level,x===18?"stairStand":"stand",4,level*5);
+      for (let y=14;y<=17;y++) bank(13-level,y,y===14?"stairStand":"stand",6,level*5);
+      bank(17,9-level,"backstopCornerFirst",4,level*5,level);
+      bank(13-level,13,"backstopCornerThird",6,level*5,level);
+      for (let n=0;n<4;n++) bank(16-n-level,9+n-level,"backstopStand",5,level*5);
+    }
+    // The upper ends continue behind the dugouts, which stay clear at field level.
+    for (let n=0;n<3;n++) {
+      bank(22+n,8,"stand",4,5);
+      bank(12,18+n,"stand",6,5);
+    }
+    // Both wings have their own approach and stairway from the main gate.
+    for (let x=10;x<=18;x++) add(x,4,"path");
+    for (let y=6;y<=14;y++) add(8,y,"path");
+    for (let x=18;x<=21;x++) add(x,7,"concourse",0,10);
+    for (let y=14;y<=17;y++) add(11,y,"concourse",0,10);
+    add(18,5,"stairs",0,0);
+    add(18,6,"stairs",0,5);
+    add(9,14,"stairs",2,0);
+    add(10,14,"stairs",2,5);
+    add(13,9,"pressBox",5);
+
+    const cost = Object.values(layout).reduce((sum,item)=>sum+prices[item.type],0);
+    const data = {...parkPayload(),tiles:layout,edges:{},infillDecks:{},underlays:{},
+      groundConcrete:{},money:500000-cost,team:{...defaultTeam},gameMinutes:5,requestedFans:100};
+    validatePark(data);
+    const record = {id:marinelliGrandstandId,name:"Marinelli Grandstand",updatedAt:Date.now(),data};
+    const next = [...parkRecords,record];
+    saveRecords(next);
+    parkRecords = next;
+    return record;
+  }
   let parkSerial=0;
   const parkId=()=> "park-"+Date.now().toString(36)+"-"+(++parkSerial).toString(36);
   function saveRecords(records=parkRecords){
@@ -3380,6 +3510,27 @@
       store();hideParkMenu();toast("New park created");
     }catch(e){parkRecords=parkRecords.filter(p=>p.id!==record.id);toast("Couldn't create park — check browser storage");}
   };
+  if (marinelliTest) {
+    document.getElementById("openMarinelliGrandstand").onclick = () => {
+      if (!store()) return;
+      try {
+        const record = marinelliGrandstandPark();
+        if (activeParkId !== record.id) {
+          loadParkData(record.data);
+          activeParkId = record.id;
+          localStorage.setItem(ACTIVE_KEY,activeParkId);
+          if (!store()) return;
+        }
+        frameMarinelliGrandstand();
+        draw();
+        hideParkMenu();
+      } catch (error) {
+        document.getElementById("marinelliParkError").textContent = error.message;
+      }
+    };
+    const gates = document.getElementById("mobileGrandstandGates");
+    if (gates) gates.onclick = () => fanActive ? endFanTest() : startFanTest();
+  }
   function initializeParkMenu(){
     try {
       const existing=JSON.parse(localStorage.getItem(PARKS_KEY)||"null");
@@ -3402,6 +3553,7 @@
       if(current.id===preferred&&legacy){
         try{const parsed=JSON.parse(legacy);validatePark(parsed);current.data=parsed;}catch{}
       }
+      if (openGrandstandOnLoad) current = marinelliGrandstandPark();
       activeParkId=current.id;localStorage.setItem(ACTIVE_KEY,activeParkId);
       // Startup must not draw before the existing resize/bootstrap sequence.
       const park=validatePark(current.data);
@@ -3410,7 +3562,7 @@
       gameMinutes=park.gameMinutes;gameMinutesControl.value=String(gameMinutes);
       requestedFans=park.requestedFans;fanCountControl.value=String(requestedFans);
       if(!park.entranceRevision&&Object.values(tiles).some(isPath))connectLegacyGate();
-      store();renderParkMenu();parkMenu.hidden=false;
+      store();renderParkMenu();parkMenu.hidden=openGrandstandOnLoad;
     } catch(e) {
       toast("Could not read saved parks; export your existing backup.");
       parkMenu.hidden=true;
@@ -3597,6 +3749,17 @@
     store();
     draw();
   }
+  function frameMarinelliGrandstand() {
+    cameraRot = 2;
+    document.getElementById("cameraRotation").textContent = "180°";
+    const points = [...fenceCorners,[8,4],[11,8],[12,14],[21,7]]
+      .map(p=>{const r=rotated(...p);return point(r.x,r.y);});
+    const left=Math.min(...points.map(p=>p.x)),right=Math.max(...points.map(p=>p.x));
+    const top=Math.min(...points.map(p=>p.y)),bottom=Math.max(...points.map(p=>p.y));
+    zoom=Math.max(0.2,Math.min(1.2,wrap.clientWidth*0.86/(right-left),wrap.clientHeight*0.66/(bottom-top)));
+    panX=wrap.clientWidth/2-(left+right)/2*zoom;
+    panY=wrap.clientHeight*0.45-(top+bottom)/2*zoom;
+  }
   function resize() {
     document.getElementById("cameraRotation").textContent = cameraRot * 90 + "°";
     dpr = Math.min(devicePixelRatio || 1, 2);
@@ -3612,7 +3775,8 @@
       zoom=Math.min(1.14,(w-80)/width,(h-160)/height);
       zoom=Math.max(marinelliScenery ? 0.2 : 0.45,zoom);
       cameraInit = true;
-      centerField();
+      if (activeParkId===marinelliGrandstandId) frameMarinelliGrandstand();
+      else centerField();
     }
     draw();
   }
@@ -3848,7 +4012,7 @@
       const [x,y]=k.split(",").map(Number),error=columnError(x,y,v,clean,cleanUnderlays,cleanInfills)||footprintError(x,y,v,clean,cleanEdges,cleanInfills,cleanUnderlays);if(error)throw Error(error);
     }
     for(const [k,v] of Object.entries(cleanInfills)){const [x,y]=k.split(",").map(Number),error=footprintError(x,y,v,clean,cleanEdges,cleanInfills,cleanUnderlays);if(error)throw Error(error);}
-    for(const [k,v] of Object.entries(clean))if(isStand(v)||isRamp(v)||isCorner(v)||isDeck(v)) {
+    for(const [k,v] of Object.entries(clean))if(isPressBox(v)||isStand(v)||isRamp(v)||isCorner(v)||isDeck(v)) {
       const [x,y]=k.split(",").map(Number),error=footprintError(x,y,v,clean,cleanEdges,cleanInfills,cleanUnderlays);
       if(error)throw Error(error);
     }
