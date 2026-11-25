@@ -2909,7 +2909,7 @@
       const bend=Math.sin(x*.095)*1.4+Math.sin(x*.25)*.45;
       near.push([x,52+bend]);far.push([x,71+bend*.6]);
     }
-    poly([...near,...[...far].reverse()],marinelliTest?"#4f8186":"#538793","#7eaaa3");
+    poly([...near,...[...far].reverse()],"#538793","#7eaaa3");
     if (marinelliTest) {
       ctx.save();
       ctx.clip();
