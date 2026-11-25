@@ -64,3 +64,26 @@ test("Marinelli test renders its scenery and autosaves without touching main sto
   assert.equal(updated[0].data.tiles["17,9"].type,"path");
   assert.equal(g.storage.get("svs01"),JSON.stringify(original));
 });
+
+test("Marinelli grandstand opens as a separate editable park with every seat reachable",()=>{
+  const g=game(undefined,()=>0.5,{marinelliTest:true});
+  const savedParks="marinelli.test.svs.parks.v1";
+  g.clickTile(17,9);
+  const original=JSON.parse(g.storage.get(savedParks))[0];
+  g.element("openMarinelliGrandstand").click();
+  const layout=g.api.state().tiles;
+  assert.equal(layout["13,9"].type,"pressBox");
+  assert.equal(layout["17,8"].ring,1);
+  assert.equal(layout["12,13"].ring,1);
+  assert.equal(g.api.reachableSeats().reduce((sum,section)=>sum+section.capacity,0),680);
+  const records=JSON.parse(g.storage.get(savedParks));
+  assert.deepEqual(records.find(park=>park.id===original.id).data,original.data);
+  const preset=records.find(park=>park.id==="marinelli-grandstand");
+  assert.equal(g.api.validatePark(preset.data).tiles["13,9"].type,"pressBox");
+  assert.match(g.api.footprintError(14,8,{type:"path",rot:0}),/overlaps construction/);
+  g.select("erase");
+  g.clickTile(13,9);
+  g.element("openMarinelliGrandstand").click();
+  assert.equal(g.api.state().tiles["13,9"],undefined);
+  assert.equal(JSON.parse(g.storage.get(savedParks)).length,2);
+});

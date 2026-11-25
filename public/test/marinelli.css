@@ -44,6 +44,15 @@ header small {
   font-size: 21px;
 }
 
+#openMarinelliGrandstand {
+  background: var(--brass);
+  border-color: #99783e;
+}
+
+#marinelliParkError:empty {
+  display: none;
+}
+
 #openParkMenu {
   flex: none;
   white-space: nowrap;
@@ -192,7 +201,7 @@ header small {
   }
 
   #toast {
-    top: 178px;
+    top: 216px;
     right: 8px;
     max-width: calc(100% - 16px);
     z-index: 7;
