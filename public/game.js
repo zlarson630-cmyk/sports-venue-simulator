@@ -179,7 +179,7 @@
   }
   function occlusionCuts(fan){
     const p=project(fan.x,fan.y),h=fan.standSeat?fan.feet*FT:(fan.seated?4+fan.row*3:0),foot=p.y-h*zoom;
-    const box={minX:p.x-3*zoom,maxX:p.x+3*zoom,minY:foot-11*zoom,maxY:foot+2*zoom},seen=new Set(),cuts=[];
+    const box={minX:p.x-5*zoom,maxX:p.x+5*zoom,minY:foot-14*zoom,maxY:foot+3*zoom},seen=new Set(),cuts=[];
     for(let x=Math.floor(box.minX/64);x<=Math.floor(box.maxX/64);x++)for(let y=Math.floor(box.minY/64);y<=Math.floor(box.maxY/64);y++)for(const face of occlusionBins.get(key(x,y))||[]){
       if(seen.has(face)||face.maxDepth<=p.depth+1e-7)continue;seen.add(face);
       if(face.maxX<box.minX||face.minX>box.maxX||face.maxY<box.minY||face.minY>box.maxY)continue;
@@ -2063,7 +2063,10 @@
     for(const fan of fans){
       if(!fan.paid||fan.exited)continue;
       const engaged=fan.seated||fan.activity==="watching game";
-      if(engaged)fanThought(fan,moment.label,Math.round(moment.impact*(fan.persona==="diehard"?1.5:fan.persona==="family"?0.7:1)),"game");
+      if(engaged){
+        fanThought(fan,moment.label,Math.round(moment.impact*(fan.persona==="diehard"?1.5:fan.persona==="family"?0.7:1)),"game");
+        if(fan.persona==="diehard"||fan.seat%4===0)fan.cheerUntil=arrivalElapsed+1.5+(fan.seat%3)*0.2;
+      }
     }
     nextExcitement=fanElapsed+22+Math.random()*22;
   }
@@ -2235,6 +2238,7 @@
     const choices=reachable.filter(r=>r.active<r.capacity&&!r.earlyFood&&(!arrivalNode||r.active<(r.line?1:RESTROOM_STALLS))).map(room=>({room,cost:room.costs.get(groundNode)+(room.queue.length+room.using.size)*2+(food&&room.product!==fanFoodType(fan)?5:0)})).sort((a,b)=>a.cost-b.cost);
     if(!choices.length){fan[blocked]=true;fan[wait]="no reachable "+(food?"food stand":"restroom");fan[retry]=10;return false;}
     const rowNodes=new Set(fan.walkingRoute.filter(p=>/^(r:|corner:|t:|l:)/.test(p.node)).map(p=>p.node));
+    if(!arrivalNode&&fans.some(f=>f!==fan&&f.viewTrip&&f.walkingRoute.some(p=>rowNodes.has(p.node)))){fan[retry]=0.5;return false;}
     if(!arrivalNode&&fans.some(f=>f!==fan&&
       (f.activity==="returning to seat"||f.activity==="arriving"||
        ["to restroom","to concession"].includes(f.activity)&&!f.route.slice(0,f.index+1).some(p=>p.node?.startsWith("g:")))&&
@@ -2265,6 +2269,18 @@
   }
   function finishFanRoute(fan){
     if(fanPhase==="exiting"){fan.exited=true;return;}
+    if(fan.viewTrip){
+      if(fan.activity==="heading to viewpoint"){
+        fan.activity="watching from concourse";
+        fan.pauseUntil=arrivalElapsed+3.5;
+        fan.scenicPauseDone=true;
+        fanThought(fan,"Found a good view from the concourse",3,"scenery");
+        fan.route=fan.viewTrip;
+        fan.index=0;
+        return;
+      }
+      fan.viewTrip=null;
+    }
     if(["to restroom","to concession"].includes(fan.activity)){
       fan.activity=fan.tripKind==="concession"?"waiting for food":"waiting restroom";fan.insideAmenity=fan.tripKind!=="concession";fan.amenity.queue.push(fan);return;
     }
@@ -2338,7 +2354,7 @@
   // Live guest management: action / thought / needs / spending views.
   let guestView="actions",guestViewTick=-1;
   const guestFilterMatch=(fan,filter)=>{
-    if(filter==="walking")return !fan.seated&&!fan.exited&&["arriving","taking in the view","returning to seat"].includes(fan.activity);
+    if(filter==="walking")return !fan.seated&&!fan.exited&&["arriving","taking in the view","heading to viewpoint","watching from concourse","returning from viewpoint","returning to seat"].includes(fan.activity);
     if(filter==="seated")return !!fan.seated;
     if(filter==="amenity")return !!fan.insideAmenity||["to concession","to restroom","buying food","using restroom","waiting for food","waiting restroom"].includes(fan.activity);
     if(filter==="waiting")return (fan.blockedFor||0)>2||String(fan.activity).startsWith("waiting");
@@ -2347,6 +2363,8 @@
   };
   const guestAction=fan=>fan.exited?"Leaving the stadium":fan.seated?"Watching the game":({
     "arriving":"Walking to seat","taking in the view":"Enjoying the concourse",
+    "heading to viewpoint":"Taking a concourse walk","watching from concourse":"Watching from the rail",
+    "returning from viewpoint":"Returning from the concourse",
     "to restroom":"Heading to restroom","to concession":"Heading to food stand",
     "waiting restroom":"Waiting for restroom","waiting for food":"In concession line",
     "using restroom":"Using restroom","buying food":"Buying food",
@@ -2472,7 +2490,7 @@
       fan.scenicCandidate=!corridor.some(p=>laterCorridors.has(p.node));
       for(const p of corridor)laterCorridors.add(p.node);
     }
-    happinessFinal=false;happinessNext=0;nextNeedsDispatch=0;excitementEvents=[];nextExcitement=GAME_SECONDS*PREGAME_FRACTION+Math.max(3,GAME_SECONDS*0.035);venueFeedback={};
+    happinessFinal=false;happinessNext=0;nextNeedsDispatch=0;nextViewTrip=0;excitementEvents=[];nextExcitement=GAME_SECONDS*PREGAME_FRACTION+Math.max(3,GAME_SECONDS*0.035);venueFeedback={};
     happinessAttractions=[...Object.entries(tiles),...Object.entries(underlays)].flatMap(([k,item])=>{
       const board=scoreboardTypes.includes(item.type);
       if(!board&&item.type!=="baseballStatue")return [];
@@ -2613,6 +2631,84 @@
     }
   }
 
+  let nextViewTrip=0;
+  function concourseViewpoint(node) {
+    if(!/^c:[0-9]+,[0-9]+$/.test(node.node))return null;
+    const cell=node.node.slice(2),item=tiles[cell];
+    if(item?.type!=="concourse"||item.baseFeet<5)return null;
+    const [x,y]=cell.split(",").map(Number);
+    const rail=[...(x<homeWorld[0]?deckRailSegments(x,y,item,1):[]),
+      ...(y<homeWorld[1]?deckRailSegments(x,y,item,2):[])]
+      .find(([a,b])=>Math.hypot(a[0]-b[0],a[1]-b[1])>=0.26);
+    if(!rail)return null;
+    const [a,b]=rail;
+    return {x:x+0.15+0.7*(a[0]+b[0])/2,y:y+0.15+0.7*(a[1]+b[1])/2,feet:node.feet};
+  }
+  function concourseDetour(center) {
+    const spot=concourseViewpoint(center);
+    if(spot)return [spot];
+    if(!/^c:[0-9]+,[0-9]+$/.test(center.node))return null;
+    const [x,y]=center.node.slice(2).split(",").map(Number),item=tiles[key(x,y)];
+    if(item?.type!=="concourse"||item.baseFeet<5)return null;
+    for(const [dx,dy] of [[1,0],[0,1],[-1,0],[0,-1]]){
+      const connection=concourseConnection(x,y,item,dx,dy);
+      const neighbor=key(x+dx,y+dy);
+      if(connection?.kind!=="deck"||tiles[neighbor]?.type!=="concourse")continue;
+      const next={...deckCenter(x+dx,y+dy,tiles[neighbor]),node:"c:"+neighbor};
+      const shoulder=concourseViewpoint(next);
+      if(!shoulder)continue;
+      const across=(connection.opening[0]+connection.opening[1])/2;
+      const seam={x:x+(dx?(dx+1)/2:across),y:y+(dy?(dy+1)/2:across),feet:center.feet};
+      return [seam,next,shoulder];
+    }
+    return null;
+  }
+  function dispatchConcourseVisit() {
+    if(!marinelliTest||fanElapsed<nextViewTrip)return;
+    nextViewTrip=fanElapsed+2;
+    if(gameDayStage(fanElapsed).kind!=="inning"||GAME_SECONDS-fanElapsed<12||
+      fans.some(f=>f.viewTrip||!f.paid||f.activity==="arriving"||f.activity==="taking in the view"))return;
+
+    // Reuse each guest's validated seat route. The destination stays inside a
+    // full concourse tile, beside a field-facing rail and clear of its opening.
+    const candidates=fans.filter(fan=>{
+      if(!fan.seated||fan.triedViewTrip)return false;
+      if(needsRate===0)return true;
+      const entry=fan.walkingRoute.findLast(p=>p.node?.startsWith("g:"))?.node;
+      // A reachable need comes first. An unbuilt restroom or food stand
+      // should not stop guests from going anywhere for the rest of the game.
+      return !amenityServices.some(room=>room.parents.has(entry)&&
+        (room.kind==="restroom"?fan.bathroomNeed:fan.hunger)>=NEED_THRESHOLD-5);
+    });
+    candidates.sort((a,b)=>(a.persona==="casual"?0:1)-(b.persona==="casual"?0:1));
+    const activeAisles=new Set();
+    for(const guest of fans)if(!guest.seated)for(const p of guest.walkingRoute)if(/^(r:|corner:|t:|l:)/.test(p.node))activeAisles.add(p.node);
+    for(const fan of candidates){
+      if(fan.walkingRoute.some(p=>activeAisles.has(p.node)))continue;
+      let detour;
+      const i=fan.walkingRoute.findLastIndex(p=>detour=concourseDetour(p));
+      if(i<0){fan.triedViewTrip=true;continue;}
+      const center=fan.walkingRoute[i];
+      const seatward=seatRoute([center],fan.walkingRoute.slice(i),fan.seatTarget);
+      fan.route=laneRoute([...seatward].reverse());
+      fan.route.push(...detour);
+      fan.viewTrip=[...detour.slice().reverse(),...laneRoute(seatward)];
+      fan.index=0;
+      fan.seated=false;
+      fan.triedViewTrip=true;
+      fan.activity="heading to viewpoint";
+      nextViewTrip=fanElapsed+8;
+      return;
+    }
+  }
+  function recordFanStride(fan,point,step) {
+    const dx=point.x-fan.x,dy=point.y-fan.y,distance=Math.hypot(dx,dy);
+    if(distance<=1e-7)return;
+    fan.walkDistance=(fan.walkDistance||0)+Math.min(distance,step*1.5);
+    fan.walkDx=dx/distance;
+    fan.walkDy=dy/distance;
+    fan.lastStrideAt=arrivalElapsed;
+  }
   function beginDepartures() {
     fanPhase="exiting";departureElapsed=0;
     // Use a common low-resistance exit tree to avoid opposing flows around
@@ -2631,6 +2727,7 @@
         }
       }
       delete fan.scenicMergeIndex;
+      fan.viewTrip=null;
       fan.insideAmenity=false;fan.pauseUntil=0;fan.activity="leaving park";
       fan.route=laneRoute(exit);fan.index=0;
       fan.remaining=fan.route.map(()=>0);
@@ -2665,10 +2762,12 @@
       if(fanPhase==="exiting")departureElapsed+=step;
       else advanceNeeds(step,(fan,point)=>{
         if(nearbySome(point,other=>other!==fan&&other.spawned&&!other.exited&&!other.insideAmenity&&fanDistance(point,other)<FAN_SPACE-1e-8))return;
+        recordFanStride(fan,point,step);
         Object.assign(fan,point);
         indexFan(fan);
       });
       if(fanPhase==="game"){
+        dispatchConcourseVisit();
         for(const fan of fans)recordFanExperience(fan,step);
         simulateGameExcitement();
         if(fanElapsed>=happinessNext){noticeAttractions();updateHappiness();happinessNext=fanElapsed+0.75;}
@@ -2703,10 +2802,11 @@
         if(fanPhase==="exiting"?departureElapsed<fan.exitStart:arrivalElapsed<fan.start||fan.seated)continue;
         if(fan.pauseUntil>arrivalElapsed)continue;
         if(fan.activity==="taking in the view")fan.activity="arriving";
+        if(fan.activity==="watching from concourse")fan.activity="returning from viewpoint";
         // Restroom visitors disappear through their doorway. Food customers
         // reach the walkway before joining the visible line.
         if(fan.activity==="to restroom"&&fan.index>=fan.route.length-2&&fanDistance(fan,fan.route.at(-1))<0.35){finishFanRoute(fan);continue;}
-        const leavingChair=fan.standSeat&&!fan.tripFromArrival&&(fan.activity==="to restroom"||fan.activity==="to concession");
+        const leavingChair=fan.standSeat&&(fan.activity==="heading to viewpoint"||!fan.tripFromArrival&&(fan.activity==="to restroom"||fan.activity==="to concession"));
         const occupied=p=>nearbySome(p,other=>other!==fan&&!(leavingChair&&fan.index===0&&other.seated&&other.sectionKey===fan.sectionKey&&other.row===fan.row)&&other.spawned&&!other.exited&&!other.insideAmenity&&(!other.seated||other.standSeat)&&
           // Fans still sitting during their staggered release occupy seats,
           // not the walking aisle in front of that row.
@@ -2718,7 +2818,7 @@
                 (fan.feet||0)===0&&(other.feet||0)===0&&
                 Math.hypot(fan.x-8.5,fan.y-4.5)>0.85&&
                 Math.hypot(other.x-8.5,other.y-4.5)>0.85)&&
-              fan.scenicMergeIndex===undefined&&other.scenicMergeIndex===undefined&&!["to restroom","to concession","returning to seat"].includes(fan.activity)&&!["to restroom","to concession","returning to seat"].includes(other.activity)&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
+              !fan.viewTrip&&!other.viewTrip&&fan.scenicMergeIndex===undefined&&other.scenicMergeIndex===undefined&&!["to restroom","to concession","returning to seat"].includes(fan.activity)&&!["to restroom","to concession","returning to seat"].includes(other.activity)&&priority.get(other)<priority.get(fan)&&fanDistance(p,other)<0.52&&
               corridorDistance(p,corridors.get(other)||lookAhead(other))<FAN_SPACE-1e-8)));
         if(fanPhase==="exiting"&&fan.seated) {
           if(occupied(fan))continue;
@@ -2741,6 +2841,7 @@
             break;
           }
           fan.blockedFor=0;
+          recordFanStride(fan,proposed,step);
           Object.assign(fan,proposed);indexFan(fan);distance-=travel;
           if(length<=travel+1e-9) {
             fan.index++;
@@ -2813,12 +2914,45 @@
   }
   function drawFan(fan) {
     const p=project(fan.x,fan.y),z=zoom,h=fan.standSeat?fan.feet*FT:(fan.seated?4+fan.row*3:0);
+    const target=fan.seated||fan.activity==="watching from concourse"||fan.activity==="taking in the view"
+      ? project(homeWorld[0]+4,homeWorld[1]+4) : project(fan.x+(fan.walkDx||0),fan.y+(fan.walkDy||0));
+    const dx=target.x-p.x,dy=target.y-p.y,length=Math.hypot(dx,dy)||1;
+    const u=dx/length,v=dy/length;
+    const walking=!fan.seated&&arrivalElapsed-(fan.lastStrideAt??-1)<0.09;
+    const phase=(fan.walkDistance||0)*2*Math.PI/0.5;
+    const lift=walking?0.45*Math.abs(Math.sin(phase)):0;
+    const cheering=fan.cheerUntil>arrivalElapsed;
+    const hip=fan.seated?2.4:4.6;
     p.y-=h*z;
-    ctx.beginPath();ctx.ellipse(p.x,p.y,2.7*z,1.3*z,0,0,Math.PI*2);ctx.fillStyle="#203e5240";ctx.fill();
-    line({x:p.x-1*z,y:p.y},{x:p.x-1*z,y:p.y-3*z},"#263c50",1.1);
-    line({x:p.x+1*z,y:p.y},{x:p.x+1*z,y:p.y-3*z},"#263c50",1.1);
-    line({x:p.x,y:p.y-3*z},{x:p.x,y:p.y-7*z},fan.color,3.5);
-    ctx.beginPath();ctx.arc(p.x,p.y-9*z,1.9*z,0,Math.PI*2);ctx.fillStyle="#ecc29a";ctx.fill();
+    const at=(across,forward,height)=>({x:p.x+(across+u*forward)*z,y:p.y+(v*forward*0.48-height)*z});
+    ctx.beginPath();ctx.ellipse(p.x+0.35*z,p.y+0.35*z,2.8*z,1.15*z,0,0,Math.PI*2);ctx.fillStyle="#24332950";ctx.fill();
+    const stride=walking?Math.sin(phase)*1.9:fan.seated?1.1:0;
+    for(const side of [-1,1]){
+      const forward=walking?stride*side:stride;
+      const toe=at(side*0.82,forward,walking?Math.max(0,Math.cos(phase)*side)*0.75:0);
+      const knee=at(side*0.82,forward*0.65,hip*0.48);
+      const pants=side<0?"#252f3d":"#384453";
+      line(at(side*0.74,0,hip+lift),knee,pants,1.3);
+      line(knee,toe,pants,1.25);
+      line(toe,at(side*0.82,forward+0.5,walking?Math.max(0,Math.cos(phase)*side)*0.75:0),"#242b33",0.9);
+    }
+    const lean=walking?0.4:0,shoulder=hip+3.5+lift,skin=["#edbb91","#d4986c","#a87553","#8d5944"][(fan.seat||0)%4];
+    line(at(0,0,hip+lift),at(0,lean,shoulder),fan.color,3.4);
+    for(const side of [-1,1]){
+      const swing=walking?-stride*side*0.75:0;
+      const carrying=side===1&&fan.activity==="returning to seat"&&fan.tripKind==="concession"&&fan.foodPaid;
+      const elbow=at(side*2.6,lean+swing*0.5,shoulder+(cheering?0.7:-1.45));
+      const hand=at(side*(cheering?3.45:2.85),lean+swing+(carrying?0.85:0),shoulder+(cheering?2.65:carrying?-0.75:-3.05));
+      line(at(side*1.2,lean,shoulder),elbow,fan.color,1.65);
+      line(elbow,hand,skin,1.45);
+      ctx.beginPath();ctx.arc(hand.x,hand.y,0.65*z,0,Math.PI*2);ctx.fillStyle=skin;ctx.fill();
+      if(carrying){
+        line({x:hand.x,y:hand.y-1.35*z},hand,"#fff1c8",1.45);
+      }
+    }
+    const head=at(0,lean+0.2,shoulder+2);
+    ctx.beginPath();ctx.arc(head.x,head.y,1.65*z,0,Math.PI*2);ctx.fillStyle=skin;ctx.fill();
+    line(at(-1.25,lean,shoulder+3.05),at(1.25,lean,shoulder+3.05),(fan.seat||0)%3===0?fan.color:"#44392e",1);
   }
   function buildFanDemo() {
     if(fanActive&&tool!=="inspect") {toast("End the fan test before building");return;}
